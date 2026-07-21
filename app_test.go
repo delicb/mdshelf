@@ -399,14 +399,14 @@ func TestEmbeddedWebShell(t *testing.T) {
 	handler := mustNewHandler(t, root)
 
 	tests := []struct {
-		path        string
-		contentType string
-		contains    []string
+		path                string
+		contentTypePrefixes []string
+		contains            []string
 	}{
-		{path: "/", contentType: "text/html", contains: []string{`<meta name="viewport"`, `href="./chroma.css"`}},
-		{path: "/app.css", contentType: "text/css", contains: []string{":root"}},
-		{path: "/chroma.css", contentType: "text/css", contains: []string{".chroma .kd", "prefers-color-scheme: dark"}},
-		{path: "/app.js", contentType: "text/javascript", contains: []string{`"use strict"`}},
+		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./chroma.css"`}},
+		{path: "/app.css", contentTypePrefixes: []string{"text/css"}, contains: []string{":root"}},
+		{path: "/chroma.css", contentTypePrefixes: []string{"text/css"}, contains: []string{".chroma .kd", "prefers-color-scheme: dark"}},
+		{path: "/app.js", contentTypePrefixes: []string{"text/javascript", "application/javascript"}, contains: []string{`"use strict"`}},
 	}
 	for _, test := range tests {
 		t.Run(test.path, func(t *testing.T) {
@@ -416,8 +416,16 @@ func TestEmbeddedWebShell(t *testing.T) {
 			if response.StatusCode != http.StatusOK {
 				t.Fatalf("GET %s status = %d, body = %s", test.path, response.StatusCode, body)
 			}
-			if contentType := response.Header.Get("Content-Type"); !strings.HasPrefix(contentType, test.contentType) {
-				t.Errorf("Content-Type = %q, want prefix %q", contentType, test.contentType)
+			contentType := response.Header.Get("Content-Type")
+			validContentType := false
+			for _, prefix := range test.contentTypePrefixes {
+				if strings.HasPrefix(contentType, prefix) {
+					validContentType = true
+					break
+				}
+			}
+			if !validContentType {
+				t.Errorf("Content-Type = %q, want one of prefixes %q", contentType, test.contentTypePrefixes)
 			}
 			for _, fragment := range test.contains {
 				if !strings.Contains(body, fragment) {
