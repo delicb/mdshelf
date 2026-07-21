@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#f7f7f4" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#161817" media="(prefers-color-scheme: dark)">
+    <title>MDShelf</title>
+    <link rel="stylesheet" href="./app.css">
+    <link rel="stylesheet" href="./chroma.css">
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#reader">Skip to document</a>
+
+    <header class="topbar">
+      <button
+        class="icon-button menu-button"
+        id="menu-button"
+        type="button"
+        aria-label="Open document list"
+        aria-controls="drawer"
+        aria-expanded="false"
+      >
+        <span class="menu-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+      </button>
+      <a class="brand" id="brand" href="#" aria-label="MDShelf home">MDShelf</a>
+      <p class="current-file" id="current-file">Documents</p>
+    </header>
+
+    <button class="backdrop" id="backdrop" type="button" tabindex="-1" aria-label="Close document list"></button>
+
+    <aside class="drawer" id="drawer" aria-label="Document list">
+      <div class="drawer-heading">
+        <div>
+          <p class="eyebrow">Local library</p>
+          <p class="drawer-title">MDShelf</p>
+        </div>
+        <button class="icon-button close-button" id="close-button" type="button" aria-label="Close document list">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <label class="search" for="file-filter">
+        <span class="search-icon" aria-hidden="true"></span>
+        <span class="sr-only">Filter documents</span>
+        <input id="file-filter" type="search" placeholder="Filter documents" autocomplete="off" spellcheck="false">
+      </label>
+
+      <nav class="file-nav" id="file-nav" aria-label="Markdown files">
+        <div class="nav-loading" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </nav>
+      <p class="file-count" id="file-count" aria-live="polite">Loading documents</p>
+    </aside>
+
+    <main class="reader" id="reader" tabindex="-1">
+      <div class="reader-inner">
+        <section class="status-view" id="status-view" aria-live="polite" aria-busy="true">
+          <div class="document-skeleton" aria-hidden="true">
+            <span class="skeleton-title"></span>
+            <span></span><span></span><span class="short"></span>
+            <span></span><span class="medium"></span>
+          </div>
+          <div class="status-message" id="status-message" hidden></div>
+        </section>
+        <article class="markdown" id="document" hidden></article>
+      </div>
+    </main>
+
+    <p class="sr-only" id="route-status" aria-live="polite" aria-atomic="true"></p>
+    <noscript>
+      <p class="noscript">MDShelf needs JavaScript to load documents.</p>
+    </noscript>
+  </body>
+</html>
