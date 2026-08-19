@@ -7,9 +7,9 @@
     <meta name="theme-color" content="#f7f7f4" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#161817" media="(prefers-color-scheme: dark)">
     <title>MDShelf</title>
-    <link rel="stylesheet" href="./app.css">
+    <link rel="stylesheet" href="./app.css?v=2">
     <link rel="stylesheet" href="./chroma.css">
-    <script defer src="./app.js"></script>
+    <script defer src="./app.js?v=2"></script>
   </head>
   <body>
     <a class="skip-link" href="#reader">Skip to document</a>
@@ -70,6 +70,7 @@
       </div>
     </main>
 
+    <p class="update-notice" id="update-notice" role="status" aria-live="polite" aria-atomic="true"></p>
     <p class="sr-only" id="route-status" aria-live="polite" aria-atomic="true"></p>
     <noscript>
       <p class="noscript">MDShelf needs JavaScript to load documents.</p>

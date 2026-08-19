@@ -34,6 +34,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer app.Close()
 	port := strconv.Itoa(options.port)
 
 	server := &http.Server{

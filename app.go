@@ -40,6 +40,7 @@ var embeddedWeb embed.FS
 type app struct {
 	root     string
 	markdown goldmark.Markdown
+	updates  *liveUpdates
 	handler  http.Handler
 }
 
@@ -83,6 +84,11 @@ func newApp(root string) (*app, error) {
 			goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		),
 	}
+	updates, err := newLiveUpdates(a)
+	if err != nil {
+		return nil, fmt.Errorf("watch Markdown files: %w", err)
+	}
+	a.updates = updates
 	a.handler = a.routes(http.FileServer(http.FS(web)))
 	return a, nil
 }
@@ -91,18 +97,30 @@ func (a *app) Handler() http.Handler {
 	return a.handler
 }
 
+func (a *app) Close() {
+	a.updates.Close()
+}
+
 func (a *app) routes(static http.Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/files", a.handleFiles)
 	mux.HandleFunc("/api/render", a.handleRender)
 	mux.HandleFunc("/api/asset", a.handleAsset)
+	mux.HandleFunc("/api/watch", a.handleWatch)
 	notFound := func(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "API endpoint not found")
 	}
 	mux.HandleFunc("/api", notFound)
 	mux.HandleFunc("/api/", notFound)
-	mux.Handle("/", static)
+	mux.Handle("/", revalidateStatic(static))
 	return securityHeaders(mux)
+}
+
+func revalidateStatic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func securityHeaders(next http.Handler) http.Handler {
@@ -129,6 +147,24 @@ func (a *app) handleFiles(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, struct {
 		Files []string `json:"files"`
 	}{Files: files})
+}
+
+func (a *app) handleWatch(w http.ResponseWriter, r *http.Request) {
+	if !requireGET(w, r) {
+		return
+	}
+
+	since, err := parseRevision(r.URL.Query().Get("since"))
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	batch := a.updates.waitForChanges(r.Context(), since)
+	if r.Context().Err() != nil {
+		return
+	}
+	writeJSON(w, http.StatusOK, batch)
 }
 
 func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {

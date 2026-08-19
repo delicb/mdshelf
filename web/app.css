@@ -444,6 +444,33 @@ body.drawer-open .backdrop {
   margin: 0 auto;
 }
 
+.update-notice {
+  position: fixed;
+  top: calc(var(--header-height) + 0.75rem);
+  right: 0.75rem;
+  z-index: 40;
+  max-width: min(24rem, calc(100vw - 1.5rem));
+  padding: 0.65rem 0.85rem;
+  margin: 0;
+  color: var(--surface);
+  background: var(--accent-strong);
+  border-radius: 0.55rem;
+  box-shadow: var(--shadow);
+  font-size: 0.875rem;
+  font-weight: 720;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.update-notice.is-visible {
+  animation: update-notice 2.8s ease both;
+}
+
+.markdown .content-change {
+  border-radius: 0.3rem;
+  animation: content-updated 1.1s ease-out;
+}
+
 .status-view {
   min-height: 55vh;
 }
@@ -782,6 +809,32 @@ body.drawer-open .backdrop {
   to { background-position: 0 0; }
 }
 
+@keyframes update-notice {
+  0% {
+    opacity: 0;
+    transform: translateY(-0.5rem) scale(0.97);
+  }
+  10%, 78% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes content-updated {
+  from {
+    background: var(--accent-soft);
+    box-shadow: 0 0 0 0.35rem var(--accent-soft);
+  }
+  to {
+    background: transparent;
+    box-shadow: 0 0 0 0.35rem transparent;
+  }
+}
+
 @media (min-width: 56.25rem) {
   .topbar {
     grid-template-columns: var(--drawer-width) minmax(0, 1fr);
@@ -868,5 +921,16 @@ body.drawer-open .backdrop {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .update-notice.is-visible {
+    opacity: 1;
+    animation: none;
+  }
+
+  .markdown .content-change {
+    background: var(--accent-soft);
+    box-shadow: 0 0 0 0.35rem var(--accent-soft);
+    animation: none;
   }
 }

@@ -16,6 +16,7 @@
     routeStatus: document.querySelector("#route-status"),
     statusMessage: document.querySelector("#status-message"),
     statusView: document.querySelector("#status-view"),
+    updateNotice: document.querySelector("#update-notice"),
   };
 
   const desktop = window.matchMedia("(min-width: 56.25rem)");
@@ -27,7 +28,11 @@
     fileSet: new Set(),
     filter: "",
     focusAfterNavigation: false,
+    highlightBaseline: [],
+    highlightTimer: 0,
     openFolders: new Set(),
+    pendingUpdate: null,
+    updateTimer: 0,
   };
 
   function safeDecode(value) {
@@ -173,6 +178,106 @@
     elements.document.hidden = false;
   }
 
+  function announceUpdate(message) {
+    window.clearTimeout(state.updateTimer);
+    elements.updateNotice.classList.remove("is-visible");
+    void elements.updateNotice.offsetWidth;
+    elements.updateNotice.textContent = message;
+    elements.updateNotice.classList.add("is-visible");
+    state.updateTimer = window.setTimeout(() => {
+      elements.updateNotice.classList.remove("is-visible");
+    }, 2800);
+  }
+
+  function pageIsActive() {
+    return document.visibilityState === "visible" && document.hasFocus();
+  }
+
+  function showUpdate(update) {
+    state.pendingUpdate = null;
+    if (update.signatures) state.highlightBaseline = update.signatures;
+
+    window.clearTimeout(state.highlightTimer);
+    for (const block of update.blocks) block.classList.remove("content-change");
+    if (update.blocks.length) {
+      void update.blocks[0].offsetWidth;
+      for (const block of update.blocks) block.classList.add("content-change");
+      state.highlightTimer = window.setTimeout(() => {
+        for (const block of update.blocks) block.classList.remove("content-change");
+      }, 1200);
+    }
+    announceUpdate(update.message);
+  }
+
+  function queueUpdate(message, blocks = [], signatures = null) {
+    const update = { blocks, message, signatures };
+    if (pageIsActive()) {
+      showUpdate(update);
+      return;
+    }
+    if (state.pendingUpdate && !signatures) {
+      state.pendingUpdate.message = message;
+      return;
+    }
+    state.pendingUpdate = update;
+  }
+
+  function showPendingUpdate() {
+    if (pageIsActive() && state.pendingUpdate) showUpdate(state.pendingUpdate);
+  }
+
+  function blockSignatures(root) {
+    return [...root.children].map((block) => block.outerHTML);
+  }
+
+  function changedBlockIndexes(previous, next) {
+    let start = 0;
+    while (start < previous.length && start < next.length && previous[start] === next[start]) start += 1;
+
+    let previousEnd = previous.length;
+    let nextEnd = next.length;
+    while (previousEnd > start && nextEnd > start && previous[previousEnd - 1] === next[nextEnd - 1]) {
+      previousEnd -= 1;
+      nextEnd -= 1;
+    }
+
+    const changed = new Set();
+    for (let index = start; index < nextEnd; index += 1) changed.add(index);
+    const previousLength = previousEnd - start;
+    const nextLength = nextEnd - start;
+    if (
+      !previousLength
+      || !nextLength
+      || previousLength > 2000
+      || nextLength > 2000
+      || previousLength * nextLength > 1_000_000
+    ) return changed;
+
+    const matches = Array.from({ length: previousLength + 1 }, () => new Uint32Array(nextLength + 1));
+    for (let previousIndex = previousLength - 1; previousIndex >= 0; previousIndex -= 1) {
+      for (let nextIndex = nextLength - 1; nextIndex >= 0; nextIndex -= 1) {
+        matches[previousIndex][nextIndex] = previous[start + previousIndex] === next[start + nextIndex]
+          ? matches[previousIndex + 1][nextIndex + 1] + 1
+          : Math.max(matches[previousIndex + 1][nextIndex], matches[previousIndex][nextIndex + 1]);
+      }
+    }
+
+    let previousIndex = 0;
+    let nextIndex = 0;
+    while (previousIndex < previousLength && nextIndex < nextLength) {
+      if (previous[start + previousIndex] === next[start + nextIndex]) {
+        changed.delete(start + nextIndex);
+        previousIndex += 1;
+        nextIndex += 1;
+      } else if (matches[previousIndex + 1][nextIndex] >= matches[previousIndex][nextIndex + 1]) {
+        previousIndex += 1;
+      } else {
+        nextIndex += 1;
+      }
+    }
+    return changed;
+  }
+
   async function fetchJSON(url, options = {}) {
     const response = await fetch(url, {
       ...options,
@@ -291,6 +396,22 @@
     }
   }
 
+  function setFileList(payload) {
+    if (!Array.isArray(payload?.files)) throw new Error("The server returned an invalid file list.");
+    state.files = [...new Set(payload.files
+      .filter((path) => typeof path === "string")
+      .map(normalizePath)
+      .filter(Boolean))]
+      .sort(collator.compare);
+    state.fileSet = new Set(state.files);
+    elements.brand.href = state.files.length ? buildRoute(defaultDocument()) : "#";
+    renderFileTree();
+  }
+
+  async function refreshFileList() {
+    setFileList(await fetchJSON("/api/files"));
+  }
+
   function assetURL(documentPath, reference) {
     const { path, fragment } = splitReference(reference);
     const resolved = resolveReference(documentPath, path);
@@ -396,8 +517,9 @@
     elements.routeStatus.textContent = `Loaded ${title}`;
   }
 
-  async function loadDocument(path, fragment = "") {
-    if (path === state.currentPath && !elements.document.hidden) {
+  async function loadDocument(path, fragment = "", options = {}) {
+    const live = options.live === true;
+    if (!options.force && path === state.currentPath && !elements.document.hidden) {
       finishNavigation(fragment, elements.currentFile.textContent || titleFromPath(path));
       return;
     }
@@ -408,7 +530,7 @@
     state.currentPath = path;
     elements.currentFile.textContent = fileName(path);
     updateActiveFile();
-    showLoading();
+    if (!live) showLoading();
 
     try {
       const payload = await fetchJSON(`/api/render?path=${encodeURIComponent(path)}`, { signal: controller.signal });
@@ -418,10 +540,15 @@
       const title = typeof payload.title === "string" && payload.title.trim()
         ? payload.title.trim()
         : titleFromPath(renderedPath);
+      const previousScroll = window.scrollY;
 
       state.currentPath = renderedPath;
       const template = document.createElement("template");
       template.innerHTML = payload.html;
+      const blocks = [...template.content.children];
+      const signatures = blockSignatures(template.content);
+      const changedIndexes = live ? changedBlockIndexes(state.highlightBaseline, signatures) : new Set();
+      const changedBlocks = blocks.filter((_, index) => changedIndexes.has(index));
       prepareDocument(template.content, renderedPath);
       elements.document.replaceChildren(template.content);
       elements.document.setAttribute("aria-label", title);
@@ -429,7 +556,16 @@
       document.title = `${title} | MDShelf`;
       updateActiveFile();
       showDocument();
-      finishNavigation(fragment, title);
+      if (live) {
+        window.requestAnimationFrame(() => window.scrollTo({ top: previousScroll, behavior: "auto" }));
+        elements.routeStatus.textContent = `Updated ${title}`;
+        queueUpdate(`${fileName(renderedPath)} updated`, changedBlocks, signatures);
+      } else {
+        window.clearTimeout(state.highlightTimer);
+        state.highlightBaseline = signatures;
+        state.pendingUpdate = null;
+        finishNavigation(fragment, title);
+      }
     } catch (error) {
       if (error.name === "AbortError") return;
       const message = error instanceof TypeError
@@ -446,8 +582,7 @@
     if (!route.path) {
       const path = defaultDocument();
       window.history.replaceState(null, "", buildRoute(path));
-      loadDocument(path);
-      return;
+      return loadDocument(path);
     }
 
     if (!state.fileSet.has(route.path)) {
@@ -466,23 +601,96 @@
       return;
     }
 
-    loadDocument(route.path, route.fragment);
+    return loadDocument(route.path, route.fragment);
+  }
+
+  function showRemovedDocument(path) {
+    state.currentPath = "";
+    state.highlightBaseline = [];
+    state.pendingUpdate = null;
+    updateActiveFile();
+    elements.currentFile.textContent = "Document removed";
+    document.title = "Document removed | MDShelf";
+    elements.routeStatus.textContent = `${fileName(path)} was removed`;
+    const fallback = defaultDocument();
+    showMessage(
+      "Document removed",
+      "This Markdown file no longer exists.",
+      fallback ? () => { window.location.hash = buildRoute(fallback); } : null,
+    );
+    queueUpdate(`${fileName(path)} removed`);
+  }
+
+  async function applyChanges(payload) {
+    if (!Number.isSafeInteger(payload?.revision) || payload.revision < 0 || !Array.isArray(payload?.changes)) {
+      throw new Error("The server returned an invalid change list.");
+    }
+
+    const changes = payload.changes.filter((change) => (
+      change
+      && typeof change.path === "string"
+      && ["added", "removed", "updated"].includes(change.kind)
+    ));
+    if (payload.reset || changes.some((change) => change.kind !== "updated")) {
+      await refreshFileList();
+    }
+
+    const currentPath = state.currentPath;
+    let currentChange = null;
+    for (let index = changes.length - 1; index >= 0; index -= 1) {
+      if (normalizePath(changes[index].path) === currentPath) {
+        currentChange = changes[index];
+        break;
+      }
+    }
+
+    if (currentPath && (payload.reset || currentChange)) {
+      if (!state.fileSet.has(currentPath) || currentChange?.kind === "removed") {
+        showRemovedDocument(currentPath);
+        return;
+      }
+      const route = readRoute();
+      await loadDocument(currentPath, route.fragment, { force: true, live: true });
+      return;
+    }
+
+    if (!currentPath && state.files.length) {
+      const nextPath = readRoute().path;
+      const path = state.fileSet.has(nextPath) ? nextPath : defaultDocument();
+      window.history.replaceState(null, "", buildRoute(path));
+      await loadDocument(path, "", { force: true, live: true });
+      return;
+    }
+
+    const latest = changes[changes.length - 1];
+    if (latest) queueUpdate(`${fileName(normalizePath(latest.path))} ${latest.kind}`);
+  }
+
+  function wait(duration) {
+    return new Promise((resolve) => window.setTimeout(resolve, duration));
+  }
+
+  async function watchChanges() {
+    let revision = 0;
+    let retryDelay = 500;
+    while (true) {
+      try {
+        const payload = await fetchJSON(`/api/watch?since=${revision}`);
+        await applyChanges(payload);
+        revision = payload.revision;
+        retryDelay = 500;
+      } catch {
+        await wait(retryDelay);
+        retryDelay = Math.min(retryDelay * 2, 8000);
+      }
+    }
   }
 
   async function initialize() {
     showLoading();
     elements.fileCount.textContent = "Loading documents";
     try {
-      const payload = await fetchJSON("/api/files");
-      if (!Array.isArray(payload?.files)) throw new Error("The server returned an invalid file list.");
-
-      state.files = [...new Set(payload.files
-        .filter((path) => typeof path === "string")
-        .map(normalizePath)
-        .filter(Boolean))]
-        .sort(collator.compare);
-      state.fileSet = new Set(state.files);
-      renderFileTree();
+      await refreshFileList();
 
       if (!state.files.length) {
         elements.currentFile.textContent = "No documents";
@@ -495,8 +703,7 @@
         return;
       }
 
-      elements.brand.href = buildRoute(defaultDocument());
-      handleRoute();
+      await handleRoute();
     } catch (error) {
       const message = error instanceof TypeError
         ? "MDShelf could not reach the local server."
@@ -562,8 +769,10 @@
     }
   });
 
+  window.addEventListener("focus", showPendingUpdate);
   window.addEventListener("hashchange", handleRoute);
+  document.addEventListener("visibilitychange", showPendingUpdate);
   desktop.addEventListener("change", () => setDrawer(false, false));
   setDrawer(false, false);
-  initialize();
+  initialize().then(watchChanges);
 })();

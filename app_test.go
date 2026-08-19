@@ -380,6 +380,7 @@ func TestAPIRejectsUnsupportedMethods(t *testing.T) {
 		"/api/files",
 		apiPath("/api/render", "doc.md"),
 		apiPath("/api/asset", "pixel.png"),
+		"/api/watch?since=0",
 	} {
 		t.Run(target, func(t *testing.T) {
 			response := request(t, handler, http.MethodPost, target, strings.NewReader("ignored"))
@@ -403,10 +404,10 @@ func TestEmbeddedWebShell(t *testing.T) {
 		contentTypePrefixes []string
 		contains            []string
 	}{
-		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./chroma.css"`}},
-		{path: "/app.css", contentTypePrefixes: []string{"text/css"}, contains: []string{":root"}},
+		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./app.css?v=2"`, `href="./chroma.css"`, `src="./app.js?v=2"`, `id="update-notice"`}},
+		{path: "/app.css", contentTypePrefixes: []string{"text/css"}, contains: []string{":root", "@keyframes content-updated"}},
 		{path: "/chroma.css", contentTypePrefixes: []string{"text/css"}, contains: []string{".chroma .kd", "prefers-color-scheme: dark"}},
-		{path: "/app.js", contentTypePrefixes: []string{"text/javascript", "application/javascript"}, contains: []string{`"use strict"`}},
+		{path: "/app.js", contentTypePrefixes: []string{"text/javascript", "application/javascript"}, contains: []string{`"use strict"`, "/api/watch?since="}},
 	}
 	for _, test := range tests {
 		t.Run(test.path, func(t *testing.T) {
@@ -415,6 +416,9 @@ func TestEmbeddedWebShell(t *testing.T) {
 			body := readBody(t, response)
 			if response.StatusCode != http.StatusOK {
 				t.Fatalf("GET %s status = %d, body = %s", test.path, response.StatusCode, body)
+			}
+			if cacheControl := response.Header.Get("Cache-Control"); cacheControl != "no-cache" {
+				t.Errorf("Cache-Control = %q, want no-cache", cacheControl)
 			}
 			contentType := response.Header.Get("Content-Type")
 			validContentType := false
@@ -442,6 +446,7 @@ func mustNewHandler(t *testing.T, root string) http.Handler {
 	if err != nil {
 		t.Fatalf("newApp(%q): %v", root, err)
 	}
+	t.Cleanup(app.Close)
 	return app.Handler()
 }
 

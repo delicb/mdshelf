@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    name: Verify and package
+  verify:
+    name: Verify source
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -65,24 +65,55 @@ jobs:
           node --check web/app.js
           go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
 
+  build:
+    name: Package ${{ matrix.group }}
+    needs: verify
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: darwin
+            runner: macos-15
+            cgo: "1"
+            targets: "darwin/amd64 darwin/arm64"
+          - group: portable
+            runner: ubuntu-latest
+            cgo: "0"
+            targets: "linux/amd64 linux/arm64 windows/amd64 windows/arm64"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          cache-dependency-path: go.sum
+
+      - name: Test native watcher
+        if: matrix.group == 'darwin'
+        shell: bash
+        run: go test -race -count=1 ./...
+
       - name: Build release archives
         shell: bash
+        env:
+          CGO_ENABLED: ${{ matrix.cgo }}
+          TARGETS: ${{ matrix.targets }}
         run: |
           set -euo pipefail
 
           version="${GITHUB_REF_NAME#v}"
-          targets=(
-            darwin/amd64
-            darwin/arm64
-            linux/amd64
-            linux/arm64
-            windows/amd64
-            windows/arm64
-          )
-
           mkdir -p build dist
 
-          for target in "${targets[@]}"; do
+          for target in $TARGETS; do
             target_os="${target%/*}"
             target_arch="${target#*/}"
             base="mdshelf_${version}_${target_os}_${target_arch}"
@@ -94,7 +125,7 @@ jobs:
               binary+=".exe"
             fi
 
-            CGO_ENABLED=0 GOOS="$target_os" GOARCH="$target_arch" \
+            GOOS="$target_os" GOARCH="$target_arch" \
               go build -trimpath -ldflags="-s -w" -o "$binary" .
 
             cp LICENSE README.md THIRD_PARTY_NOTICES "$stage/"
@@ -109,15 +140,10 @@ jobs:
             fi
           done
 
-          (
-            cd dist
-            sha256sum ./*.tar.gz ./*.zip > SHA256SUMS
-          )
-
-      - name: Store release assets
+      - name: Store release archives
         uses: actions/upload-artifact@v7
         with:
-          name: release-assets
+          name: release-${{ matrix.group }}
           path: dist/
           if-no-files-found: error
           retention-days: 1
@@ -132,11 +158,18 @@ jobs:
       contents: write
 
     steps:
-      - name: Download release assets
+      - name: Download release archives
         uses: actions/download-artifact@v8
         with:
-          name: release-assets
+          pattern: release-*
           path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd dist
+          sha256sum ./*.tar.gz ./*.zip > SHA256SUMS
 
       - name: Create GitHub release
         env:
