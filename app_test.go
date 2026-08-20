@@ -442,9 +442,9 @@ func TestEmbeddedWebShell(t *testing.T) {
 
 func mustNewHandler(t *testing.T, root string) http.Handler {
 	t.Helper()
-	app, err := newApp(root)
+	app, err := newAppWithWatcher(root, false)
 	if err != nil {
-		t.Fatalf("newApp(%q): %v", root, err)
+		t.Fatalf("newAppWithWatcher(%q, false): %v", root, err)
 	}
 	t.Cleanup(app.Close)
 	return app.Handler()

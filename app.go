@@ -45,6 +45,10 @@ type app struct {
 }
 
 func newApp(root string) (*app, error) {
+	return newAppWithWatcher(root, true)
+}
+
+func newAppWithWatcher(root string, watch bool) (*app, error) {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("resolve root: %w", err)
@@ -84,7 +88,7 @@ func newApp(root string) (*app, error) {
 			goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		),
 	}
-	updates, err := newLiveUpdates(a)
+	updates, err := newLiveUpdates(a, watch)
 	if err != nil {
 		return nil, fmt.Errorf("watch Markdown files: %w", err)
 	}

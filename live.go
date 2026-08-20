@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/pmezard/go-difflib/difflib"
-	"github.com/rjeczalik/notify"
 )
 
 const (
@@ -44,8 +43,7 @@ type changeBatch struct {
 
 type liveUpdates struct {
 	app       *app
-	events    chan notify.EventInfo
-	stop      chan struct{}
+	watcher   fileWatcher
 	done      chan struct{}
 	closeOnce sync.Once
 
@@ -58,18 +56,27 @@ type liveUpdates struct {
 	closed       bool
 }
 
-func newLiveUpdates(a *app) (*liveUpdates, error) {
+func newLiveUpdates(a *app, watch bool) (*liveUpdates, error) {
 	u := &liveUpdates{
 		app:       a,
-		events:    make(chan notify.EventInfo, 256),
-		stop:      make(chan struct{}),
 		done:      make(chan struct{}),
 		snapshots: make(map[string][]byte),
 		changed:   make(chan struct{}),
 	}
 
+	if watch {
+		watcher, err := newFileWatcher(a.root)
+		if err != nil {
+			return nil, fmt.Errorf("start file watcher: %w", err)
+		}
+		u.watcher = watcher
+	}
+
 	files, err := a.markdownFiles()
 	if err != nil {
+		if u.watcher != nil {
+			_ = u.watcher.Close()
+		}
 		return nil, fmt.Errorf("list initial Markdown files: %w", err)
 	}
 	for _, filePath := range files {
@@ -81,20 +88,20 @@ func newLiveUpdates(a *app) (*liveUpdates, error) {
 		u.snapshots[filePath] = source
 	}
 
-	watchPath := filepath.Join(a.root, "...")
-	if err := notify.Watch(watchPath, u.events, notify.Create, notify.Remove, notify.Rename, notify.Write); err != nil {
-		return nil, fmt.Errorf("start file watcher: %w", err)
+	if u.watcher != nil {
+		go u.run()
 	}
-
-	go u.run()
 	return u, nil
 }
 
 func (u *liveUpdates) Close() {
 	u.closeOnce.Do(func() {
-		notify.Stop(u.events)
-		close(u.stop)
-		<-u.done
+		if u.watcher != nil {
+			if err := u.watcher.Close(); err != nil {
+				log.Printf("close file watcher: %v", err)
+			}
+			<-u.done
+		}
 
 		u.mu.Lock()
 		u.closed = true
@@ -110,13 +117,23 @@ func (u *liveUpdates) run() {
 	rescan := false
 	var timer *time.Timer
 	var timerC <-chan time.Time
+	defer func() {
+		if timer != nil {
+			timer.Stop()
+		}
+	}()
 
+	events := u.watcher.Events()
+	errors := u.watcher.Errors()
 	for {
 		select {
-		case event := <-u.events:
-			if u.markdownDirectoryChanged(event.Path()) {
+		case eventPath, ok := <-events:
+			if !ok {
+				return
+			}
+			if u.markdownDirectoryChanged(eventPath) {
 				rescan = true
-			} else if filePath, ok := u.markdownPath(event.Path()); ok {
+			} else if filePath, ok := u.markdownPath(eventPath); ok {
 				pending[filePath] = struct{}{}
 			} else {
 				continue
@@ -149,11 +166,12 @@ func (u *liveUpdates) run() {
 			clear(pending)
 			rescan = false
 			timerC = nil
-		case <-u.stop:
-			if timer != nil {
-				timer.Stop()
+		case err, ok := <-errors:
+			if !ok {
+				errors = nil
+				continue
 			}
-			return
+			log.Printf("file watcher: %v", err)
 		}
 	}
 }

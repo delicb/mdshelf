@@ -18,6 +18,7 @@ func TestLiveUpdatesRememberMarkdownDiffsAndIgnoreOtherFiles(t *testing.T) {
 	app := mustNewTestApp(t, root)
 
 	mustWriteFile(t, root, "note.md", "# Note\n\nnew\n")
+	app.updates.recordAllChanges()
 	batch := waitForChange(t, app.updates, 0)
 	if batch.Revision != 1 || len(batch.Changes) != 1 {
 		t.Fatalf("first batch = %#v, want one change at revision 1", batch)
@@ -34,6 +35,7 @@ func TestLiveUpdatesRememberMarkdownDiffsAndIgnoreOtherFiles(t *testing.T) {
 
 	mustWriteFile(t, root, "ignore.txt", "new\n")
 	mustWriteFile(t, root, "note.md", "# Note\n\nnewer\n")
+	app.updates.recordAllChanges()
 	batch = waitForChange(t, app.updates, batch.Revision)
 	if batch.Revision != 2 || len(batch.Changes) != 1 {
 		t.Fatalf("second batch = %#v, want one change at revision 2", batch)
@@ -48,6 +50,7 @@ func TestLiveUpdatesTrackAddedAndRemovedMarkdown(t *testing.T) {
 	app := mustNewTestApp(t, root)
 
 	mustWriteFile(t, root, "guides/new.MarkDown", "# New\n")
+	app.updates.recordAllChanges()
 	added := waitForChange(t, app.updates, 0)
 	if len(added.Changes) != 1 || added.Changes[0].Kind != "added" || added.Changes[0].Path != "guides/new.MarkDown" {
 		t.Fatalf("added batch = %#v", added)
@@ -59,6 +62,7 @@ func TestLiveUpdatesTrackAddedAndRemovedMarkdown(t *testing.T) {
 	if err := os.Remove(filepath.Join(root, "guides", "new.MarkDown")); err != nil {
 		t.Fatalf("remove Markdown file: %v", err)
 	}
+	app.updates.recordAllChanges()
 	removed := waitForChange(t, app.updates, added.Revision)
 	if len(removed.Changes) != 1 || removed.Changes[0].Kind != "removed" || removed.Changes[0].Path != "guides/new.MarkDown" {
 		t.Fatalf("removed batch = %#v", removed)
@@ -123,9 +127,9 @@ func waitForChange(t *testing.T, updates *liveUpdates, since uint64) changeBatch
 
 func mustNewTestApp(t *testing.T, root string) *app {
 	t.Helper()
-	app, err := newApp(root)
+	app, err := newAppWithWatcher(root, false)
 	if err != nil {
-		t.Fatalf("newApp(%q): %v", root, err)
+		t.Fatalf("newAppWithWatcher(%q, false): %v", root, err)
 	}
 	t.Cleanup(app.Close)
 	return app
