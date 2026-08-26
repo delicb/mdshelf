@@ -96,6 +96,14 @@ func actualDirectoryEntryName(parent, name string) (string, error) {
 	return name, nil
 }
 
+func displayDocumentPath(path string) string {
+	name, err := actualDirectoryEntryName(filepath.Dir(path), filepath.Base(path))
+	if err != nil {
+		return path
+	}
+	return filepath.Join(filepath.Dir(path), name)
+}
+
 func isCaseInsensitiveDirectory(path string) bool {
 	for {
 		info, err := os.Lstat(path)

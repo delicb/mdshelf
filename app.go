@@ -209,7 +209,7 @@ func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
 		HTML         string `json:"html"`
 	}{
 		Path:         cleanPath,
-		AbsolutePath: filepath.Join(a.root, filepath.FromSlash(cleanPath)),
+		AbsolutePath: displayDocumentPath(filepath.Join(a.root, filepath.FromSlash(cleanPath))),
 		Title:        rendered.title,
 		HTML:         rendered.html,
 	})

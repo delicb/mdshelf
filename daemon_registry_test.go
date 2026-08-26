@@ -19,7 +19,7 @@ func TestDocumentIDIsStableAndOpaque(t *testing.T) {
 	}
 }
 
-func TestCanonicalDocumentPathUsesExistingEntryCaseOnCaseInsensitiveFilesystem(t *testing.T) {
+func TestCanonicalDocumentPathNormalizesAliasesOnCaseInsensitiveFilesystem(t *testing.T) {
 	root := t.TempDir()
 	actual := mustWriteFile(t, root, "Note.md", "# Note\n")
 	input := filepath.Join(root, "note.md")
@@ -38,6 +38,13 @@ func TestCanonicalDocumentPathUsesExistingEntryCaseOnCaseInsensitiveFilesystem(t
 	}
 	if canonical != actualCanonical {
 		t.Fatalf("alias canonical path = %q, actual canonical path = %q", canonical, actualCanonical)
+	}
+	wantDisplay, err := filepath.EvalSymlinks(actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if display := displayDocumentPath(canonical); display != wantDisplay {
+		t.Fatalf("display path = %q, want %q", display, wantDisplay)
 	}
 }
 

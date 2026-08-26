@@ -21,6 +21,7 @@
   };
 
   const desktop = window.matchMedia("(min-width: 56.25rem)");
+  const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
   const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
   const state = {
     abortController: null,
@@ -807,8 +808,23 @@
     }
   }
 
+  function initializeMermaid() {
+    window.mermaid?.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      theme: colorScheme.matches ? "dark" : "default",
+    });
+  }
+
+  function handleColorSchemeChange() {
+    initializeMermaid();
+    if (!state.currentPath || elements.document.hidden || !isDocumentAvailable(state.currentPath)) return;
+    const route = readRoute();
+    void loadDocument(state.currentPath, route.fragment, { force: true });
+  }
+
   async function initialize() {
-    window.mermaid?.initialize({ startOnLoad: false, securityLevel: "strict" });
+    initializeMermaid();
     showLoading();
     elements.fileCount.textContent = "Loading documents";
     try {
@@ -846,6 +862,7 @@
     window.__MDSHELF_TEST_API__ = {
       cancelDocumentLoad,
       documentPathElement: elements.documentPath,
+      initializeMermaid,
       isCurrentLoad,
       renderMermaid,
       setDocumentPath,
@@ -909,6 +926,7 @@
   window.addEventListener("hashchange", handleRoute);
   document.addEventListener("visibilitychange", showPendingUpdate);
   desktop.addEventListener("change", () => setDrawer(false, false));
+  colorScheme.addEventListener("change", handleColorSchemeChange);
   setDrawer(false, false);
   initialize().then(watchChanges);
 })();

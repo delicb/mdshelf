@@ -442,7 +442,7 @@ func TestEmbeddedWebShell(t *testing.T) {
 		contentTypePrefixes []string
 		contains            []string
 	}{
-		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./app.css?v=4"`, `href="./chroma.css"`, `src="./vendor/mermaid.min.js?v=11.17.2"`, `src="./app.js?v=4"`, `id="document-path"`, `id="update-notice"`}},
+		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./app.css?v=4"`, `href="./chroma.css"`, `src="./vendor/mermaid.min.js?v=11.17.2"`, `src="./app.js?v=5"`, `id="document-path"`, `id="update-notice"`}},
 		{path: "/app.css", contentTypePrefixes: []string{"text/css"}, contains: []string{":root", "@keyframes content-updated"}},
 		{path: "/chroma.css", contentTypePrefixes: []string{"text/css"}, contains: []string{".chroma .kd", "prefers-color-scheme: dark"}},
 		{path: "/app.js", contentTypePrefixes: []string{"text/javascript", "application/javascript"}, contains: []string{`"use strict"`, "/api/watch?since=", "window.mermaid"}},

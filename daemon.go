@@ -205,7 +205,7 @@ func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
 		HTML         string `json:"html"`
 	}{
 		Path:         document.ID,
-		AbsolutePath: document.Path,
+		AbsolutePath: displayDocumentPath(document.Path),
 		Title:        rendered.title,
 		HTML:         rendered.html,
 	})

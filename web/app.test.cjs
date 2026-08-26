@@ -9,10 +9,10 @@ function deferred() {
   return { promise, resolve };
 }
 
-function loadApp(mermaid) {
+function loadApp(mermaid, dark = false) {
   const window = {
     __MDSHELF_TEST__: true,
-    matchMedia: () => ({ matches: false }),
+    matchMedia: (query) => ({ matches: dark && query === "(prefers-color-scheme: dark)" }),
     mermaid,
   };
   const documentPath = { hidden: true, textContent: "" };
@@ -55,6 +55,17 @@ test("The document path shows and hides", () => {
   api.setDocumentPath("");
   assert.equal(api.documentPathElement.textContent, "");
   assert.equal(api.documentPathElement.hidden, true);
+});
+
+test("Mermaid uses the active color scheme", () => {
+  for (const [dark, want] of [[false, "default"], [true, "dark"]]) {
+    let options;
+    const api = loadApp({ initialize(value) { options = value; } }, dark);
+    api.initializeMermaid();
+    assert.equal(options.theme, want);
+    assert.equal(options.startOnLoad, false);
+    assert.equal(options.securityLevel, "strict");
+  }
 });
 
 test("Mermaid calls stay serialized across document renders", async () => {
