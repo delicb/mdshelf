@@ -5,26 +5,46 @@
     backdrop: document.querySelector("#backdrop"),
     brand: document.querySelector("#brand"),
     closeButton: document.querySelector("#close-button"),
+    colorTheme: document.querySelector("#color-theme"),
     currentFile: document.querySelector("#current-file"),
     document: document.querySelector("#document"),
     documentPath: document.querySelector("#document-path"),
     drawer: document.querySelector("#drawer"),
+    demoLink: document.querySelector("#demo-link"),
     fileCount: document.querySelector("#file-count"),
     fileFilter: document.querySelector("#file-filter"),
     fileNav: document.querySelector("#file-nav"),
     menuButton: document.querySelector("#menu-button"),
     reader: document.querySelector("#reader"),
     routeStatus: document.querySelector("#route-status"),
+    settings: document.querySelector(".settings"),
+    settingsButton: document.querySelector("#settings-button"),
+    settingsPopup: document.querySelector("#settings-popup"),
     statusMessage: document.querySelector("#status-message"),
     statusView: document.querySelector("#status-view"),
+    syntaxTheme: document.querySelector("#syntax-theme"),
     updateNotice: document.querySelector("#update-notice"),
   };
 
   const desktop = window.matchMedia("(min-width: 56.25rem)");
   const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
   const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+  const demoDocumentPath = "__mdshelf_demo__";
+  const colorThemes = new Set([
+    "system", "light", "dark", "catppuccin-latte", "catppuccin-mocha",
+    "dracula", "nord", "solarized-light", "solarized-dark",
+  ]);
+  const darkColorThemes = new Set(["dark", "catppuccin-mocha", "dracula", "nord", "solarized-dark"]);
+  const syntaxThemes = new Set([
+    "github-auto", "catppuccin-auto", "solarized-auto", "dracula", "monokai", "nord", "tokyonight-night",
+  ]);
+  const themeStorage = {
+    color: "mdshelf.colorTheme",
+    syntax: "mdshelf.syntaxTheme",
+  };
   const state = {
     abortController: null,
+    colorTheme: "system",
     currentPath: "",
     files: [],
     fileSet: new Set(),
@@ -41,6 +61,7 @@
     renderGeneration: 0,
     mermaidCounter: 0,
     mermaidQueue: Promise.resolve(),
+    syntaxTheme: "github-auto",
   };
 
   function safeDecode(value) {
@@ -120,11 +141,78 @@
   }
 
   function displayName(path) {
+    if (path === demoDocumentPath) return "MDShelf demo";
     return state.titles.get(path) || fileName(path);
   }
 
   function isDocumentAvailable(path) {
+    if (path === demoDocumentPath) return true;
     return state.fileSet.has(path) && (!state.daemonMode || state.removed.get(path) !== true);
+  }
+
+  function storedTheme(key, choices, fallback) {
+    try {
+      const value = window.localStorage.getItem(key);
+      return choices.has(value) ? value : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function loadThemePreferences() {
+    state.colorTheme = storedTheme(themeStorage.color, colorThemes, "system");
+    state.syntaxTheme = storedTheme(themeStorage.syntax, syntaxThemes, "github-auto");
+  }
+
+  function isDarkColorTheme() {
+    return state.colorTheme === "system" ? colorScheme.matches : darkColorThemes.has(state.colorTheme);
+  }
+
+  function resolvedSyntaxTheme() {
+    const dark = isDarkColorTheme();
+    switch (state.syntaxTheme) {
+      case "github-auto": return dark ? "github-dark" : "github";
+      case "catppuccin-auto": return dark ? "catppuccin-mocha" : "catppuccin-latte";
+      case "solarized-auto": return dark ? "solarized-dark" : "solarized-light";
+      default: return state.syntaxTheme;
+    }
+  }
+
+  function applyThemePreferences() {
+    document.documentElement.dataset.colorTheme = state.colorTheme;
+    document.documentElement.dataset.syntaxTheme = resolvedSyntaxTheme();
+    elements.colorTheme.value = state.colorTheme;
+    elements.syntaxTheme.value = state.syntaxTheme;
+  }
+
+  function saveTheme(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      return;
+    }
+  }
+
+  function refreshDocumentTheme() {
+    initializeMermaid();
+    if (!state.currentPath || elements.document.hidden || !isDocumentAvailable(state.currentPath)) return;
+    const route = readRoute();
+    void loadDocument(state.currentPath, route.fragment, { force: true });
+  }
+
+  function setColorTheme(value) {
+    if (!colorThemes.has(value)) return;
+    state.colorTheme = value;
+    saveTheme(themeStorage.color, value);
+    applyThemePreferences();
+    refreshDocumentTheme();
+  }
+
+  function setSyntaxTheme(value) {
+    if (!syntaxThemes.has(value)) return;
+    state.syntaxTheme = value;
+    saveTheme(themeStorage.syntax, value);
+    applyThemePreferences();
   }
 
   function defaultDocument(exclude = "") {
@@ -152,6 +240,17 @@
       window.requestAnimationFrame(() => elements.fileFilter.focus());
     } else if (restoreFocus) {
       elements.menuButton.focus();
+    }
+  }
+
+  function setSettingsPopup(open, restoreFocus = true) {
+    elements.settingsPopup.hidden = !open;
+    elements.settingsButton.setAttribute("aria-expanded", String(open));
+    elements.settingsButton.setAttribute("aria-label", open ? "Close settings" : "Open settings");
+    if (open) {
+      window.requestAnimationFrame(() => elements.colorTheme.focus());
+    } else if (restoreFocus) {
+      elements.settingsButton.focus();
     }
   }
 
@@ -422,6 +521,8 @@
       if (link.dataset.path === state.currentPath) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
     }
+    if (state.currentPath === demoDocumentPath) elements.demoLink.setAttribute("aria-current", "page");
+    else elements.demoLink.removeAttribute("aria-current");
   }
 
   function setFileList(payload) {
@@ -634,7 +735,10 @@
     try {
       const payload = await fetchJSON(`/api/render?path=${encodeURIComponent(path)}`, { signal: controller.signal });
       if (!isCurrentLoad(controller)) return;
-      if (typeof payload?.html !== "string" || typeof payload.absolutePath !== "string" || !payload.absolutePath) {
+      if (
+        typeof payload?.html !== "string"
+        || (payload.absolutePath !== undefined && typeof payload.absolutePath !== "string")
+      ) {
         throw new Error("The server returned an invalid document.");
       }
 
@@ -657,7 +761,7 @@
       elements.document.replaceChildren(template.content);
       elements.document.setAttribute("aria-label", title);
       elements.currentFile.textContent = displayName(renderedPath);
-      setDocumentPath(payload.absolutePath);
+      setDocumentPath(payload.absolutePath || "");
       document.title = `${title} | MDShelf`;
       updateActiveFile();
       showDocument();
@@ -685,8 +789,9 @@
   }
 
   function handleRoute() {
-    if (!state.files.length) return;
     const route = readRoute();
+    if (route.path === demoDocumentPath) return loadDocument(demoDocumentPath, route.fragment);
+    if (!state.files.length) return;
     if (!route.path) {
       const path = defaultDocument();
       if (!path && state.daemonMode && state.files.length) {
@@ -812,15 +917,14 @@
     window.mermaid?.initialize({
       startOnLoad: false,
       securityLevel: "strict",
-      theme: colorScheme.matches ? "dark" : "default",
+      theme: isDarkColorTheme() ? "dark" : "default",
     });
   }
 
   function handleColorSchemeChange() {
-    initializeMermaid();
-    if (!state.currentPath || elements.document.hidden || !isDocumentAvailable(state.currentPath)) return;
-    const route = readRoute();
-    void loadDocument(state.currentPath, route.fragment, { force: true });
+    if (state.colorTheme !== "system") return;
+    applyThemePreferences();
+    refreshDocumentTheme();
   }
 
   async function initialize() {
@@ -830,7 +934,7 @@
     try {
       await refreshFileList();
 
-      if (!state.files.length) {
+      if (!state.files.length && readRoute().path !== demoDocumentPath) {
         setDocumentPath("");
         elements.currentFile.textContent = "No documents";
         document.title = "MDShelf";
@@ -858,14 +962,23 @@
     }
   }
 
+  loadThemePreferences();
+  applyThemePreferences();
+
   if (window.__MDSHELF_TEST__) {
     window.__MDSHELF_TEST_API__ = {
       cancelDocumentLoad,
+      colorThemeElement: elements.colorTheme,
       documentPathElement: elements.documentPath,
       initializeMermaid,
       isCurrentLoad,
+      isDocumentAvailable,
       renderMermaid,
+      rootElement: document.documentElement,
+      setColorTheme,
       setDocumentPath,
+      setSyntaxTheme,
+      syntaxThemeElement: elements.syntaxTheme,
       setAbortController(controller) { state.abortController = controller; },
     };
     return;
@@ -874,9 +987,21 @@
   elements.menuButton.addEventListener("click", () => setDrawer(true));
   elements.closeButton.addEventListener("click", () => setDrawer(false));
   elements.backdrop.addEventListener("click", () => setDrawer(false));
+  elements.settingsButton.addEventListener("click", () => setSettingsPopup(elements.settingsPopup.hidden, false));
+  elements.colorTheme.addEventListener("change", () => setColorTheme(elements.colorTheme.value));
+  elements.syntaxTheme.addEventListener("change", () => setSyntaxTheme(elements.syntaxTheme.value));
   elements.fileFilter.addEventListener("input", () => {
     state.filter = elements.fileFilter.value;
     renderFileTree();
+  });
+
+  elements.demoLink.addEventListener("click", (event) => {
+    state.focusAfterNavigation = true;
+    if (!desktop.matches) setDrawer(false, false);
+    if (elements.demoLink.hash === window.location.hash) {
+      event.preventDefault();
+      handleRoute();
+    }
   });
 
   elements.fileNav.addEventListener("click", (event) => {
@@ -900,7 +1025,17 @@
     }
   });
 
+  document.addEventListener("click", (event) => {
+    if (!elements.settingsPopup.hidden && !elements.settings.contains(event.target)) {
+      setSettingsPopup(false, false);
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !elements.settingsPopup.hidden) {
+      setSettingsPopup(false);
+      return;
+    }
     if (event.key === "Escape" && document.body.classList.contains("drawer-open")) {
       setDrawer(false);
       return;

@@ -7,10 +7,10 @@
     <meta name="theme-color" content="#f7f7f4" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#161817" media="(prefers-color-scheme: dark)">
     <title>MDShelf</title>
-    <link rel="stylesheet" href="./app.css?v=4">
-    <link rel="stylesheet" href="./chroma.css">
+    <link rel="stylesheet" href="./app.css?v=6">
+    <link rel="stylesheet" href="./chroma.css?v=2">
     <script defer src="./vendor/mermaid.min.js?v=11.17.2"></script>
-    <script defer src="./app.js?v=5"></script>
+    <script defer src="./app.js?v=7"></script>
   </head>
   <body>
     <a class="skip-link" href="#reader">Skip to document</a>
@@ -28,6 +28,51 @@
       </button>
       <a class="brand" id="brand" href="#" aria-label="MDShelf home">MDShelf</a>
       <p class="current-file" id="current-file">Documents</p>
+      <div class="settings">
+        <button
+          class="icon-button settings-button"
+          id="settings-button"
+          type="button"
+          aria-label="Open settings"
+          aria-controls="settings-popup"
+          aria-expanded="false"
+          aria-haspopup="dialog"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>
+            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 9 19.37a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15 1.7 1.7 0 0 0 3.08 14H3v-4h.08A1.7 1.7 0 0 0 4.63 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1-1.55V3h4v.08A1.7 1.7 0 0 0 15 4.63a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9a1.7 1.7 0 0 0 1.55 1H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z"></path>
+          </svg>
+        </button>
+        <section class="settings-popup" id="settings-popup" role="dialog" aria-labelledby="settings-title" hidden>
+          <h2 id="settings-title">Appearance</h2>
+          <label for="color-theme">
+            <span>Color theme</span>
+            <select id="color-theme">
+              <option value="system">System</option>
+              <option value="light">MDShelf Light</option>
+              <option value="dark">MDShelf Dark</option>
+              <option value="catppuccin-latte">Catppuccin Latte</option>
+              <option value="catppuccin-mocha">Catppuccin Mocha</option>
+              <option value="dracula">Dracula</option>
+              <option value="nord">Nord</option>
+              <option value="solarized-light">Solarized Light</option>
+              <option value="solarized-dark">Solarized Dark</option>
+            </select>
+          </label>
+          <label for="syntax-theme">
+            <span>Syntax theme</span>
+            <select id="syntax-theme">
+              <option value="github-auto">GitHub (match color theme)</option>
+              <option value="catppuccin-auto">Catppuccin (match color theme)</option>
+              <option value="solarized-auto">Solarized (match color theme)</option>
+              <option value="dracula">Dracula</option>
+              <option value="monokai">Monokai</option>
+              <option value="nord">Nord</option>
+              <option value="tokyonight-night">Tokyo Night</option>
+            </select>
+          </label>
+        </section>
+      </div>
     </header>
 
     <button class="backdrop" id="backdrop" type="button" tabindex="-1" aria-label="Close document list"></button>
@@ -54,7 +99,10 @@
           <span></span><span></span><span></span><span></span><span></span>
         </div>
       </nav>
-      <p class="file-count" id="file-count" aria-live="polite">Loading documents</p>
+      <div class="drawer-footer">
+        <a class="demo-link" id="demo-link" href="#/__mdshelf_demo__">Demo</a>
+        <p class="file-count" id="file-count" aria-live="polite">Loading documents</p>
+      </div>
     </aside>
 
     <main class="reader" id="reader" tabindex="-1">

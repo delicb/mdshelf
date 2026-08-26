@@ -1,156 +1,725 @@
-.markdown .bg { background-color: #f7f7f7; }
-.chroma { background-color: #f7f7f7; -webkit-text-size-adjust: none; }
-.markdown pre.chroma { color: #1f2328; background-color: #f7f7f7; }
-.chroma .err { color: #f6f8fa; background-color: #82071e }
-.chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
-.chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
-.chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
-.chroma .hl { background-color: #dedede }
-.chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em; color: #7f7f7f }
-.chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em; color: #7f7f7f }
-.chroma .line { display: flex; }
-.chroma .k { color: #cf222e }
-.chroma .kc { color: #cf222e }
-.chroma .kd { color: #cf222e }
-.chroma .kn { color: #cf222e }
-.chroma .kp { color: #cf222e }
-.chroma .kr { color: #cf222e }
-.chroma .kt { color: #cf222e }
-.chroma .na { color: #1f2328 }
-.chroma .nc { color: #1f2328 }
-.chroma .no { color: #0550ae }
-.chroma .nd { color: #0550ae }
-.chroma .ni { color: #6639ba }
-.chroma .nl { color: #990000; font-weight: bold }
-.chroma .nn { color: #24292e }
-.chroma .nx { color: #1f2328 }
-.chroma .nt { color: #0550ae }
-.chroma .nb { color: #6639ba }
-.chroma .bp { color: #6a737d }
-.chroma .nv { color: #953800 }
-.chroma .vc { color: #953800 }
-.chroma .vg { color: #953800 }
-.chroma .vi { color: #953800 }
-.chroma .vm { color: #953800 }
-.chroma .nf { color: #6639ba }
-.chroma .fm { color: #6639ba }
-.chroma .s { color: #0a3069 }
-.chroma .sa { color: #0a3069 }
-.chroma .sb { color: #0a3069 }
-.chroma .sc { color: #0a3069 }
-.chroma .dl { color: #0a3069 }
-.chroma .sd { color: #0a3069 }
-.chroma .s2 { color: #0a3069 }
-.chroma .se { color: #0a3069 }
-.chroma .sh { color: #0a3069 }
-.chroma .si { color: #0a3069 }
-.chroma .sx { color: #0a3069 }
-.chroma .sr { color: #0a3069 }
-.chroma .s1 { color: #0a3069 }
-.chroma .ss { color: #032f62 }
-.chroma .m { color: #0550ae }
-.chroma .mb { color: #0550ae }
-.chroma .mf { color: #0550ae }
-.chroma .mh { color: #0550ae }
-.chroma .mi { color: #0550ae }
-.chroma .il { color: #0550ae }
-.chroma .mo { color: #0550ae }
-.chroma .o { color: #0550ae }
-.chroma .ow { color: #0550ae }
-.chroma .or { color: #0550ae }
-.chroma .p { color: #1f2328 }
-.chroma .c { color: #57606a }
-.chroma .ch { color: #57606a }
-.chroma .cm { color: #57606a }
-.chroma .c1 { color: #57606a }
-.chroma .cs { color: #57606a }
-.chroma .cp { color: #57606a }
-.chroma .cpf { color: #57606a }
-.chroma .gd { color: #82071e; background-color: #ffebe9 }
-.chroma .ge { color: #1f2328 }
-.chroma .gi { color: #116329; background-color: #dafbe1 }
-.chroma .go { color: #1f2328 }
-.chroma .gl { text-decoration: underline }
-.chroma .w { color: #ffffff }
-
-@media (prefers-color-scheme: dark) {
-  .markdown .bg { color: #e6edf3; background-color: #0d1117; }
-  .chroma { color: #e6edf3; background-color: #0d1117; -webkit-text-size-adjust: none; }
-  .markdown pre.chroma { color: #e6edf3; background-color: #0d1117; }
-  .chroma .err { color: #f85149 }
-  .chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
-  .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
-  .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
-  .chroma .hl { background-color: #6e7681 }
-  .chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em; color: #737679 }
-  .chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em; color: #6e7681 }
-  .chroma .line { display: flex; }
-  .chroma .k { color: #ff7b72 }
-  .chroma .kc { color: #79c0ff }
-  .chroma .kd { color: #ff7b72 }
-  .chroma .kn { color: #ff7b72 }
-  .chroma .kp { color: #79c0ff }
-  .chroma .kr { color: #ff7b72 }
-  .chroma .kt { color: #ff7b72 }
-  .chroma .nc { color: #f0883e; font-weight: bold }
-  .chroma .no { color: #79c0ff; font-weight: bold }
-  .chroma .nd { color: #d2a8ff; font-weight: bold }
-  .chroma .ni { color: #ffa657 }
-  .chroma .ne { color: #f0883e; font-weight: bold }
-  .chroma .nl { color: #79c0ff; font-weight: bold }
-  .chroma .nn { color: #ff7b72 }
-  .chroma .py { color: #79c0ff }
-  .chroma .nt { color: #7ee787 }
-  .chroma .nv { color: #79c0ff }
-  .chroma .vc { color: #79c0ff }
-  .chroma .vg { color: #79c0ff }
-  .chroma .vi { color: #79c0ff }
-  .chroma .vm { color: #79c0ff }
-  .chroma .nf { color: #d2a8ff; font-weight: bold }
-  .chroma .fm { color: #d2a8ff; font-weight: bold }
-  .chroma .l { color: #a5d6ff }
-  .chroma .ld { color: #79c0ff }
-  .chroma .s { color: #a5d6ff }
-  .chroma .sa { color: #79c0ff }
-  .chroma .sb { color: #a5d6ff }
-  .chroma .sc { color: #a5d6ff }
-  .chroma .dl { color: #79c0ff }
-  .chroma .sd { color: #a5d6ff }
-  .chroma .s2 { color: #a5d6ff }
-  .chroma .se { color: #79c0ff }
-  .chroma .sh { color: #79c0ff }
-  .chroma .si { color: #a5d6ff }
-  .chroma .sx { color: #79c0ff }
-  .chroma .sr { color: #79c0ff }
-  .chroma .s1 { color: #a5d6ff }
-  .chroma .ss { color: #a5d6ff }
-  .chroma .m { color: #a5d6ff }
-  .chroma .mb { color: #a5d6ff }
-  .chroma .mf { color: #a5d6ff }
-  .chroma .mh { color: #a5d6ff }
-  .chroma .mi { color: #a5d6ff }
-  .chroma .il { color: #a5d6ff }
-  .chroma .mo { color: #a5d6ff }
-  .chroma .o { color: #ff7b72; font-weight: bold }
-  .chroma .ow { color: #ff7b72; font-weight: bold }
-  .chroma .or { color: #ff7b72; font-weight: bold }
-  .chroma .c { color: #8b949e; font-style: italic }
-  .chroma .ch { color: #8b949e; font-style: italic }
-  .chroma .cm { color: #8b949e; font-style: italic }
-  .chroma .c1 { color: #8b949e; font-style: italic }
-  .chroma .cs { color: #8b949e; font-weight: bold; font-style: italic }
-  .chroma .cp { color: #8b949e; font-weight: bold; font-style: italic }
-  .chroma .cpf { color: #8b949e; font-weight: bold; font-style: italic }
-  .chroma .gd { color: #ffa198; background-color: #490202 }
-  .chroma .ge { font-style: italic }
-  .chroma .gr { color: #ffa198 }
-  .chroma .gh { color: #79c0ff; font-weight: bold }
-  .chroma .gi { color: #56d364; background-color: #0f5323 }
-  .chroma .go { color: #8b949e }
-  .chroma .gp { color: #8b949e }
-  .chroma .gs { font-weight: bold }
-  .chroma .gu { color: #79c0ff }
-  .chroma .gt { color: #ff7b72 }
-  .chroma .gl { text-decoration: underline }
-  .chroma .w { color: #6e7681 }
-}
+:root[data-syntax-theme="github"] .markdown .bg { background-color: #f7f7f7; }
+:root[data-syntax-theme="github"] .markdown .chroma { color: #1f2328; background-color: #f7f7f7; -webkit-text-size-adjust: none; }
+:root[data-syntax-theme="github"] .markdown .chroma .err { color: #f6f8fa; background-color: #82071e }
+:root[data-syntax-theme="github"] .markdown .chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
+:root[data-syntax-theme="github"] .markdown .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="github"] .markdown .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="github"] .markdown .chroma .hl { background-color: #dedede }
+:root[data-syntax-theme="github"] .markdown .chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #7f7f7f }
+:root[data-syntax-theme="github"] .markdown .chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #7f7f7f }
+:root[data-syntax-theme="github"] .markdown .chroma .line { display: flex; }
+:root[data-syntax-theme="github"] .markdown .chroma .k { color: #cf222e }
+:root[data-syntax-theme="github"] .markdown .chroma .kc { color: #cf222e }
+:root[data-syntax-theme="github"] .markdown .chroma .kd { color: #cf222e }
+:root[data-syntax-theme="github"] .markdown .chroma .kn { color: #cf222e }
+:root[data-syntax-theme="github"] .markdown .chroma .kp { color: #cf222e }
+:root[data-syntax-theme="github"] .markdown .chroma .kr { color: #cf222e }
+:root[data-syntax-theme="github"] .markdown .chroma .kt { color: #cf222e }
+:root[data-syntax-theme="github"] .markdown .chroma .na { color: #1f2328 }
+:root[data-syntax-theme="github"] .markdown .chroma .nc { color: #1f2328 }
+:root[data-syntax-theme="github"] .markdown .chroma .no { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .nd { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .ni { color: #6639ba }
+:root[data-syntax-theme="github"] .markdown .chroma .nl { color: #990000; font-weight: bold }
+:root[data-syntax-theme="github"] .markdown .chroma .nn { color: #24292e }
+:root[data-syntax-theme="github"] .markdown .chroma .nx { color: #1f2328 }
+:root[data-syntax-theme="github"] .markdown .chroma .nt { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .nb { color: #6639ba }
+:root[data-syntax-theme="github"] .markdown .chroma .bp { color: #6a737d }
+:root[data-syntax-theme="github"] .markdown .chroma .nv { color: #953800 }
+:root[data-syntax-theme="github"] .markdown .chroma .vc { color: #953800 }
+:root[data-syntax-theme="github"] .markdown .chroma .vg { color: #953800 }
+:root[data-syntax-theme="github"] .markdown .chroma .vi { color: #953800 }
+:root[data-syntax-theme="github"] .markdown .chroma .vm { color: #953800 }
+:root[data-syntax-theme="github"] .markdown .chroma .nf { color: #6639ba }
+:root[data-syntax-theme="github"] .markdown .chroma .fm { color: #6639ba }
+:root[data-syntax-theme="github"] .markdown .chroma .s { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .sa { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .sb { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .sc { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .dl { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .sd { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .s2 { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .se { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .sh { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .si { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .sx { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .sr { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .s1 { color: #0a3069 }
+:root[data-syntax-theme="github"] .markdown .chroma .ss { color: #032f62 }
+:root[data-syntax-theme="github"] .markdown .chroma .m { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .mb { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .mf { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .mh { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .mi { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .il { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .mo { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .o { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .ow { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .or { color: #0550ae }
+:root[data-syntax-theme="github"] .markdown .chroma .p { color: #1f2328 }
+:root[data-syntax-theme="github"] .markdown .chroma .c { color: #57606a }
+:root[data-syntax-theme="github"] .markdown .chroma .ch { color: #57606a }
+:root[data-syntax-theme="github"] .markdown .chroma .cm { color: #57606a }
+:root[data-syntax-theme="github"] .markdown .chroma .c1 { color: #57606a }
+:root[data-syntax-theme="github"] .markdown .chroma .cs { color: #57606a }
+:root[data-syntax-theme="github"] .markdown .chroma .cp { color: #57606a }
+:root[data-syntax-theme="github"] .markdown .chroma .cpf { color: #57606a }
+:root[data-syntax-theme="github"] .markdown .chroma .gd { color: #82071e; background-color: #ffebe9 }
+:root[data-syntax-theme="github"] .markdown .chroma .ge { color: #1f2328 }
+:root[data-syntax-theme="github"] .markdown .chroma .gi { color: #116329; background-color: #dafbe1 }
+:root[data-syntax-theme="github"] .markdown .chroma .go { color: #1f2328 }
+:root[data-syntax-theme="github"] .markdown .chroma .gl { text-decoration: underline }
+:root[data-syntax-theme="github"] .markdown .chroma .w { color: #ffffff }
+:root[data-syntax-theme="github-dark"] .markdown .bg { color: #e6edf3; background-color: #0d1117; }
+:root[data-syntax-theme="github-dark"] .markdown .chroma { color: #e6edf3; background-color: #0d1117; -webkit-text-size-adjust: none; }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .err { color: #f85149 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .hl { background-color: #6e7681 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #737679 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #6e7681 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .line { display: flex; }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .k { color: #ff7b72 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .kc { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .kd { color: #ff7b72 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .kn { color: #ff7b72 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .kp { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .kr { color: #ff7b72 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .kt { color: #ff7b72 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .nc { color: #f0883e; font-weight: bold }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .no { color: #79c0ff; font-weight: bold }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .nd { color: #d2a8ff; font-weight: bold }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .ni { color: #ffa657 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .ne { color: #f0883e; font-weight: bold }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .nl { color: #79c0ff; font-weight: bold }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .nn { color: #ff7b72 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .py { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .nt { color: #7ee787 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .nv { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .vc { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .vg { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .vi { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .vm { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .nf { color: #d2a8ff; font-weight: bold }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .fm { color: #d2a8ff; font-weight: bold }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .l { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .ld { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .s { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .sa { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .sb { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .sc { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .dl { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .sd { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .s2 { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .se { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .sh { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .si { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .sx { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .sr { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .s1 { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .ss { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .m { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .mb { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .mf { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .mh { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .mi { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .il { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .mo { color: #a5d6ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .o { color: #ff7b72; font-weight: bold }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .ow { color: #ff7b72; font-weight: bold }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .or { color: #ff7b72; font-weight: bold }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .c { color: #8b949e; font-style: italic }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .ch { color: #8b949e; font-style: italic }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .cm { color: #8b949e; font-style: italic }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .c1 { color: #8b949e; font-style: italic }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .cs { color: #8b949e; font-weight: bold; font-style: italic }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .cp { color: #8b949e; font-weight: bold; font-style: italic }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .cpf { color: #8b949e; font-weight: bold; font-style: italic }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .gd { color: #ffa198; background-color: #490202 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .ge { font-style: italic }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .gr { color: #ffa198 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .gh { color: #79c0ff; font-weight: bold }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .gi { color: #56d364; background-color: #0f5323 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .go { color: #8b949e }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .gp { color: #8b949e }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .gs { font-weight: bold }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .gu { color: #79c0ff }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .gt { color: #ff7b72 }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .gl { text-decoration: underline }
+:root[data-syntax-theme="github-dark"] .markdown .chroma .w { color: #6e7681 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .bg { color: #4c4f69; background-color: #eff1f5; }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma { color: #4c4f69; background-color: #eff1f5; -webkit-text-size-adjust: none; }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .err { color: #d20f39 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .hl { background-color: #bcc0cc }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #8c8fa1 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #8c8fa1 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .line { display: flex; }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .k { color: #8839ef }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .kc { color: #fe640b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .kd { color: #d20f39 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .kn { color: #179299 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .kp { color: #8839ef }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .kr { color: #8839ef }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .kt { color: #d20f39 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .na { color: #1e66f5 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .nc { color: #df8e1d }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .no { color: #df8e1d }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .nd { color: #1e66f5; font-weight: bold }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .ni { color: #179299 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .ne { color: #fe640b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .nl { color: #04a5e5 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .nn { color: #fe640b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .py { color: #fe640b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .nt { color: #8839ef }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .nb { color: #04a5e5 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .bp { color: #04a5e5 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .nv { color: #dc8a78 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .vc { color: #dc8a78 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .vg { color: #dc8a78 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .vi { color: #dc8a78 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .vm { color: #dc8a78 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .nf { color: #1e66f5 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .fm { color: #1e66f5 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .s { color: #40a02b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .sa { color: #d20f39 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .sb { color: #40a02b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .sc { color: #40a02b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .dl { color: #1e66f5 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .sd { color: #9ca0b0 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .s2 { color: #40a02b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .se { color: #1e66f5 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .sh { color: #9ca0b0 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .si { color: #40a02b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .sx { color: #40a02b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .sr { color: #179299 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .s1 { color: #40a02b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .ss { color: #40a02b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .m { color: #fe640b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .mb { color: #fe640b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .mf { color: #fe640b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .mh { color: #fe640b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .mi { color: #fe640b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .il { color: #fe640b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .mo { color: #fe640b }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .o { color: #04a5e5; font-weight: bold }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .ow { color: #04a5e5; font-weight: bold }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .or { color: #04a5e5; font-weight: bold }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .c { color: #9ca0b0; font-style: italic }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .ch { color: #acb0be; font-style: italic }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .cm { color: #9ca0b0; font-style: italic }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .c1 { color: #9ca0b0; font-style: italic }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .cs { color: #9ca0b0; font-style: italic }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .cp { color: #9ca0b0; font-style: italic }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .cpf { color: #9ca0b0; font-weight: bold; font-style: italic }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .gd { color: #d20f39; background-color: #ccd0da }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .ge { font-style: italic }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .gr { color: #d20f39 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .gh { color: #fe640b; font-weight: bold }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .gi { color: #40a02b; background-color: #ccd0da }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .gs { font-weight: bold }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .gu { color: #fe640b; font-weight: bold }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .gt { color: #d20f39 }
+:root[data-syntax-theme="catppuccin-latte"] .markdown .chroma .gl { text-decoration: underline }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .bg { color: #cdd6f4; background-color: #1e1e2e; }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma { color: #cdd6f4; background-color: #1e1e2e; -webkit-text-size-adjust: none; }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .err { color: #f38ba8 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .hl { background-color: #45475a }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #7f849c }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #7f849c }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .line { display: flex; }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .k { color: #cba6f7 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .kc { color: #fab387 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .kd { color: #f38ba8 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .kn { color: #94e2d5 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .kp { color: #cba6f7 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .kr { color: #cba6f7 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .kt { color: #f38ba8 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .na { color: #89b4fa }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .nc { color: #f9e2af }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .no { color: #f9e2af }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .nd { color: #89b4fa; font-weight: bold }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .ni { color: #94e2d5 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .ne { color: #fab387 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .nl { color: #89dceb }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .nn { color: #fab387 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .py { color: #fab387 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .nt { color: #cba6f7 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .nb { color: #89dceb }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .bp { color: #89dceb }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .nv { color: #f5e0dc }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .vc { color: #f5e0dc }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .vg { color: #f5e0dc }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .vi { color: #f5e0dc }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .vm { color: #f5e0dc }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .nf { color: #89b4fa }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .fm { color: #89b4fa }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .s { color: #a6e3a1 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .sa { color: #f38ba8 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .sb { color: #a6e3a1 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .sc { color: #a6e3a1 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .dl { color: #89b4fa }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .sd { color: #6c7086 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .s2 { color: #a6e3a1 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .se { color: #89b4fa }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .sh { color: #6c7086 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .si { color: #a6e3a1 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .sx { color: #a6e3a1 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .sr { color: #94e2d5 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .s1 { color: #a6e3a1 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .ss { color: #a6e3a1 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .m { color: #fab387 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .mb { color: #fab387 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .mf { color: #fab387 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .mh { color: #fab387 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .mi { color: #fab387 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .il { color: #fab387 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .mo { color: #fab387 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .o { color: #89dceb; font-weight: bold }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .ow { color: #89dceb; font-weight: bold }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .or { color: #89dceb; font-weight: bold }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .c { color: #6c7086; font-style: italic }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .ch { color: #585b70; font-style: italic }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .cm { color: #6c7086; font-style: italic }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .c1 { color: #6c7086; font-style: italic }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .cs { color: #6c7086; font-style: italic }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .cp { color: #6c7086; font-style: italic }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .cpf { color: #6c7086; font-weight: bold; font-style: italic }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .gd { color: #f38ba8; background-color: #313244 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .ge { font-style: italic }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .gr { color: #f38ba8 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .gh { color: #fab387; font-weight: bold }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .gi { color: #a6e3a1; background-color: #313244 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .gs { font-weight: bold }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .gu { color: #fab387; font-weight: bold }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .gt { color: #f38ba8 }
+:root[data-syntax-theme="catppuccin-mocha"] .markdown .chroma .gl { text-decoration: underline }
+:root[data-syntax-theme="solarized-light"] .markdown .bg { color: #586e75; background-color: #fdf6e3; }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma { color: #586e75; background-color: #fdf6e3; -webkit-text-size-adjust: none; }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .hl { background-color: #e3ddcc }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #7f7f7f }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #7f7f7f }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .line { display: flex; }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .k { color: #859900 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .kc { color: #859900; font-weight: bold }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .kd { color: #859900 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .kn { color: #dc322f; font-weight: bold }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .kp { color: #859900 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .kr { color: #859900 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .kt { color: #859900; font-weight: bold }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .n { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .na { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .nc { color: #cb4b16 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .no { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .nd { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .ni { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .ne { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .nl { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .nn { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .nx { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .py { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .nt { color: #268bd2; font-weight: bold }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .nb { color: #cb4b16 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .bp { color: #cb4b16 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .nv { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .vc { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .vg { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .vi { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .vm { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .nf { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .fm { color: #268bd2 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .l { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .ld { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .s { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .sa { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .sb { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .sc { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .dl { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .sd { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .s2 { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .se { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .sh { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .si { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .sx { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .sr { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .s1 { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .ss { color: #2aa198 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .m { color: #2aa198; font-weight: bold }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .mb { color: #2aa198; font-weight: bold }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .mf { color: #2aa198; font-weight: bold }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .mh { color: #2aa198; font-weight: bold }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .mi { color: #2aa198; font-weight: bold }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .il { color: #2aa198; font-weight: bold }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .mo { color: #2aa198; font-weight: bold }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .ow { color: #859900 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .c { color: #93a1a1; font-style: italic }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .ch { color: #93a1a1; font-style: italic }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .cm { color: #93a1a1; font-style: italic }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .c1 { color: #93a1a1; font-style: italic }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .cs { color: #93a1a1; font-style: italic }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .cp { color: #93a1a1; font-style: italic }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .cpf { color: #93a1a1; font-style: italic }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .g { color: #d33682 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .gd { color: #d33682 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .ge { color: #d33682 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .gr { color: #d33682 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .gh { color: #d33682 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .gi { color: #d33682 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .go { color: #d33682 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .gp { color: #d33682 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .gs { color: #d33682 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .gu { color: #d33682 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .gt { color: #d33682 }
+:root[data-syntax-theme="solarized-light"] .markdown .chroma .gl { color: #d33682 }
+:root[data-syntax-theme="solarized-dark"] .markdown .bg { color: #93a1a1; background-color: #002b36; }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma { color: #93a1a1; background-color: #002b36; -webkit-text-size-adjust: none; }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .x { color: #cb4b16 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .hl { background-color: #19404a }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #495050 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #495050 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .line { display: flex; }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .k { color: #719e07 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .kc { color: #cb4b16 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .kd { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .kn { color: #719e07 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .kp { color: #719e07 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .kr { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .kt { color: #dc322f }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .nc { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .no { color: #cb4b16 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .nd { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .ni { color: #cb4b16 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .ne { color: #cb4b16 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .nt { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .nb { color: #b58900 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .bp { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .nv { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .vc { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .vg { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .vi { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .vm { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .nf { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .fm { color: #268bd2 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .s { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .sa { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .sb { color: #586e75 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .sc { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .dl { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .s2 { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .se { color: #cb4b16 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .si { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .sx { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .sr { color: #dc322f }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .s1 { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .ss { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .m { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .mb { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .mf { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .mh { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .mi { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .il { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .mo { color: #2aa198 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .o { color: #719e07 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .ow { color: #719e07 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .or { color: #719e07 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .c { color: #586e75 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .ch { color: #586e75 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .cm { color: #586e75 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .c1 { color: #586e75 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .cs { color: #719e07 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .cp { color: #719e07 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .cpf { color: #719e07 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .gd { color: #dc322f }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .ge { font-style: italic }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .gr { color: #dc322f; font-weight: bold }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .gh { color: #cb4b16 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .gi { color: #719e07 }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .gs { font-weight: bold }
+:root[data-syntax-theme="solarized-dark"] .markdown .chroma .gu { color: #268bd2 }
+:root[data-syntax-theme="dracula"] .markdown .bg { color: #f8f8f2; background-color: #282a36; }
+:root[data-syntax-theme="dracula"] .markdown .chroma { color: #f8f8f2; background-color: #282a36; -webkit-text-size-adjust: none; }
+:root[data-syntax-theme="dracula"] .markdown .chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
+:root[data-syntax-theme="dracula"] .markdown .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="dracula"] .markdown .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="dracula"] .markdown .chroma .hl { background-color: #3d3f4a }
+:root[data-syntax-theme="dracula"] .markdown .chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #7f7f7f }
+:root[data-syntax-theme="dracula"] .markdown .chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #7f7f7f }
+:root[data-syntax-theme="dracula"] .markdown .chroma .line { display: flex; }
+:root[data-syntax-theme="dracula"] .markdown .chroma .k { color: #ff79c6 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .kc { color: #ff79c6 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .kd { color: #8be9fd; font-style: italic }
+:root[data-syntax-theme="dracula"] .markdown .chroma .kn { color: #ff79c6 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .kp { color: #ff79c6 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .kr { color: #ff79c6 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .kt { color: #8be9fd }
+:root[data-syntax-theme="dracula"] .markdown .chroma .na { color: #50fa7b }
+:root[data-syntax-theme="dracula"] .markdown .chroma .nc { color: #50fa7b }
+:root[data-syntax-theme="dracula"] .markdown .chroma .nl { color: #8be9fd; font-style: italic }
+:root[data-syntax-theme="dracula"] .markdown .chroma .nt { color: #ff79c6 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .nb { color: #8be9fd; font-style: italic }
+:root[data-syntax-theme="dracula"] .markdown .chroma .bp { font-style: italic }
+:root[data-syntax-theme="dracula"] .markdown .chroma .nv { color: #8be9fd; font-style: italic }
+:root[data-syntax-theme="dracula"] .markdown .chroma .vc { color: #8be9fd; font-style: italic }
+:root[data-syntax-theme="dracula"] .markdown .chroma .vg { color: #8be9fd; font-style: italic }
+:root[data-syntax-theme="dracula"] .markdown .chroma .vi { color: #8be9fd; font-style: italic }
+:root[data-syntax-theme="dracula"] .markdown .chroma .vm { color: #8be9fd; font-style: italic }
+:root[data-syntax-theme="dracula"] .markdown .chroma .nf { color: #50fa7b }
+:root[data-syntax-theme="dracula"] .markdown .chroma .fm { color: #50fa7b }
+:root[data-syntax-theme="dracula"] .markdown .chroma .s { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .sa { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .sb { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .sc { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .dl { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .sd { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .s2 { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .se { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .sh { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .si { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .sx { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .sr { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .s1 { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .ss { color: #f1fa8c }
+:root[data-syntax-theme="dracula"] .markdown .chroma .m { color: #bd93f9 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .mb { color: #bd93f9 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .mf { color: #bd93f9 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .mh { color: #bd93f9 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .mi { color: #bd93f9 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .il { color: #bd93f9 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .mo { color: #bd93f9 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .o { color: #ff79c6 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .ow { color: #ff79c6 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .or { color: #ff79c6 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .c { color: #6272a4 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .ch { color: #6272a4 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .cm { color: #6272a4 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .c1 { color: #6272a4 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .cs { color: #6272a4 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .cp { color: #ff79c6 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .cpf { color: #ff79c6 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .gd { color: #ff5555 }
+:root[data-syntax-theme="dracula"] .markdown .chroma .ge { text-decoration: underline }
+:root[data-syntax-theme="dracula"] .markdown .chroma .gh { font-weight: bold }
+:root[data-syntax-theme="dracula"] .markdown .chroma .gi { color: #50fa7b; font-weight: bold }
+:root[data-syntax-theme="dracula"] .markdown .chroma .go { color: #44475a }
+:root[data-syntax-theme="dracula"] .markdown .chroma .gu { font-weight: bold }
+:root[data-syntax-theme="dracula"] .markdown .chroma .gl { text-decoration: underline }
+:root[data-syntax-theme="monokai"] .markdown .bg { color: #f8f8f2; background-color: #272822; }
+:root[data-syntax-theme="monokai"] .markdown .chroma { color: #f8f8f2; background-color: #272822; -webkit-text-size-adjust: none; }
+:root[data-syntax-theme="monokai"] .markdown .chroma .err { color: #960050; background-color: #1e0010 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
+:root[data-syntax-theme="monokai"] .markdown .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="monokai"] .markdown .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="monokai"] .markdown .chroma .hl { background-color: #3c3d38 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #7f7f7f }
+:root[data-syntax-theme="monokai"] .markdown .chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #7f7f7f }
+:root[data-syntax-theme="monokai"] .markdown .chroma .line { display: flex; }
+:root[data-syntax-theme="monokai"] .markdown .chroma .k { color: #66d9ef }
+:root[data-syntax-theme="monokai"] .markdown .chroma .kc { color: #66d9ef }
+:root[data-syntax-theme="monokai"] .markdown .chroma .kd { color: #66d9ef }
+:root[data-syntax-theme="monokai"] .markdown .chroma .kn { color: #f92672 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .kp { color: #66d9ef }
+:root[data-syntax-theme="monokai"] .markdown .chroma .kr { color: #66d9ef }
+:root[data-syntax-theme="monokai"] .markdown .chroma .kt { color: #66d9ef }
+:root[data-syntax-theme="monokai"] .markdown .chroma .na { color: #a6e22e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .nc { color: #a6e22e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .no { color: #66d9ef }
+:root[data-syntax-theme="monokai"] .markdown .chroma .nd { color: #a6e22e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .ne { color: #a6e22e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .nx { color: #a6e22e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .nt { color: #f92672 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .nf { color: #a6e22e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .fm { color: #a6e22e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .l { color: #ae81ff }
+:root[data-syntax-theme="monokai"] .markdown .chroma .ld { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .s { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .sa { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .sb { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .sc { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .dl { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .sd { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .s2 { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .se { color: #ae81ff }
+:root[data-syntax-theme="monokai"] .markdown .chroma .sh { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .si { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .sx { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .sr { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .s1 { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .ss { color: #e6db74 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .m { color: #ae81ff }
+:root[data-syntax-theme="monokai"] .markdown .chroma .mb { color: #ae81ff }
+:root[data-syntax-theme="monokai"] .markdown .chroma .mf { color: #ae81ff }
+:root[data-syntax-theme="monokai"] .markdown .chroma .mh { color: #ae81ff }
+:root[data-syntax-theme="monokai"] .markdown .chroma .mi { color: #ae81ff }
+:root[data-syntax-theme="monokai"] .markdown .chroma .il { color: #ae81ff }
+:root[data-syntax-theme="monokai"] .markdown .chroma .mo { color: #ae81ff }
+:root[data-syntax-theme="monokai"] .markdown .chroma .o { color: #f92672 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .ow { color: #f92672 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .or { color: #f92672 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .c { color: #75715e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .ch { color: #75715e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .cm { color: #75715e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .c1 { color: #75715e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .cs { color: #75715e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .cp { color: #75715e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .cpf { color: #75715e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .gd { color: #f92672 }
+:root[data-syntax-theme="monokai"] .markdown .chroma .ge { font-style: italic }
+:root[data-syntax-theme="monokai"] .markdown .chroma .gi { color: #a6e22e }
+:root[data-syntax-theme="monokai"] .markdown .chroma .gs { font-weight: bold }
+:root[data-syntax-theme="monokai"] .markdown .chroma .gu { color: #75715e }
+:root[data-syntax-theme="nord"] .markdown .bg { color: #d8dee9; background-color: #2e3440; }
+:root[data-syntax-theme="nord"] .markdown .chroma { color: #d8dee9; background-color: #2e3440; -webkit-text-size-adjust: none; }
+:root[data-syntax-theme="nord"] .markdown .chroma .err { color: #bf616a }
+:root[data-syntax-theme="nord"] .markdown .chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
+:root[data-syntax-theme="nord"] .markdown .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="nord"] .markdown .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="nord"] .markdown .chroma .hl { background-color: #424853 }
+:root[data-syntax-theme="nord"] .markdown .chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #6c6f74 }
+:root[data-syntax-theme="nord"] .markdown .chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #6c6f74 }
+:root[data-syntax-theme="nord"] .markdown .chroma .line { display: flex; }
+:root[data-syntax-theme="nord"] .markdown .chroma .k { color: #81a1c1; font-weight: bold }
+:root[data-syntax-theme="nord"] .markdown .chroma .kc { color: #81a1c1; font-weight: bold }
+:root[data-syntax-theme="nord"] .markdown .chroma .kd { color: #81a1c1; font-weight: bold }
+:root[data-syntax-theme="nord"] .markdown .chroma .kn { color: #81a1c1; font-weight: bold }
+:root[data-syntax-theme="nord"] .markdown .chroma .kp { color: #81a1c1 }
+:root[data-syntax-theme="nord"] .markdown .chroma .kr { color: #81a1c1; font-weight: bold }
+:root[data-syntax-theme="nord"] .markdown .chroma .kt { color: #81a1c1 }
+:root[data-syntax-theme="nord"] .markdown .chroma .na { color: #8fbcbb }
+:root[data-syntax-theme="nord"] .markdown .chroma .nc { color: #8fbcbb }
+:root[data-syntax-theme="nord"] .markdown .chroma .no { color: #8fbcbb }
+:root[data-syntax-theme="nord"] .markdown .chroma .nd { color: #d08770 }
+:root[data-syntax-theme="nord"] .markdown .chroma .ni { color: #d08770 }
+:root[data-syntax-theme="nord"] .markdown .chroma .ne { color: #bf616a }
+:root[data-syntax-theme="nord"] .markdown .chroma .nl { color: #8fbcbb }
+:root[data-syntax-theme="nord"] .markdown .chroma .nn { color: #8fbcbb }
+:root[data-syntax-theme="nord"] .markdown .chroma .py { color: #8fbcbb }
+:root[data-syntax-theme="nord"] .markdown .chroma .nt { color: #81a1c1 }
+:root[data-syntax-theme="nord"] .markdown .chroma .nb { color: #81a1c1 }
+:root[data-syntax-theme="nord"] .markdown .chroma .bp { color: #81a1c1 }
+:root[data-syntax-theme="nord"] .markdown .chroma .nf { color: #88c0d0 }
+:root[data-syntax-theme="nord"] .markdown .chroma .fm { color: #88c0d0 }
+:root[data-syntax-theme="nord"] .markdown .chroma .s { color: #a3be8c }
+:root[data-syntax-theme="nord"] .markdown .chroma .sa { color: #a3be8c }
+:root[data-syntax-theme="nord"] .markdown .chroma .sb { color: #a3be8c }
+:root[data-syntax-theme="nord"] .markdown .chroma .sc { color: #a3be8c }
+:root[data-syntax-theme="nord"] .markdown .chroma .dl { color: #a3be8c }
+:root[data-syntax-theme="nord"] .markdown .chroma .sd { color: #616e87 }
+:root[data-syntax-theme="nord"] .markdown .chroma .s2 { color: #a3be8c }
+:root[data-syntax-theme="nord"] .markdown .chroma .se { color: #ebcb8b }
+:root[data-syntax-theme="nord"] .markdown .chroma .sh { color: #a3be8c }
+:root[data-syntax-theme="nord"] .markdown .chroma .si { color: #a3be8c }
+:root[data-syntax-theme="nord"] .markdown .chroma .sx { color: #a3be8c }
+:root[data-syntax-theme="nord"] .markdown .chroma .sr { color: #ebcb8b }
+:root[data-syntax-theme="nord"] .markdown .chroma .s1 { color: #a3be8c }
+:root[data-syntax-theme="nord"] .markdown .chroma .ss { color: #a3be8c }
+:root[data-syntax-theme="nord"] .markdown .chroma .m { color: #b48ead }
+:root[data-syntax-theme="nord"] .markdown .chroma .mb { color: #b48ead }
+:root[data-syntax-theme="nord"] .markdown .chroma .mf { color: #b48ead }
+:root[data-syntax-theme="nord"] .markdown .chroma .mh { color: #b48ead }
+:root[data-syntax-theme="nord"] .markdown .chroma .mi { color: #b48ead }
+:root[data-syntax-theme="nord"] .markdown .chroma .il { color: #b48ead }
+:root[data-syntax-theme="nord"] .markdown .chroma .mo { color: #b48ead }
+:root[data-syntax-theme="nord"] .markdown .chroma .o { color: #81a1c1 }
+:root[data-syntax-theme="nord"] .markdown .chroma .ow { color: #81a1c1; font-weight: bold }
+:root[data-syntax-theme="nord"] .markdown .chroma .or { color: #81a1c1 }
+:root[data-syntax-theme="nord"] .markdown .chroma .p { color: #eceff4 }
+:root[data-syntax-theme="nord"] .markdown .chroma .c { color: #616e87; font-style: italic }
+:root[data-syntax-theme="nord"] .markdown .chroma .ch { color: #616e87; font-style: italic }
+:root[data-syntax-theme="nord"] .markdown .chroma .cm { color: #616e87; font-style: italic }
+:root[data-syntax-theme="nord"] .markdown .chroma .c1 { color: #616e87; font-style: italic }
+:root[data-syntax-theme="nord"] .markdown .chroma .cs { color: #616e87; font-style: italic }
+:root[data-syntax-theme="nord"] .markdown .chroma .cp { color: #5e81ac; font-style: italic }
+:root[data-syntax-theme="nord"] .markdown .chroma .cpf { color: #5e81ac; font-style: italic }
+:root[data-syntax-theme="nord"] .markdown .chroma .gd { color: #bf616a }
+:root[data-syntax-theme="nord"] .markdown .chroma .ge { font-style: italic }
+:root[data-syntax-theme="nord"] .markdown .chroma .gr { color: #bf616a }
+:root[data-syntax-theme="nord"] .markdown .chroma .gh { color: #88c0d0; font-weight: bold }
+:root[data-syntax-theme="nord"] .markdown .chroma .gi { color: #a3be8c }
+:root[data-syntax-theme="nord"] .markdown .chroma .gp { color: #4c566a; font-weight: bold }
+:root[data-syntax-theme="nord"] .markdown .chroma .gs { font-weight: bold }
+:root[data-syntax-theme="nord"] .markdown .chroma .gu { color: #88c0d0; font-weight: bold }
+:root[data-syntax-theme="nord"] .markdown .chroma .gt { color: #bf616a }
+:root[data-syntax-theme="tokyonight-night"] .markdown .bg { color: #c0caf5; background-color: #1a1b26; }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma { color: #c0caf5; background-color: #1a1b26; -webkit-text-size-adjust: none; }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .err { color: #db4b4b }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .lnlinks { outline: none; text-decoration: none; color: inherit }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .hl { background-color: #414868 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .lnt { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #a9b1d6 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .ln { white-space: pre; -webkit-user-select: none; user-select: none; margin-right: 0.4em; padding: 0 0.4em 0 0.4em;color: #a9b1d6 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .line { display: flex; }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .k { color: #bb9af7 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .kc { color: #e0af68 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .kd { color: #9d7cd8 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .kn { color: #7dcfff }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .kp { color: #bb9af7 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .kr { color: #bb9af7 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .kt { color: #41a6b5 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .na { color: #7aa2f7 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .nc { color: #ff9e64 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .no { color: #ff9e64 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .nd { color: #7aa2f7; font-weight: bold }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .ni { color: #7dcfff }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .ne { color: #e0af68 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .nl { color: #9ece6a }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .nn { color: #e0af68 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .py { color: #e0af68 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .nt { color: #bb9af7 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .nb { color: #9ece6a }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .bp { color: #9ece6a }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .nf { color: #7aa2f7 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .fm { color: #7aa2f7 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .s { color: #9ece6a }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .sa { color: #9d7cd8 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .sb { color: #9ece6a }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .sc { color: #9ece6a }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .dl { color: #7aa2f7 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .sd { color: #414868 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .s2 { color: #9ece6a }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .se { color: #7aa2f7 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .sh { color: #414868 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .si { color: #9ece6a }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .sx { color: #9ece6a }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .sr { color: #7dcfff }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .s1 { color: #9ece6a }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .ss { color: #9ece6a }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .m { color: #e0af68 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .mb { color: #e0af68 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .mf { color: #e0af68 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .mh { color: #e0af68 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .mi { color: #e0af68 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .il { color: #e0af68 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .mo { color: #e0af68 }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .o { color: #9ece6a; font-weight: bold }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .ow { color: #9ece6a; font-weight: bold }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .or { color: #9ece6a; font-weight: bold }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .c { color: #414868; font-style: italic }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .ch { color: #414868; font-style: italic }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .cm { color: #414868; font-style: italic }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .c1 { color: #414868; font-style: italic }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .cs { color: #414868; font-style: italic }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .cp { color: #414868; font-style: italic }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .cpf { color: #414868; font-weight: bold; font-style: italic }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .gd { color: #db4b4b; background-color: #15161e }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .ge { font-style: italic }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .gr { color: #db4b4b }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .gh { color: #e0af68; font-weight: bold }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .gi { color: #9ece6a; background-color: #15161e }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .gs { font-weight: bold }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .gu { color: #e0af68; font-weight: bold }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .gt { color: #db4b4b }
+:root[data-syntax-theme="tokyonight-night"] .markdown .chroma .gl { text-decoration: underline }

@@ -108,6 +108,29 @@ https://example.com
 	}
 }
 
+func TestRenderEmbeddedDemo(t *testing.T) {
+	response := request(t, mustNewHandler(t, t.TempDir()), http.MethodGet, apiPath("/api/render", demoDocumentPath), nil)
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("render status = %d, body = %s", response.StatusCode, readBody(t, response))
+	}
+	var payload struct {
+		Path         string `json:"path"`
+		AbsolutePath string `json:"absolutePath"`
+		Title        string `json:"title"`
+		HTML         string `json:"html"`
+	}
+	decodeJSON(t, response, &payload)
+	if payload.Path != demoDocumentPath || payload.Title != "MDShelf feature demo" || payload.AbsolutePath != "" {
+		t.Fatalf("demo response = %#v", payload)
+	}
+	for _, fragment := range []string{`<table>`, `class="chroma"`, `class="mermaid"`, `type="checkbox"`} {
+		if !strings.Contains(payload.HTML, fragment) {
+			t.Errorf("demo HTML does not contain %q", fragment)
+		}
+	}
+}
+
 func TestRenderMermaidFenceIsEscaped(t *testing.T) {
 	root := t.TempDir()
 	mustWriteFile(t, root, "diagram.md", "```mermaid\ngraph TD\nA[<script>alert(1)</script>] --> B\n```\n")
@@ -442,9 +465,9 @@ func TestEmbeddedWebShell(t *testing.T) {
 		contentTypePrefixes []string
 		contains            []string
 	}{
-		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./app.css?v=4"`, `href="./chroma.css"`, `src="./vendor/mermaid.min.js?v=11.17.2"`, `src="./app.js?v=5"`, `id="document-path"`, `id="update-notice"`}},
-		{path: "/app.css", contentTypePrefixes: []string{"text/css"}, contains: []string{":root", "@keyframes content-updated"}},
-		{path: "/chroma.css", contentTypePrefixes: []string{"text/css"}, contains: []string{".chroma .kd", "prefers-color-scheme: dark"}},
+		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./app.css?v=6"`, `href="./chroma.css?v=2"`, `src="./vendor/mermaid.min.js?v=11.17.2"`, `src="./app.js?v=7"`, `id="settings-popup"`, `id="demo-link"`, `id="document-path"`, `id="update-notice"`}},
+		{path: "/app.css", contentTypePrefixes: []string{"text/css"}, contains: []string{":root", "data-color-theme", "@keyframes content-updated"}},
+		{path: "/chroma.css", contentTypePrefixes: []string{"text/css"}, contains: []string{".chroma .kd", `data-syntax-theme="dracula"`}},
 		{path: "/app.js", contentTypePrefixes: []string{"text/javascript", "application/javascript"}, contains: []string{`"use strict"`, "/api/watch?since=", "window.mermaid"}},
 		{path: "/vendor/mermaid.min.js", contentTypePrefixes: []string{"text/javascript", "application/javascript"}, contains: []string{"mermaid"}},
 	}

@@ -9,15 +9,31 @@ function deferred() {
   return { promise, resolve };
 }
 
-function loadApp(mermaid, dark = false) {
+function loadApp(mermaid, dark = false, stored = {}) {
+  const storage = new Map(Object.entries(stored));
   const window = {
     __MDSHELF_TEST__: true,
+    localStorage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, value),
+    },
     matchMedia: (query) => ({ matches: dark && query === "(prefers-color-scheme: dark)" }),
     mermaid,
   };
+  const colorTheme = { value: "" };
   const documentPath = { hidden: true, textContent: "" };
+  const documentView = { hidden: true };
+  const root = { dataset: {} };
+  const syntaxTheme = { value: "" };
+  const elements = new Map([
+    ["#color-theme", colorTheme],
+    ["#document", documentView],
+    ["#document-path", documentPath],
+    ["#syntax-theme", syntaxTheme],
+  ]);
   const document = {
-    querySelector: (selector) => selector === "#document-path" ? documentPath : null,
+    documentElement: root,
+    querySelector: (selector) => elements.get(selector) ?? null,
   };
   const context = vm.createContext({
     AbortController,
@@ -32,6 +48,7 @@ function loadApp(mermaid, dark = false) {
     window,
   });
   vm.runInContext(fs.readFileSync(new URL("app.js", `file://${__dirname}/`), "utf8"), context);
+  window.__MDSHELF_TEST_API__.storage = storage;
   return window.__MDSHELF_TEST_API__;
 }
 
@@ -55,6 +72,32 @@ test("The document path shows and hides", () => {
   api.setDocumentPath("");
   assert.equal(api.documentPathElement.textContent, "");
   assert.equal(api.documentPathElement.hidden, true);
+});
+
+test("The embedded demo is always available", () => {
+  const api = loadApp(null);
+  assert.equal(api.isDocumentAvailable("__mdshelf_demo__"), true);
+  assert.equal(api.isDocumentAvailable("missing.md"), false);
+});
+
+test("Theme choices load, apply, and persist", () => {
+  const api = loadApp(null, true, {
+    "mdshelf.colorTheme": "light",
+    "mdshelf.syntaxTheme": "solarized-auto",
+  });
+  assert.equal(api.rootElement.dataset.colorTheme, "light");
+  assert.equal(api.rootElement.dataset.syntaxTheme, "solarized-light");
+  assert.equal(api.colorThemeElement.value, "light");
+  assert.equal(api.syntaxThemeElement.value, "solarized-auto");
+
+  api.setColorTheme("nord");
+  assert.equal(api.rootElement.dataset.colorTheme, "nord");
+  assert.equal(api.rootElement.dataset.syntaxTheme, "solarized-dark");
+  assert.equal(api.storage.get("mdshelf.colorTheme"), "nord");
+
+  api.setSyntaxTheme("dracula");
+  assert.equal(api.rootElement.dataset.syntaxTheme, "dracula");
+  assert.equal(api.storage.get("mdshelf.syntaxTheme"), "dracula");
 });
 
 test("Mermaid uses the active color scheme", () => {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/yuin/goldmark"
@@ -11,6 +12,11 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 )
+
+const demoDocumentPath = "__mdshelf_demo__"
+
+//go:embed demo.md
+var demoMarkdown []byte
 
 func newMarkdownRenderer() goldmark.Markdown {
 	options := []goldmark.Option{
@@ -28,6 +34,10 @@ func newMarkdownRenderer() goldmark.Markdown {
 	}
 	options = append(options, mermaidOptions()...)
 	return goldmark.New(options...)
+}
+
+func renderDemo(markdown goldmark.Markdown) (renderedMarkdown, error) {
+	return renderMarkdown(markdown, demoMarkdown, "demo.md", nil)
 }
 
 type renderedMarkdown struct {

@@ -92,6 +92,14 @@ flowchart LR
 
 MDShelf bundles Mermaid 11.17.2 in the executable. Diagram rendering works without a network connection.
 
+## Embedded demo
+
+Select **Demo** at the bottom of the document list to open the feature guide. The build embeds the tracked `demo.md` source file in the executable.
+
+## Appearance settings
+
+Select the settings button at the top right to change the color theme and syntax theme. Automatic syntax themes match the selected light or dark color theme. MDShelf stores both choices in browser local storage for the current server address.
+
 ## Network access
 
 Ad hoc mode has no sign-in screen. Anyone who can reach its port can read the Markdown files it lists. Run it only on a network you trust and stop it when you finish.

@@ -81,6 +81,33 @@ func TestDaemonPersistsDocuments(t *testing.T) {
 	}
 }
 
+func TestDaemonRendersEmbeddedDemo(t *testing.T) {
+	d, err := newDaemonServer(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(d.close)
+
+	response := daemonRequest(t, d.handler, http.MethodGet, apiPath("/api/render", demoDocumentPath), nil)
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("render status = %d, body = %s", response.StatusCode, readBody(t, response))
+	}
+	var payload struct {
+		Path         string `json:"path"`
+		AbsolutePath string `json:"absolutePath"`
+		Title        string `json:"title"`
+		HTML         string `json:"html"`
+	}
+	decodeJSON(t, response, &payload)
+	if payload.Path != demoDocumentPath || payload.Title != "MDShelf feature demo" || payload.AbsolutePath != "" {
+		t.Fatalf("demo response = %#v", payload)
+	}
+	if !strings.Contains(payload.HTML, `class="mermaid"`) {
+		t.Fatal("demo response does not contain a Mermaid diagram")
+	}
+}
+
 func TestDaemonServingKeepsListOpaqueAndScopesAssets(t *testing.T) {
 	state := t.TempDir()
 	firstRoot := t.TempDir()

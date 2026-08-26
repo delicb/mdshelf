@@ -163,6 +163,20 @@ func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "path is required")
 		return
 	}
+	if rawPath == demoDocumentPath {
+		rendered, err := renderDemo(a.markdown)
+		if err != nil {
+			log.Printf("render demo: %v", err)
+			writeJSONError(w, http.StatusInternalServerError, "could not render demo")
+			return
+		}
+		writeJSON(w, http.StatusOK, struct {
+			Path  string `json:"path"`
+			Title string `json:"title"`
+			HTML  string `json:"html"`
+		}{Path: demoDocumentPath, Title: rendered.title, HTML: rendered.html})
+		return
+	}
 
 	ext := strings.ToLower(path.Ext(rawPath))
 	if ext != ".md" && ext != ".markdown" {

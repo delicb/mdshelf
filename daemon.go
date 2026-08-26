@@ -174,6 +174,20 @@ func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.URL.Query().Get("path")
+	if id == demoDocumentPath {
+		rendered, err := renderDemo(d.markdown)
+		if err != nil {
+			log.Printf("render demo: %v", err)
+			writeJSONError(w, http.StatusInternalServerError, "could not render demo")
+			return
+		}
+		writeJSON(w, http.StatusOK, struct {
+			Path  string `json:"path"`
+			Title string `json:"title"`
+			HTML  string `json:"html"`
+		}{Path: demoDocumentPath, Title: rendered.title, HTML: rendered.html})
+		return
+	}
 	d.updater.mu.Lock()
 	document := cloneDaemonDocument(d.updater.documents[id])
 	paths := make(map[string]string, len(d.updater.paths))
