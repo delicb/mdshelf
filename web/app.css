@@ -789,6 +789,39 @@ body.drawer-open .backdrop {
   font-size: clamp(2rem, 1.7rem + 1.4vw, 2.8rem);
 }
 
+.markdown .document-metadata {
+  margin: -0.6rem 0 2rem;
+  padding: 0.8rem 1rem;
+  color: var(--text-soft);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+}
+
+.markdown .document-metadata dl {
+  display: flex;
+  margin: 0;
+  flex-wrap: wrap;
+  gap: 0.7rem 1.5rem;
+}
+
+.markdown .document-metadata dl > div {
+  min-width: min(12rem, 100%);
+}
+
+.markdown .document-metadata dt {
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.markdown .document-metadata dd {
+  margin: 0.2rem 0 0;
+  overflow-wrap: anywhere;
+}
+
 .markdown h2 {
   padding-bottom: 0.35rem;
   margin: 2.7rem 0 1rem;

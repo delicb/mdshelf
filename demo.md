@@ -1,3 +1,13 @@
+---
+title: MDShelf feature demo
+description: Built-in guide to MDShelf rendering
+document_type: Feature reference
+tags:
+  - Markdown
+  - offline
+  - demo
+updated: 2026-08-26
+---
 # MDShelf feature demo
 
 This document is part of the MDShelf binary. It works in ad hoc mode and daemon mode.
@@ -5,6 +15,7 @@ This document is part of the MDShelf binary. It works in ad hoc mode and daemon 
 Use the table of contents to inspect each feature:
 
 - [Markdown primer](#markdown-primer)
+- [Front matter](#front-matter)
 - [Text and headings](#text-and-headings)
 - [Lists and tasks](#lists-and-tasks)
 - [Definition lists](#definition-lists)
@@ -26,6 +37,7 @@ MDShelf renders CommonMark and GitHub Flavored Markdown through Goldmark. It add
 | Feature | Markdown form | Result |
 | :--- | :--- | :--- |
 | Heading | `## Heading` | A heading with a route fragment |
+| Front matter | YAML between `---` or TOML between `+++` | A title and metadata panel |
 | Emphasis | `*text*` or `_text_` | *Emphasized text* |
 | Strong text | `**text**` | **Strong text** |
 | Strikethrough | `~~text~~` | ~~Removed text~~ |
@@ -46,6 +58,32 @@ MDShelf renders CommonMark and GitHub Flavored Markdown through Goldmark. It add
 | Rule | `---` | A thematic break |
 
 Local images can use PNG, JPEG, GIF, or WebP files. Relative Markdown links open inside MDShelf.
+
+## Front matter
+
+The metadata panel below this document's title comes from YAML front matter. The `title` field also sets the browser and sidebar title.
+
+```yaml
+---
+title: Release notes
+date: 2026-08-26
+tags:
+  - release
+  - documentation
+---
+```
+
+TOML front matter uses plus-sign delimiters:
+
+```toml
++++
+title = "Release notes"
+date = 2026-08-26
+tags = ["release", "documentation"]
++++
+```
+
+MDShelf hides the front matter source. It shows all fields except `title` in the metadata panel.
 
 ## Text and headings
 

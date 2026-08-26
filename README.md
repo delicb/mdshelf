@@ -97,6 +97,10 @@ Start a block quote with `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, or `
 
 Put a term on one line. Start its definition on the next line with `:`. A term can have more than one definition.
 
+### Front matter
+
+Put YAML between `---` lines or TOML between `+++` lines at the start of a document. The `title` field sets the page title. MDShelf shows other fields in a metadata panel.
+
 ## Mermaid diagrams
 
 MDShelf renders fenced `mermaid` blocks in ad hoc and daemon modes:
