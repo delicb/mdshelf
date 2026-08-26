@@ -26,6 +26,8 @@ func newMarkdownRenderer() goldmark.Markdown {
 			extension.Footnote,
 			highlighting.NewHighlighting(
 				highlighting.WithStyle("github"),
+				highlighting.WithWrapperRenderer(renderCodeBlockWrapper),
+				highlighting.WithCodeBlockOptions(codeBlockOptions),
 				highlighting.WithFormatOptions(
 					chromahtml.WithClasses(true),
 					chromahtml.WithCSSComments(false),

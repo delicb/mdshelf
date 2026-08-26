@@ -107,6 +107,19 @@ test("Heading permalinks use document routes and accessible labels", () => {
   assert.equal(link.textContent, "#");
 });
 
+test("Code copy text excludes rendered line numbers", () => {
+  const api = loadApp(null);
+  const clone = {
+    textContent: "1 code line\n",
+    querySelectorAll: () => [{ remove() { clone.textContent = "code line\n"; } }],
+  };
+  const source = { cloneNode: () => clone };
+  const figure = {
+    querySelector: (selector) => selector === ".lntd:last-child pre" ? source : null,
+  };
+  assert.equal(api.codeBlockText(figure), "code line\n");
+});
+
 test("Theme choices load, apply, and persist", () => {
   const api = loadApp(null, true, {
     "mdshelf.colorTheme": "light",

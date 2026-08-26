@@ -617,6 +617,63 @@
     link.dataset.documentRoute = "true";
   }
 
+  function codeBlockText(figure) {
+    const source = figure.querySelector(".lntd:last-child pre") || figure.querySelector("pre");
+    if (!source) return "";
+    const clone = source.cloneNode(true);
+    for (const lineNumber of clone.querySelectorAll(".ln, .lnt")) lineNumber.remove();
+    return clone.textContent;
+  }
+
+  function addCodeBlockTools(root) {
+    const figures = new Set(root.querySelectorAll("figure.code-block"));
+    for (const pre of root.querySelectorAll("pre:not(.mermaid)")) {
+      let figure = pre.closest("figure.code-block");
+      if (!figure) {
+        figure = document.createElement("figure");
+        figure.className = "code-block";
+        pre.before(figure);
+        figure.append(pre);
+      }
+      figures.add(figure);
+    }
+
+    for (const figure of figures) {
+      if (figure.querySelector(".code-toolbar")) continue;
+      const toolbar = document.createElement("div");
+      toolbar.className = "code-toolbar";
+      const title = figure.dataset.codeTitle?.trim();
+      if (title) {
+        const caption = document.createElement("figcaption");
+        caption.className = "code-title";
+        caption.textContent = title;
+        toolbar.append(caption);
+      }
+      const button = document.createElement("button");
+      button.className = "code-copy";
+      button.type = "button";
+      button.textContent = "Copy";
+      button.setAttribute("aria-label", title ? `Copy code from ${title}` : "Copy code");
+      button.setAttribute("aria-live", "polite");
+      toolbar.append(button);
+      figure.prepend(toolbar);
+    }
+  }
+
+  async function copyCodeBlock(button) {
+    const figure = button.closest("figure.code-block");
+    if (!figure) return;
+    const source = codeBlockText(figure);
+    const original = button.textContent;
+    try {
+      await navigator.clipboard.writeText(source);
+      button.textContent = "Copied";
+    } catch {
+      button.textContent = "Copy failed";
+    }
+    window.setTimeout(() => { button.textContent = original; }, 1600);
+  }
+
   function addHeadingPermalinks(root, documentPath) {
     for (const heading of root.querySelectorAll("h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]")) {
       if (heading.querySelector(".heading-permalink")) continue;
@@ -653,6 +710,7 @@
       table.before(wrapper);
       wrapper.append(table);
     }
+    addCodeBlockTools(root);
     addHeadingPermalinks(root, documentPath);
   }
 
@@ -1009,8 +1067,10 @@
 
   if (window.__MDSHELF_TEST__) {
     window.__MDSHELF_TEST_API__ = {
+      addCodeBlockTools,
       addHeadingPermalinks,
       buildRoute,
+      codeBlockText,
       cancelDocumentLoad,
       colorThemeElement: elements.colorTheme,
       documentPathElement: elements.documentPath,
@@ -1039,6 +1099,11 @@
   elements.fileFilter.addEventListener("input", () => {
     state.filter = elements.fileFilter.value;
     renderFileTree();
+  });
+
+  elements.document.addEventListener("click", (event) => {
+    const button = event.target.closest(".code-copy");
+    if (button) void copyCodeBlock(button);
   });
 
   elements.demoLink.addEventListener("click", (event) => {

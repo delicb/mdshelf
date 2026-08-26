@@ -970,6 +970,57 @@ body.drawer-open .backdrop {
   overflow-wrap: anywhere;
 }
 
+.markdown .code-block {
+  margin: 1rem 0;
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  overflow: hidden;
+}
+
+.markdown .code-toolbar {
+  display: flex;
+  min-height: 2.35rem;
+  padding: 0.4rem 0.55rem 0.4rem 0.85rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  background: var(--surface-soft);
+  border-bottom: 1px solid var(--line);
+}
+
+.markdown .code-title {
+  margin-right: auto;
+  color: var(--text-soft);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.markdown .code-copy {
+  padding: 0.3rem 0.55rem;
+  color: var(--text-soft);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.35rem;
+  cursor: pointer;
+  font: 650 0.72rem/1 var(--sans);
+}
+
+.markdown .code-copy:hover,
+.markdown .code-copy:focus-visible {
+  color: var(--accent-strong);
+  border-color: var(--accent);
+}
+
+.markdown .code-block > pre,
+.markdown .code-block > .chroma,
+.markdown .code-block > .chroma pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
 .markdown pre {
   max-width: 100%;
   padding: 1rem;

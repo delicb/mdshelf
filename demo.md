@@ -26,6 +26,7 @@ Use the table of contents to inspect each feature:
 - [Footnotes](#footnotes)
 - [Links and images](#links-and-images)
 - [Syntax highlighting](#syntax-highlighting)
+- [Advanced code blocks](#advanced-code-blocks)
 - [Math notation](#math-notation)
 - [Mermaid diagrams](#mermaid-diagrams)
 
@@ -54,6 +55,7 @@ MDShelf renders CommonMark and GitHub Flavored Markdown through Goldmark. It add
 | Table | Pipes and a header row | A scrollable table |
 | Footnote | `text[^name]` and `[^name]: note` | A linked note at the end |
 | Code block | A fenced block with a language | Highlighted source code |
+| Code options | Attributes after the language | A title, line numbers, and marked lines |
 | Math | `$...$` or `$$...$$` | Inline or display notation |
 | Diagram | A fenced `mermaid` block | A rendered Mermaid diagram |
 | Image | `![alt](image.png)` | A local or remote raster image |
@@ -276,6 +278,28 @@ An indented block renders as plain code:
 
     no language tag
     no syntax colors
+
+## Advanced code blocks
+
+Every code block has a copy button. Add Pandoc-style attributes after the language to control the other tools.
+
+```go {title="server.go" linenos=true hl_lines="2 5-7"}
+package main
+
+import "net/http"
+
+func main() {
+    handler := http.FileServer(http.Dir("."))
+    http.ListenAndServe(":7331", handler)
+}
+```
+
+| Attribute | Example | Result |
+| :--- | :--- | :--- |
+| `title` | `title="server.go"` | Shows a file-name label |
+| `linenos` | `linenos=true` | Shows line numbers |
+| `linenostart` | `linenostart=20` | Sets the first line number |
+| `hl_lines` | `hl_lines="2 5-7"` | Marks lines or line ranges |
 
 ## Math notation
 

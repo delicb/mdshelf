@@ -105,6 +105,10 @@ Put YAML between `---` lines or TOML between `+++` lines at the start of a docum
 
 Move the pointer over a heading or focus it with the keyboard to show its permalink. The link opens the same document at that heading.
 
+### Advanced code blocks
+
+Every code block has a copy button. Fenced blocks accept Pandoc-style attributes after the language. Use `title="main.go"`, `linenos=true`, `linenostart=20`, and `hl_lines="2 4-6"` to control the display.
+
 ## Mermaid diagrams
 
 MDShelf renders fenced `mermaid` blocks in ad hoc and daemon modes:
