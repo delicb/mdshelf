@@ -158,6 +158,36 @@ func TestDaemonServingKeepsListOpaqueAndScopesAssets(t *testing.T) {
 	}
 }
 
+func TestDaemonControlRemoveAcceptsDocumentID(t *testing.T) {
+	stateDir := t.TempDir()
+	documentPath := mustWriteFile(t, t.TempDir(), "note.md", "# Note\n")
+	d, err := newDaemonServer(stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(d.close)
+	document, _, err := d.updater.add(documentPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response := postControl(t, d.handler, "/api/control/remove", map[string]string{"id": document.ID})
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("remove status = %d, body = %s", response.StatusCode, readBody(t, response))
+	}
+	if documents := d.updater.documentSnapshot(); len(documents) != 0 {
+		t.Fatalf("documents after remove = %#v", documents)
+	}
+	registry, err := loadRegistry(filepath.Join(stateDir, "registry.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(registry.Documents) != 0 {
+		t.Fatalf("registry after remove = %#v", registry.Documents)
+	}
+}
+
 func TestDaemonControlChecksJSONAndLocalHost(t *testing.T) {
 	d, err := newDaemonServer(t.TempDir())
 	if err != nil {

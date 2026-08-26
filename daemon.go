@@ -358,9 +358,24 @@ func (d *daemonServer) handleControlList(w http.ResponseWriter, r *http.Request)
 func (d *daemonServer) handleControlRemove(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Path string `json:"path"`
+		ID   string `json:"id"`
 	}
 	if !decodeControl(w, r, &request) {
 		return
+	}
+	if (request.Path == "") == (request.ID == "") {
+		writeJSONError(w, http.StatusBadRequest, "set either path or id, but not both")
+		return
+	}
+	if request.ID != "" {
+		d.updater.mu.Lock()
+		document := cloneDaemonDocument(d.updater.documents[request.ID])
+		d.updater.mu.Unlock()
+		if document == nil {
+			writeJSONError(w, http.StatusNotFound, "Document not registered")
+			return
+		}
+		request.Path = document.Path
 	}
 	document, err := d.updater.remove(request.Path)
 	if err != nil {

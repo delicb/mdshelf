@@ -89,6 +89,14 @@ test("The embedded demo is always available", () => {
   assert.equal(api.shouldReloadDocument("guide.md", true, null), true);
 });
 
+test("Daemon document removal uses the opaque document ID", () => {
+  const api = loadApp(null);
+  const request = api.daemonRemoveRequest("6391cb20c5940d2f477c6589");
+  assert.equal(request.method, "POST");
+  assert.equal(request.headers["Content-Type"], "application/json");
+  assert.deepEqual(JSON.parse(request.body), { id: "6391cb20c5940d2f477c6589" });
+});
+
 test("Heading permalinks use document routes and accessible labels", () => {
   const api = loadApp(null);
   const appended = [];

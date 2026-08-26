@@ -569,14 +569,52 @@ body.drawer-open .backdrop {
   background: var(--surface-hover);
 }
 
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
 .file-link {
   display: flex;
+  min-width: 0;
   padding: 0.42rem 0.55rem;
+  flex: 1 1 auto;
   align-items: center;
   color: var(--text-soft);
   line-height: 1.25;
   text-decoration: none;
   overflow-wrap: anywhere;
+}
+
+.file-remove {
+  display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: var(--text-faint);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.15rem;
+  line-height: 1;
+  opacity: 0.65;
+}
+
+.file-remove:hover,
+.file-remove:focus-visible {
+  color: var(--accent-strong);
+  background: var(--surface-hover);
+  opacity: 1;
+}
+
+.file-remove:disabled {
+  cursor: wait;
+  opacity: 0.35;
 }
 
 .file-link[aria-current="page"] {

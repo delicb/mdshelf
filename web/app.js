@@ -485,7 +485,21 @@
         link.setAttribute("aria-label", `${file.name}, removed`);
       }
       if (file.path === state.currentPath) link.setAttribute("aria-current", "page");
-      item.append(link);
+      if (state.daemonMode) {
+        const row = document.createElement("div");
+        row.className = "file-row";
+        const removeButton = document.createElement("button");
+        removeButton.className = "file-remove";
+        removeButton.type = "button";
+        removeButton.dataset.path = file.path;
+        removeButton.textContent = "×";
+        removeButton.title = "Remove from MDShelf";
+        removeButton.setAttribute("aria-label", `Remove ${file.name} from MDShelf`);
+        row.append(link, removeButton);
+        item.append(row);
+      } else {
+        item.append(link);
+      }
       list.append(item);
     }
 
@@ -557,6 +571,34 @@
 
   async function refreshFileList() {
     setFileList(await fetchJSON("/api/files"));
+  }
+
+  function daemonRemoveRequest(path) {
+    return {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: path }),
+    };
+  }
+
+  async function removeDaemonDocument(path, button) {
+    if (!state.daemonMode || !state.fileSet.has(path)) return;
+    const name = displayName(path);
+    button.disabled = true;
+    try {
+      await fetchJSON("/api/control/remove", daemonRemoveRequest(path));
+      await refreshFileList();
+      if (state.currentPath === path) {
+        const fallback = defaultDocument(path) || demoDocumentPath;
+        if (!desktop.matches) setDrawer(false, false);
+        window.location.hash = buildRoute(fallback);
+      }
+      announceUpdate(`${name} removed from MDShelf`);
+    } catch (error) {
+      button.disabled = false;
+      const message = error instanceof TypeError ? "MDShelf could not reach the local server." : error.message;
+      announceUpdate(`Could not remove ${name}: ${message}`);
+    }
   }
 
   function assetURL(documentPath, reference) {
@@ -1073,6 +1115,7 @@
       codeBlockText,
       cancelDocumentLoad,
       colorThemeElement: elements.colorTheme,
+      daemonRemoveRequest,
       documentPathElement: elements.documentPath,
       initializeMermaid,
       isCurrentLoad,
@@ -1116,6 +1159,13 @@
   });
 
   elements.fileNav.addEventListener("click", (event) => {
+    const removeButton = event.target.closest(".file-remove");
+    if (removeButton) {
+      event.preventDefault();
+      void removeDaemonDocument(removeButton.dataset.path, removeButton);
+      return;
+    }
+
     const link = event.target.closest(".file-link");
     if (!link) return;
     state.focusAfterNavigation = true;
