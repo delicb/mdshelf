@@ -91,7 +91,7 @@
   }
 
   function buildRoute(path, fragment = "") {
-    const encodedFragment = fragment ? `#${encodeURIComponent(safeDecode(fragment))}` : "";
+    const encodedFragment = fragment ? `?${encodeURIComponent(safeDecode(fragment))}` : "";
     return `#/${encodePath(path)}${encodedFragment}`;
   }
 
@@ -99,7 +99,7 @@
     if (!window.location.hash.startsWith("#/")) return { path: "", fragment: "" };
 
     const route = window.location.hash.slice(2);
-    const fragmentIndex = route.indexOf("#");
+    const fragmentIndex = route.search(/[?#]/);
     const rawPath = fragmentIndex === -1 ? route : route.slice(0, fragmentIndex);
     const rawFragment = fragmentIndex === -1 ? "" : route.slice(fragmentIndex + 1);
     const path = normalizePath(rawPath.split("/").map(safeDecode).join("/"));
@@ -870,6 +870,10 @@
     queueUpdate(`${displayName(path)} removed`);
   }
 
+  function shouldReloadDocument(path, reset, change) {
+    return path !== demoDocumentPath && Boolean(path && (reset || change));
+  }
+
   async function applyChanges(payload) {
     if (!Number.isSafeInteger(payload?.revision) || payload.revision < 0 || !Array.isArray(payload?.changes)) {
       throw new Error("The server returned an invalid change list.");
@@ -893,7 +897,7 @@
       }
     }
 
-    if (currentPath && (payload.reset || currentChange)) {
+    if (shouldReloadDocument(currentPath, payload.reset, currentChange)) {
       if (!isDocumentAvailable(currentPath) || currentChange?.kind === "removed") {
         showRemovedDocument(currentPath);
         return;
@@ -989,6 +993,7 @@
 
   if (window.__MDSHELF_TEST__) {
     window.__MDSHELF_TEST_API__ = {
+      buildRoute,
       cancelDocumentLoad,
       colorThemeElement: elements.colorTheme,
       documentPathElement: elements.documentPath,
@@ -1001,6 +1006,7 @@
       setColorTheme,
       setDocumentPath,
       setSyntaxTheme,
+      shouldReloadDocument,
       syntaxThemeElement: elements.syntaxTheme,
       setAbortController(controller) { state.abortController = controller; },
     };

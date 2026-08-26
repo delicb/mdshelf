@@ -35,6 +35,7 @@ func newMarkdownRenderer() goldmark.Markdown {
 	}
 	options = append(options, mermaidOptions()...)
 	options = append(options, mathOptions()...)
+	options = append(options, calloutOptions()...)
 	return goldmark.New(options...)
 }
 

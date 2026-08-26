@@ -8,6 +8,7 @@ Use the table of contents to inspect each feature:
 - [Text and headings](#text-and-headings)
 - [Lists and tasks](#lists-and-tasks)
 - [Quotes and rules](#quotes-and-rules)
+- [Alerts and callouts](#alerts-and-callouts)
 - [Tables](#tables)
 - [Footnotes](#footnotes)
 - [Links and images](#links-and-images)
@@ -31,6 +32,7 @@ MDShelf renders CommonMark and GitHub Flavored Markdown through Goldmark. It add
 | Link | `[label](https://example.com)` | [Example](https://example.com) |
 | Automatic link | A plain web address | https://example.com/docs |
 | Quote | `> text` | A block quote |
+| Callout | `> [!NOTE]` | A labeled alert or note |
 | Lists | `- item` or `1. item` | Ordered and unordered lists |
 | Task | `- [x] item` | A task list item |
 | Table | Pipes and a header row | A scrollable table |
@@ -97,6 +99,27 @@ This text starts on the next line.
 ---
 
 The rule above separates sections without extra HTML.
+
+## Alerts and callouts
+
+Use a supported marker on the first line of a block quote.
+
+> [!NOTE]
+> Notes add useful context without interrupting the main steps.
+
+> [!TIP]
+> Tips show an optional way to get a better result.
+
+> [!IMPORTANT]
+> Important details can affect whether a procedure succeeds.
+
+> [!WARNING]
+> Warnings identify a condition that can cause a problem.
+
+> [!CAUTION]
+> Cautions identify a condition that can cause data loss or another serious result.
+
+Normal block quotes keep their standard appearance.
 
 ## Tables
 

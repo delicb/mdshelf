@@ -89,6 +89,10 @@ Use `[^name]` to add a footnote reference. Define the note with `[^name]: Note t
 
 Use `$...$` or `\(...\)` for inline math. Use `$$...$$` or `\[...\]` for display math. MDShelf bundles KaTeX 0.18.4 for offline rendering.
 
+### Alerts and callouts
+
+Start a block quote with `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, or `[!CAUTION]`. MDShelf renders a labeled callout.
+
 ## Mermaid diagrams
 
 MDShelf renders fenced `mermaid` blocks in ad hoc and daemon modes:

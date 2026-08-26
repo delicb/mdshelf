@@ -79,6 +79,9 @@ test("The embedded demo is always available", () => {
   const api = loadApp(null);
   assert.equal(api.isDocumentAvailable("__mdshelf_demo__"), true);
   assert.equal(api.isDocumentAvailable("missing.md"), false);
+  assert.equal(api.buildRoute("__mdshelf_demo__", "alerts and callouts"), "#/__mdshelf_demo__?alerts%20and%20callouts");
+  assert.equal(api.shouldReloadDocument("__mdshelf_demo__", true, null), false);
+  assert.equal(api.shouldReloadDocument("guide.md", true, null), true);
 });
 
 test("Theme choices load, apply, and persist", () => {

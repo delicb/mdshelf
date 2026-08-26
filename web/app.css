@@ -861,6 +861,44 @@ body.drawer-open .backdrop {
   margin-bottom: 0;
 }
 
+.markdown .callout {
+  --callout-color: #4493f8;
+  margin: 1.4rem 0;
+  padding: 0.85rem 1rem;
+  background: color-mix(in srgb, var(--callout-color) 10%, transparent);
+  border-left: 4px solid var(--callout-color);
+  border-radius: 0.35rem;
+}
+
+.markdown .callout-title {
+  margin: 0 0 0.55rem;
+  color: var(--callout-color);
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+  font-size: 0.8rem;
+}
+
+.markdown .callout > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown .callout-tip {
+  --callout-color: #3fb950;
+}
+
+.markdown .callout-important {
+  --callout-color: #a371f7;
+}
+
+.markdown .callout-warning {
+  --callout-color: #d29922;
+}
+
+.markdown .callout-caution {
+  --callout-color: #f85149;
+}
+
 .markdown code,
 .markdown kbd,
 .markdown samp {
