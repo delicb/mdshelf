@@ -108,6 +108,32 @@ https://example.com
 	}
 }
 
+func TestRenderFootnotes(t *testing.T) {
+	root := t.TempDir()
+	mustWriteFile(t, root, "notes.md", "A checked claim.[^source]\n\n[^source]: The source text.\n")
+
+	response := request(t, mustNewHandler(t, root), http.MethodGet, apiPath("/api/render", "notes.md"), nil)
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("render status = %d, body = %s", response.StatusCode, readBody(t, response))
+	}
+	var payload struct {
+		HTML string `json:"html"`
+	}
+	decodeJSON(t, response, &payload)
+	for _, fragment := range []string{
+		`<sup id="fnref:1">`,
+		`href="#fn:1"`,
+		`<div class="footnotes" role="doc-endnotes">`,
+		`<li id="fn:1">`,
+		`role="doc-backlink"`,
+	} {
+		if !strings.Contains(payload.HTML, fragment) {
+			t.Errorf("footnote HTML does not contain %q: %s", fragment, payload.HTML)
+		}
+	}
+}
+
 func TestRenderEmbeddedDemo(t *testing.T) {
 	response := request(t, mustNewHandler(t, t.TempDir()), http.MethodGet, apiPath("/api/render", demoDocumentPath), nil)
 	defer response.Body.Close()

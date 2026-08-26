@@ -9,6 +9,7 @@ Use the table of contents to inspect each feature:
 - [Lists and tasks](#lists-and-tasks)
 - [Quotes and rules](#quotes-and-rules)
 - [Tables](#tables)
+- [Footnotes](#footnotes)
 - [Links and images](#links-and-images)
 - [Syntax highlighting](#syntax-highlighting)
 - [Mermaid diagrams](#mermaid-diagrams)
@@ -32,6 +33,7 @@ MDShelf renders CommonMark and GitHub Flavored Markdown through Goldmark. It add
 | Lists | `- item` or `1. item` | Ordered and unordered lists |
 | Task | `- [x] item` | A task list item |
 | Table | Pipes and a header row | A scrollable table |
+| Footnote | `text[^name]` and `[^name]: note` | A linked note at the end |
 | Code block | A fenced block with a language | Highlighted source code |
 | Diagram | A fenced `mermaid` block | A rendered Mermaid diagram |
 | Image | `![alt](image.png)` | A local or remote raster image |
@@ -104,6 +106,18 @@ The rule above separates sections without extra HTML.
 | File watcher | File events | Live update | Ready |
 
 Long tables use a horizontal scroll area on narrow screens.
+
+## Footnotes
+
+A footnote keeps supporting details out of the main sentence.[^footnote-source] The same note can have more than one reference.[^footnote-source]
+
+Footnotes can also contain more than one paragraph.[^footnote-detail]
+
+[^footnote-source]: MDShelf uses Goldmark footnotes. Select the number to move between the reference and this note.
+
+[^footnote-detail]: The first paragraph can contain **formatting**, links, and `inline code`.
+
+    Indent the next paragraph to keep it in the same footnote.
 
 ## Links and images
 

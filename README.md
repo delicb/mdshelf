@@ -79,6 +79,12 @@ Each document has a separate asset root. MDShelf serves local raster images only
 
 The names `add`, `list`, `remove`, `status`, and `stop` are reserved as the first command value. Use `./add` to serve a folder named `add` in ad hoc mode.
 
+## Extended Markdown
+
+### Footnotes
+
+Use `[^name]` to add a footnote reference. Define the note with `[^name]: Note text`. MDShelf adds linked references and backlinks.
+
 ## Mermaid diagrams
 
 MDShelf renders fenced `mermaid` blocks in ad hoc and daemon modes:

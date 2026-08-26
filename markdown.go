@@ -22,6 +22,7 @@ func newMarkdownRenderer() goldmark.Markdown {
 	options := []goldmark.Option{
 		goldmark.WithExtensions(
 			extension.GFM,
+			extension.Footnote,
 			highlighting.NewHighlighting(
 				highlighting.WithStyle("github"),
 				highlighting.WithFormatOptions(
