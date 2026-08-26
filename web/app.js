@@ -7,6 +7,7 @@
     closeButton: document.querySelector("#close-button"),
     currentFile: document.querySelector("#current-file"),
     document: document.querySelector("#document"),
+    documentPath: document.querySelector("#document-path"),
     drawer: document.querySelector("#drawer"),
     fileCount: document.querySelector("#file-count"),
     fileFilter: document.querySelector("#file-filter"),
@@ -26,6 +27,9 @@
     currentPath: "",
     files: [],
     fileSet: new Set(),
+    titles: new Map(),
+    removed: new Map(),
+    daemonMode: false,
     filter: "",
     focusAfterNavigation: false,
     highlightBaseline: [],
@@ -33,6 +37,9 @@
     openFolders: new Set(),
     pendingUpdate: null,
     updateTimer: 0,
+    renderGeneration: 0,
+    mermaidCounter: 0,
+    mermaidQueue: Promise.resolve(),
   };
 
   function safeDecode(value) {
@@ -111,9 +118,19 @@
     return fileName(path).replace(/\.(?:md|markdown|mdown|mkd)$/i, "");
   }
 
-  function defaultDocument() {
-    return state.files.find((path) => !path.includes("/") && /^readme\.(?:md|markdown)$/i.test(path))
-      || state.files[0]
+  function displayName(path) {
+    return state.titles.get(path) || fileName(path);
+  }
+
+  function isDocumentAvailable(path) {
+    return state.fileSet.has(path) && (!state.daemonMode || state.removed.get(path) !== true);
+  }
+
+  function defaultDocument(exclude = "") {
+    const available = state.files.filter((path) => path !== exclude && isDocumentAvailable(path));
+    if (state.daemonMode) return available[0] || "";
+    return available.find((path) => !path.includes("/") && /^readme\.(?:md|markdown)$/i.test(path))
+      || available[0]
       || "";
   }
 
@@ -144,6 +161,12 @@
     elements.statusMessage.hidden = true;
     const skeleton = elements.statusView.querySelector(".document-skeleton");
     if (skeleton) skeleton.hidden = false;
+  }
+
+  function setDocumentPath(path) {
+    const value = typeof path === "string" ? path : "";
+    elements.documentPath.textContent = value;
+    elements.documentPath.hidden = !value;
   }
 
   function showMessage(title, message, retry) {
@@ -308,7 +331,7 @@
   function makeTree(files) {
     const root = { directories: new Map(), files: [] };
     for (const path of files) {
-      const parts = path.split("/");
+      const parts = state.daemonMode ? [displayName(path)] : path.split("/");
       const name = parts.pop();
       let node = root;
       for (const part of parts) {
@@ -357,6 +380,10 @@
       link.href = buildRoute(file.path);
       link.dataset.path = file.path;
       link.textContent = file.name;
+      if (state.removed.get(file.path)) {
+        link.classList.add("is-removed");
+        link.setAttribute("aria-label", `${file.name}, removed`);
+      }
       if (file.path === state.currentPath) link.setAttribute("aria-current", "page");
       item.append(link);
       list.append(item);
@@ -368,7 +395,7 @@
   function renderFileTree() {
     const query = state.filter.trim().toLocaleLowerCase();
     const visibleFiles = query
-      ? state.files.filter((path) => path.toLocaleLowerCase().includes(query))
+      ? state.files.filter((path) => displayName(path).toLocaleLowerCase().includes(query))
       : state.files;
 
     elements.fileNav.replaceChildren();
@@ -398,13 +425,31 @@
 
   function setFileList(payload) {
     if (!Array.isArray(payload?.files)) throw new Error("The server returned an invalid file list.");
-    state.files = [...new Set(payload.files
-      .filter((path) => typeof path === "string")
-      .map(normalizePath)
-      .filter(Boolean))]
-      .sort(collator.compare);
+    const daemonMode = payload.mode === "daemon";
+    const allStrings = payload.files.every((row) => typeof row === "string");
+    const allObjects = payload.files.every((row) => (
+      row && typeof row === "object" && typeof row.path === "string" && typeof row.title === "string"
+    ));
+    if ((!daemonMode && !allStrings) || (daemonMode && !allObjects)) {
+      throw new Error("The server returned an invalid file list.");
+    }
+
+    const titles = new Map();
+    const removed = new Map();
+    const values = payload.files.map((row) => {
+      if (typeof row === "string") return normalizePath(row);
+      const path = normalizePath(row.path);
+      titles.set(path, row.title.trim() || titleFromPath(path));
+      removed.set(path, row.removed === true);
+      return path;
+    }).filter(Boolean);
+    state.daemonMode = daemonMode;
+    state.titles = titles;
+    state.removed = removed;
+    state.files = [...new Set(values)].sort((a, b) => collator.compare(displayName(a), displayName(b)));
     state.fileSet = new Set(state.files);
-    elements.brand.href = state.files.length ? buildRoute(defaultDocument()) : "#";
+    const home = defaultDocument();
+    elements.brand.href = home ? buildRoute(home) : "#";
     renderFileTree();
   }
 
@@ -445,6 +490,10 @@
     const reference = link.getAttribute("href");
     if (!reference) return;
 
+    if (reference.startsWith("#/")) {
+      link.dataset.documentRoute = "true";
+      return;
+    }
     if (reference.startsWith("#")) {
       link.href = buildRoute(documentPath, reference.slice(1));
       link.dataset.documentRoute = "true";
@@ -489,6 +538,50 @@
     }
   }
 
+  function renderMermaid(root, isCurrent) {
+    const diagrams = [...root.querySelectorAll("pre.mermaid")];
+    if (!diagrams.length || !window.mermaid) return Promise.resolve();
+    const generation = ++state.renderGeneration;
+    const render = async () => {
+      for (let index = 0; index < diagrams.length; index += 1) {
+        if (!isCurrent()) return;
+        const diagram = diagrams[index];
+        const source = diagram.textContent;
+        try {
+          await window.mermaid.parse(source);
+          if (!isCurrent()) return;
+          const id = `mdshelf-mermaid-${generation}-${index}-${++state.mermaidCounter}`;
+          const rendered = await window.mermaid.render(id, source);
+          if (!isCurrent()) return;
+          diagram.innerHTML = rendered.svg;
+          diagram.classList.add("mermaid-rendered");
+          rendered.bindFunctions?.(diagram);
+        } catch {
+          if (!isCurrent()) return;
+          diagram.textContent = source;
+          diagram.classList.add("mermaid-error");
+          const message = document.createElement("span");
+          message.className = "mermaid-error-message";
+          message.textContent = "MDShelf could not render this diagram.";
+          message.setAttribute("role", "alert");
+          diagram.prepend(message);
+        }
+      }
+    };
+    const queued = state.mermaidQueue.then(render, render);
+    state.mermaidQueue = queued.catch(() => {});
+    return queued;
+  }
+
+  function isCurrentLoad(controller) {
+    return state.abortController === controller && !controller.signal.aborted;
+  }
+
+  function cancelDocumentLoad() {
+    state.abortController?.abort();
+    state.abortController = null;
+  }
+
   function scrollToRouteFragment(fragment, focus = false) {
     if (!fragment) {
       window.scrollTo({ top: 0, behavior: "auto" });
@@ -507,14 +600,16 @@
     }
   }
 
-  function finishNavigation(fragment, title) {
+  function finishNavigation(fragment, title, isCurrent = () => true) {
     window.requestAnimationFrame(() => {
+      if (!isCurrent()) return;
       window.requestAnimationFrame(() => {
+        if (!isCurrent()) return;
         scrollToRouteFragment(fragment, state.focusAfterNavigation);
         state.focusAfterNavigation = false;
       });
     });
-    elements.routeStatus.textContent = `Loaded ${title}`;
+    if (isCurrent()) elements.routeStatus.textContent = `Loaded ${title}`;
   }
 
   async function loadDocument(path, fragment = "", options = {}) {
@@ -528,13 +623,19 @@
     const controller = new AbortController();
     state.abortController = controller;
     state.currentPath = path;
-    elements.currentFile.textContent = fileName(path);
+    elements.currentFile.textContent = displayName(path);
     updateActiveFile();
-    if (!live) showLoading();
+    if (!live) {
+      setDocumentPath("");
+      showLoading();
+    }
 
     try {
       const payload = await fetchJSON(`/api/render?path=${encodeURIComponent(path)}`, { signal: controller.signal });
-      if (typeof payload?.html !== "string") throw new Error("The server returned an invalid document.");
+      if (!isCurrentLoad(controller)) return;
+      if (typeof payload?.html !== "string" || typeof payload.absolutePath !== "string" || !payload.absolutePath) {
+        throw new Error("The server returned an invalid document.");
+      }
 
       const renderedPath = normalizePath(typeof payload.path === "string" ? payload.path : path) || path;
       const title = typeof payload.title === "string" && payload.title.trim()
@@ -542,7 +643,6 @@
         : titleFromPath(renderedPath);
       const previousScroll = window.scrollY;
 
-      state.currentPath = renderedPath;
       const template = document.createElement("template");
       template.innerHTML = payload.html;
       const blocks = [...template.content.children];
@@ -550,27 +650,34 @@
       const changedIndexes = live ? changedBlockIndexes(state.highlightBaseline, signatures) : new Set();
       const changedBlocks = blocks.filter((_, index) => changedIndexes.has(index));
       prepareDocument(template.content, renderedPath);
+      await renderMermaid(template.content, () => isCurrentLoad(controller));
+      if (!isCurrentLoad(controller)) return;
+      state.currentPath = renderedPath;
       elements.document.replaceChildren(template.content);
       elements.document.setAttribute("aria-label", title);
-      elements.currentFile.textContent = fileName(renderedPath);
+      elements.currentFile.textContent = displayName(renderedPath);
+      setDocumentPath(payload.absolutePath);
       document.title = `${title} | MDShelf`;
       updateActiveFile();
       showDocument();
       if (live) {
-        window.requestAnimationFrame(() => window.scrollTo({ top: previousScroll, behavior: "auto" }));
+        window.requestAnimationFrame(() => {
+          if (isCurrentLoad(controller)) window.scrollTo({ top: previousScroll, behavior: "auto" });
+        });
         elements.routeStatus.textContent = `Updated ${title}`;
         queueUpdate(`${fileName(renderedPath)} updated`, changedBlocks, signatures);
       } else {
         window.clearTimeout(state.highlightTimer);
         state.highlightBaseline = signatures;
         state.pendingUpdate = null;
-        finishNavigation(fragment, title);
+        finishNavigation(fragment, title, () => isCurrentLoad(controller));
       }
     } catch (error) {
-      if (error.name === "AbortError") return;
+      if (error.name === "AbortError" || !isCurrentLoad(controller)) return;
       const message = error instanceof TypeError
         ? "MDShelf could not reach the local server."
         : error.message;
+      setDocumentPath("");
       showMessage("Could not open document", message, () => loadDocument(path, fragment));
       elements.routeStatus.textContent = `Could not load ${fileName(path)}`;
     }
@@ -581,13 +688,20 @@
     const route = readRoute();
     if (!route.path) {
       const path = defaultDocument();
+      if (!path && state.daemonMode && state.files.length) {
+        window.history.replaceState(null, "", buildRoute(state.files[0]));
+        showRemovedDocument(state.files[0]);
+        return;
+      }
       window.history.replaceState(null, "", buildRoute(path));
       return loadDocument(path);
     }
 
     if (!state.fileSet.has(route.path)) {
+      cancelDocumentLoad();
       state.currentPath = "";
       updateActiveFile();
+      setDocumentPath("");
       elements.currentFile.textContent = "Document not found";
       document.title = "Document not found | MDShelf";
       elements.routeStatus.textContent = "Document not found";
@@ -601,24 +715,31 @@
       return;
     }
 
+    if (!isDocumentAvailable(route.path)) {
+      showRemovedDocument(route.path);
+      return;
+    }
+
     return loadDocument(route.path, route.fragment);
   }
 
   function showRemovedDocument(path) {
-    state.currentPath = "";
+    cancelDocumentLoad();
+    state.currentPath = path;
     state.highlightBaseline = [];
     state.pendingUpdate = null;
     updateActiveFile();
+    setDocumentPath("");
     elements.currentFile.textContent = "Document removed";
     document.title = "Document removed | MDShelf";
-    elements.routeStatus.textContent = `${fileName(path)} was removed`;
-    const fallback = defaultDocument();
+    elements.routeStatus.textContent = `${displayName(path)} was removed`;
+    const fallback = defaultDocument(path);
     showMessage(
       "Document removed",
       "This Markdown file no longer exists.",
       fallback ? () => { window.location.hash = buildRoute(fallback); } : null,
     );
-    queueUpdate(`${fileName(path)} removed`);
+    queueUpdate(`${displayName(path)} removed`);
   }
 
   async function applyChanges(payload) {
@@ -631,7 +752,7 @@
       && typeof change.path === "string"
       && ["added", "removed", "updated"].includes(change.kind)
     ));
-    if (payload.reset || changes.some((change) => change.kind !== "updated")) {
+    if (state.daemonMode ? changes.length > 0 || payload.reset : payload.reset || changes.some((change) => change.kind !== "updated")) {
       await refreshFileList();
     }
 
@@ -645,7 +766,7 @@
     }
 
     if (currentPath && (payload.reset || currentChange)) {
-      if (!state.fileSet.has(currentPath) || currentChange?.kind === "removed") {
+      if (!isDocumentAvailable(currentPath) || currentChange?.kind === "removed") {
         showRemovedDocument(currentPath);
         return;
       }
@@ -656,7 +777,7 @@
 
     if (!currentPath && state.files.length) {
       const nextPath = readRoute().path;
-      const path = state.fileSet.has(nextPath) ? nextPath : defaultDocument();
+      const path = isDocumentAvailable(nextPath) ? nextPath : defaultDocument();
       window.history.replaceState(null, "", buildRoute(path));
       await loadDocument(path, "", { force: true, live: true });
       return;
@@ -687,12 +808,14 @@
   }
 
   async function initialize() {
+    window.mermaid?.initialize({ startOnLoad: false, securityLevel: "strict" });
     showLoading();
     elements.fileCount.textContent = "Loading documents";
     try {
       await refreshFileList();
 
       if (!state.files.length) {
+        setDocumentPath("");
         elements.currentFile.textContent = "No documents";
         document.title = "MDShelf";
         showMessage(
@@ -708,6 +831,7 @@
       const message = error instanceof TypeError
         ? "MDShelf could not reach the local server."
         : error.message;
+      setDocumentPath("");
       elements.fileNav.replaceChildren();
       const empty = document.createElement("p");
       empty.className = "nav-empty";
@@ -716,6 +840,18 @@
       elements.fileCount.textContent = "Load failed";
       showMessage("Could not load documents", message, initialize);
     }
+  }
+
+  if (window.__MDSHELF_TEST__) {
+    window.__MDSHELF_TEST_API__ = {
+      cancelDocumentLoad,
+      documentPathElement: elements.documentPath,
+      isCurrentLoad,
+      renderMermaid,
+      setDocumentPath,
+      setAbortController(controller) { state.abortController = controller; },
+    };
+    return;
   }
 
   elements.menuButton.addEventListener("click", () => setDrawer(true));

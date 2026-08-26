@@ -19,26 +19,42 @@ type fsnotifyFileWatcher struct {
 	stop      chan struct{}
 	done      chan struct{}
 	watched   map[string]struct{}
+	recursive bool
 	closeOnce sync.Once
 	closeErr  error
 }
 
 func newFileWatcher(root string) (fileWatcher, error) {
+	return newFSNotifyWatcher(root, true)
+}
+
+func newParentWatcher(parent string) (fileWatcher, error) {
+	return newFSNotifyWatcher(parent, false)
+}
+
+func newFSNotifyWatcher(root string, recursive bool) (fileWatcher, error) {
 	native, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
 	watcher := &fsnotifyFileWatcher{
-		native:  native,
-		events:  make(chan string, 256),
-		errors:  make(chan error, 16),
-		stop:    make(chan struct{}),
-		done:    make(chan struct{}),
-		watched: make(map[string]struct{}),
+		native:    native,
+		events:    make(chan string, 256),
+		errors:    make(chan error, 16),
+		stop:      make(chan struct{}),
+		done:      make(chan struct{}),
+		watched:   make(map[string]struct{}),
+		recursive: recursive,
 	}
-	if err := watcher.addDirectoryTree(root); err != nil {
+	var watchErr error
+	if recursive {
+		watchErr = watcher.addDirectoryTree(root)
+	} else {
+		watchErr = watcher.addDirectory(root)
+	}
+	if watchErr != nil {
 		_ = native.Close()
-		return nil, err
+		return nil, watchErr
 	}
 	go watcher.run()
 	return watcher, nil
@@ -78,7 +94,7 @@ func (w *fsnotifyFileWatcher) run() {
 			if event.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
 				w.forgetDirectoryTree(event.Name)
 			}
-			if event.Op&(fsnotify.Create|fsnotify.Rename) != 0 {
+			if event.Op&(fsnotify.Create|fsnotify.Rename) != 0 && w.recursive {
 				if info, err := os.Lstat(event.Name); err == nil && info.IsDir() {
 					if err := w.addDirectoryTree(event.Name); err != nil {
 						w.report(err)

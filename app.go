@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -17,13 +16,8 @@ import (
 	"sort"
 	"strings"
 
-	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/yuin/goldmark"
-	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/text"
 )
 
 const maxMarkdownSize = 8 << 20
@@ -73,20 +67,8 @@ func newAppWithWatcher(root string, watch bool) (*app, error) {
 	}
 
 	a := &app{
-		root: resolvedRoot,
-		markdown: goldmark.New(
-			goldmark.WithExtensions(
-				extension.GFM,
-				highlighting.NewHighlighting(
-					highlighting.WithStyle("github"),
-					highlighting.WithFormatOptions(
-						chromahtml.WithClasses(true),
-						chromahtml.WithCSSComments(false),
-					),
-				),
-			),
-			goldmark.WithParserOptions(parser.WithAutoHeadingID()),
-		),
+		root:     resolvedRoot,
+		markdown: newMarkdownRenderer(),
 	}
 	updates, err := newLiveUpdates(a, watch)
 	if err != nil {
@@ -129,7 +111,7 @@ func revalidateStatic(next http.Handler) http.Handler {
 
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: http: https:")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: http: https:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		next.ServeHTTP(w, r)
@@ -211,22 +193,26 @@ func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	document := a.markdown.Parser().Parse(text.NewReader(source))
-	rewriteLocalImages(document, cleanPath)
-
-	var rendered bytes.Buffer
-	if err := a.markdown.Renderer().Render(&rendered, source, document); err != nil {
+	rendered, err := renderMarkdown(a.markdown, source, cleanPath, func(document ast.Node) {
+		rewriteLocalImages(document, cleanPath)
+	})
+	if err != nil {
 		log.Printf("render Markdown file %q: %v", cleanPath, err)
 		writeJSONError(w, http.StatusInternalServerError, "could not render Markdown file")
 		return
 	}
 
-	title := documentTitle(document, source, cleanPath)
 	writeJSON(w, http.StatusOK, struct {
-		Path  string `json:"path"`
-		Title string `json:"title"`
-		HTML  string `json:"html"`
-	}{Path: cleanPath, Title: title, HTML: rendered.String()})
+		Path         string `json:"path"`
+		AbsolutePath string `json:"absolutePath"`
+		Title        string `json:"title"`
+		HTML         string `json:"html"`
+	}{
+		Path:         cleanPath,
+		AbsolutePath: filepath.Join(a.root, filepath.FromSlash(cleanPath)),
+		Title:        rendered.title,
+		HTML:         rendered.html,
+	})
 }
 
 func (a *app) handleAsset(w http.ResponseWriter, r *http.Request) {
@@ -334,7 +320,7 @@ func (a *app) markdownFiles() ([]string, error) {
 	return files, nil
 }
 
-func (a *app) openFile(rawPath string) (*os.File, string, os.FileInfo, error) {
+func (a *app) openFile(rawPath string) (*rootedFile, string, os.FileInfo, error) {
 	cleanPath, err := cleanRelativePath(rawPath)
 	if err != nil {
 		return nil, "", nil, err
@@ -359,28 +345,67 @@ func (a *app) openFile(rawPath string) (*os.File, string, os.FileInfo, error) {
 		}
 	}
 
-	resolved, err := filepath.EvalSymlinks(current)
-	if err != nil {
-		return nil, "", nil, err
-	}
-	if !isWithinRoot(a.root, resolved) {
+	if !isWithinRoot(a.root, current) {
 		return nil, "", nil, errInvalidPath
 	}
-
-	file, err := os.Open(resolved)
+	file, info, err := openRootedFile(a.root, cleanPath)
 	if err != nil {
 		return nil, "", nil, err
-	}
-	info, err := file.Stat()
-	if err != nil {
-		file.Close()
-		return nil, "", nil, err
-	}
-	if !info.Mode().IsRegular() {
-		file.Close()
-		return nil, "", nil, errNotRegular
 	}
 	return file, cleanPath, info, nil
+}
+
+type rootedFile struct {
+	*os.File
+	root *os.Root
+}
+
+func (f *rootedFile) Close() error {
+	fileErr := f.File.Close()
+	rootErr := f.root.Close()
+	if fileErr != nil {
+		return fileErr
+	}
+	return rootErr
+}
+
+func openRootedFile(rootPath, cleanPath string) (*rootedFile, os.FileInfo, error) {
+	before, err := os.Lstat(rootPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	if before.Mode()&os.ModeSymlink != 0 || !before.IsDir() {
+		return nil, nil, errInvalidPath
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	opened, err := root.Stat(".")
+	if err != nil {
+		_ = root.Close()
+		return nil, nil, err
+	}
+	after, err := os.Lstat(rootPath)
+	if err != nil || after.Mode()&os.ModeSymlink != 0 || !after.IsDir() || !os.SameFile(before, opened) || !os.SameFile(opened, after) {
+		_ = root.Close()
+		return nil, nil, errInvalidPath
+	}
+	file, err := root.Open(filepath.FromSlash(cleanPath))
+	if err != nil {
+		_ = root.Close()
+		return nil, nil, err
+	}
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		_ = file.Close()
+		_ = root.Close()
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, nil, errNotRegular
+	}
+	return &rootedFile{File: file, root: root}, info, nil
 }
 
 func cleanRelativePath(rawPath string) (string, error) {

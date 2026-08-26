@@ -76,13 +76,21 @@ https://example.com
 	}
 
 	var payload struct {
-		Path  string `json:"path"`
-		Title string `json:"title"`
-		HTML  string `json:"html"`
+		Path         string `json:"path"`
+		AbsolutePath string `json:"absolutePath"`
+		Title        string `json:"title"`
+		HTML         string `json:"html"`
 	}
 	decodeJSON(t, response, &payload)
 	if payload.Path != "guide.md" {
 		t.Errorf("path = %q, want guide.md", payload.Path)
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(resolvedRoot, "guide.md"); payload.AbsolutePath != want {
+		t.Errorf("absolute path = %q, want %q", payload.AbsolutePath, want)
 	}
 	if payload.Title != "Phone Guide v2" {
 		t.Errorf("title = %q, want Phone Guide v2", payload.Title)
@@ -97,6 +105,36 @@ https://example.com
 		if !strings.Contains(payload.HTML, fragment) {
 			t.Errorf("rendered HTML does not contain %q:\n%s", fragment, payload.HTML)
 		}
+	}
+}
+
+func TestRenderMermaidFenceIsEscaped(t *testing.T) {
+	root := t.TempDir()
+	mustWriteFile(t, root, "diagram.md", "```mermaid\ngraph TD\nA[<script>alert(1)</script>] --> B\n```\n")
+	handler := mustNewHandler(t, root)
+	response := request(t, handler, http.MethodGet, apiPath("/api/render", "diagram.md"), nil)
+	defer response.Body.Close()
+	var payload struct {
+		HTML string `json:"html"`
+	}
+	decodeJSON(t, response, &payload)
+	if !strings.Contains(payload.HTML, `<pre class="mermaid">graph TD`) {
+		t.Fatalf("Mermaid wrapper missing: %s", payload.HTML)
+	}
+	if strings.Contains(payload.HTML, "<script>") || !strings.Contains(payload.HTML, "&lt;script&gt;") {
+		t.Fatalf("Mermaid source was not escaped: %s", payload.HTML)
+	}
+	if strings.Contains(payload.HTML, `class="chroma"`) {
+		t.Fatalf("Mermaid source passed through Chroma: %s", payload.HTML)
+	}
+}
+
+func TestSecurityPolicySupportsBundledMermaid(t *testing.T) {
+	response := request(t, mustNewHandler(t, t.TempDir()), http.MethodGet, "/", nil)
+	defer response.Body.Close()
+	want := "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: http: https:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'"
+	if got := response.Header.Get("Content-Security-Policy"); got != want {
+		t.Fatalf("Content-Security-Policy = %q, want %q", got, want)
 	}
 }
 
@@ -404,10 +442,11 @@ func TestEmbeddedWebShell(t *testing.T) {
 		contentTypePrefixes []string
 		contains            []string
 	}{
-		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./app.css?v=2"`, `href="./chroma.css"`, `src="./app.js?v=2"`, `id="update-notice"`}},
+		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./app.css?v=4"`, `href="./chroma.css"`, `src="./vendor/mermaid.min.js?v=11.17.2"`, `src="./app.js?v=4"`, `id="document-path"`, `id="update-notice"`}},
 		{path: "/app.css", contentTypePrefixes: []string{"text/css"}, contains: []string{":root", "@keyframes content-updated"}},
 		{path: "/chroma.css", contentTypePrefixes: []string{"text/css"}, contains: []string{".chroma .kd", "prefers-color-scheme: dark"}},
-		{path: "/app.js", contentTypePrefixes: []string{"text/javascript", "application/javascript"}, contains: []string{`"use strict"`, "/api/watch?since="}},
+		{path: "/app.js", contentTypePrefixes: []string{"text/javascript", "application/javascript"}, contains: []string{`"use strict"`, "/api/watch?since=", "window.mermaid"}},
+		{path: "/vendor/mermaid.min.js", contentTypePrefixes: []string{"text/javascript", "application/javascript"}, contains: []string{"mermaid"}},
 	}
 	for _, test := range tests {
 		t.Run(test.path, func(t *testing.T) {

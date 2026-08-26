@@ -14,7 +14,25 @@ import (
 	"time"
 )
 
-const defaultPort = 7331
+const (
+	defaultPort       = 7331
+	defaultDaemonPort = 7332
+)
+
+const topLevelHelp = `Usage:
+  mdshelf [options] [root]
+  mdshelf add <markdown-file>
+  mdshelf list
+  mdshelf remove <markdown-file>
+  mdshelf status
+  mdshelf stop
+
+Options:
+  -port int
+        port to listen on in ad-hoc mode (default 7331)
+
+Daemon mode uses http://localhost:7332.
+`
 
 type options struct {
 	port int
@@ -22,55 +40,67 @@ type options struct {
 }
 
 func main() {
-	options, err := parseOptions(os.Args[1:], os.Stderr)
+	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(args []string, stdout, stderr io.Writer) error {
+	if len(args) > 0 {
+		switch args[0] {
+		case "add", "list", "remove", "status", "stop":
+			return runDaemonCommand(args[0], args[1:], stdout, stderr)
+		case "__daemon":
+			if len(args) != 1 {
+				return errors.New("Usage: mdshelf __daemon")
+			}
+			return serveDaemon("")
+		}
+	}
+
+	parsed, err := parseOptions(args, stderr)
 	if errors.Is(err, flag.ErrHelp) {
-		return
+		return nil
 	}
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return serveAdHoc(parsed)
+}
 
-	app, err := newApp(options.root)
+func serveAdHoc(options options) error {
+	a, err := newApp(options.root)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	defer app.Close()
+	defer a.Close()
 	port := strconv.Itoa(options.port)
-
 	server := &http.Server{
 		Addr:              net.JoinHostPort("", port),
-		Handler:           app.Handler(),
+		Handler:           a.Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 
-	log.Printf("mdshelf is serving %s", app.root)
+	log.Printf("mdshelf is serving %s", a.root)
 	log.Printf("Local:   http://localhost:%s", port)
 	for _, address := range networkURLs(port) {
 		log.Printf("Network: %s", address)
 	}
-
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }
 
 func parseOptions(args []string, output io.Writer) (options, error) {
-	parsed := options{
-		port: defaultPort,
-		root: ".",
-	}
+	parsed := options{port: defaultPort, root: "."}
 	flags := flag.NewFlagSet("mdshelf", flag.ContinueOnError)
 	flags.SetOutput(output)
-	flags.IntVar(&parsed.port, "port", defaultPort, "port to listen on")
-	flags.Usage = func() {
-		fmt.Fprintln(output, "Usage: mdshelf [options] [root]")
-		fmt.Fprintln(output)
-		fmt.Fprintln(output, "Options:")
-		flags.PrintDefaults()
-	}
+	flags.IntVar(&parsed.port, "port", defaultPort, "port to listen on in ad-hoc mode")
+	flags.Usage = func() { fmt.Fprint(output, topLevelHelp) }
 
 	if err := flags.Parse(args); err != nil {
 		return parsed, err

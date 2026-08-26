@@ -389,6 +389,11 @@ body.drawer-open .backdrop {
   font-weight: 720;
 }
 
+.file-link.is-removed {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
 .file-count {
   margin: auto 0 0;
   padding: 0.75rem 0.25rem 0;
@@ -442,6 +447,15 @@ body.drawer-open .backdrop {
   min-height: 60vh;
   padding: 1.6rem 1.15rem 5rem;
   margin: 0 auto;
+}
+
+.document-path {
+  margin: 0 0 1rem;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .update-notice {
@@ -672,6 +686,32 @@ body.drawer-open .backdrop {
   background: none;
   border: 0;
   overflow-wrap: normal;
+}
+
+.markdown pre.mermaid-rendered {
+  padding: 0.75rem;
+  text-align: center;
+  white-space: normal;
+}
+
+.markdown .mermaid svg {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.markdown pre.mermaid-error {
+  color: #a52a2a;
+  white-space: pre-wrap;
+}
+
+.mermaid-error-message {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-family: var(--sans);
+  font-weight: 700;
 }
 
 .markdown hr {

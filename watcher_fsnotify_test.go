@@ -25,6 +25,35 @@ func TestFSNotifyWatcherPublishesMarkdownChange(t *testing.T) {
 	}
 }
 
+func TestParentWatcherDoesNotWatchChildFolders(t *testing.T) {
+	root := t.TempDir()
+	child := filepath.Join(root, "child")
+	if err := os.Mkdir(child, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	watcher, err := newParentWatcher(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = watcher.Close() })
+	filePath := filepath.Join(child, "note.md")
+	if err := os.WriteFile(filePath, []byte("# Note\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	timer := time.NewTimer(250 * time.Millisecond)
+	defer timer.Stop()
+	for {
+		select {
+		case event := <-watcher.Events():
+			if filepath.Clean(event) == filePath {
+				t.Fatal("parent watcher reported a child-folder file")
+			}
+		case <-timer.C:
+			return
+		}
+	}
+}
+
 func TestFSNotifyWatcherReportsNestedFileChange(t *testing.T) {
 	root := t.TempDir()
 	directory := filepath.Join(root, "guides")

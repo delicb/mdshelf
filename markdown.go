@@ -1,0 +1,51 @@
+package main
+
+import (
+	"bytes"
+
+	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
+	"github.com/yuin/goldmark"
+	highlighting "github.com/yuin/goldmark-highlighting/v2"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
+)
+
+func newMarkdownRenderer() goldmark.Markdown {
+	options := []goldmark.Option{
+		goldmark.WithExtensions(
+			extension.GFM,
+			highlighting.NewHighlighting(
+				highlighting.WithStyle("github"),
+				highlighting.WithFormatOptions(
+					chromahtml.WithClasses(true),
+					chromahtml.WithCSSComments(false),
+				),
+			),
+		),
+		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
+	}
+	options = append(options, mermaidOptions()...)
+	return goldmark.New(options...)
+}
+
+type renderedMarkdown struct {
+	title string
+	html  string
+}
+
+func renderMarkdown(markdown goldmark.Markdown, source []byte, documentPath string, rewrite func(ast.Node)) (renderedMarkdown, error) {
+	document := markdown.Parser().Parse(text.NewReader(source))
+	if rewrite != nil {
+		rewrite(document)
+	}
+	var output bytes.Buffer
+	if err := markdown.Renderer().Render(&output, source, document); err != nil {
+		return renderedMarkdown{}, err
+	}
+	return renderedMarkdown{
+		title: documentTitle(document, source, documentPath),
+		html:  output.String(),
+	}, nil
+}

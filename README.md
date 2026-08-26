@@ -10,7 +10,7 @@ go build -o mdshelf .
 
 The executable contains the full web interface. It does not need a separate assets folder. macOS builds need cgo, which Go enables by default, for FSEvents.
 
-Release binaries are built with the latest stable Go toolchain. The source remains compatible with Go 1.22 and newer.
+Release binaries use Go 1.27. The source needs Go 1.27 or newer.
 
 ## Install a release
 
@@ -25,7 +25,7 @@ Using `install` is preferable to copying over a previously launched executable o
 
 Release binaries are not notarized or signed with commercial Apple or Microsoft certificates. macOS Gatekeeper or Windows SmartScreen may therefore warn about a downloaded binary. Verify `SHA256SUMS` and build from source if you do not want to approve an unsigned download.
 
-## Use
+## Use ad hoc mode
 
 Run the executable from the folder you want to read:
 
@@ -50,9 +50,53 @@ Then open the local or network URL printed at startup. MDShelf listens on all ne
 
 MDShelf finds `.md` and `.markdown` files in the folder and its subfolders. It ignores hidden files, hidden folders, and symbolic links. It tracks changes only for Markdown files, using inotify on Linux, FSEvents on macOS, and ReadDirectoryChangesW on Windows. An open document refreshes at once and highlights only changed blocks. If the page is not active, MDShelf waits to show the update until it gets focus. Relative links between Markdown files and local images work in the reader. Language-tagged fenced code blocks use server-side syntax highlighting with matching light and dark themes.
 
+## Use daemon mode
+
+Daemon mode keeps a list of Markdown files from different folders. It listens only on `127.0.0.1:7332`.
+
+Add one file:
+
+```sh
+mdshelf add /path/to/notes/guide.md
+```
+
+The command starts the daemon when necessary. It prints a stable local URL for the file.
+
+Use these commands to manage the daemon:
+
+```sh
+mdshelf list
+mdshelf status
+mdshelf remove /path/to/notes/guide.md
+mdshelf stop
+```
+
+The daemon stores its registry and log in the `mdshelf` folder under the user configuration folder. For example, macOS uses `~/Library/Application Support/mdshelf`. Linux usually uses `~/.config/mdshelf`. Windows uses the user configuration folder.
+
+The daemon watches only each registered file. If a file or its parent folder is removed, the daemon keeps the registry row. The reader marks the document as removed. If the file returns, the reader makes it available again.
+
+Each document has a separate asset root. MDShelf serves local raster images only from that document's folder. It does not serve another Markdown file from the same folder unless you register that file.
+
+The names `add`, `list`, `remove`, `status`, and `stop` are reserved as the first command value. Use `./add` to serve a folder named `add` in ad hoc mode.
+
+## Mermaid diagrams
+
+MDShelf renders fenced `mermaid` blocks in ad hoc and daemon modes:
+
+````markdown
+```mermaid
+flowchart LR
+  A --> B
+```
+````
+
+MDShelf bundles Mermaid 11.17.2 in the executable. Diagram rendering works without a network connection.
+
 ## Network access
 
-MDShelf has no sign-in screen. Anyone who can reach its port can read the Markdown files it lists. Run it only on a network you trust and stop it when you finish.
+Ad hoc mode has no sign-in screen. Anyone who can reach its port can read the Markdown files it lists. Run it only on a network you trust and stop it when you finish.
+
+Daemon mode accepts only local requests. It checks the request host and origin. Other local processes can still connect to it.
 
 ## Development
 

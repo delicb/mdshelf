@@ -19,6 +19,14 @@ type notifyFileWatcher struct {
 }
 
 func newFileWatcher(root string) (fileWatcher, error) {
+	return newNotifyWatcher(filepath.Join(root, "..."))
+}
+
+func newParentWatcher(parent string) (fileWatcher, error) {
+	return newNotifyWatcher(filepath.Join(parent, "..."))
+}
+
+func newNotifyWatcher(pattern string) (fileWatcher, error) {
 	watcher := &notifyFileWatcher{
 		source: make(chan notify.EventInfo, 256),
 		events: make(chan string, 256),
@@ -26,7 +34,7 @@ func newFileWatcher(root string) (fileWatcher, error) {
 		stop:   make(chan struct{}),
 		done:   make(chan struct{}),
 	}
-	if err := notify.Watch(filepath.Join(root, "..."), watcher.source, notify.Create, notify.Remove, notify.Rename, notify.Write); err != nil {
+	if err := notify.Watch(pattern, watcher.source, notify.Create, notify.Remove, notify.Rename, notify.Write); err != nil {
 		return nil, err
 	}
 	go watcher.run()
