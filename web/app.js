@@ -640,6 +640,27 @@
     }
   }
 
+  function renderMath(root) {
+    const expressions = [...root.querySelectorAll(".math-source")];
+    if (!expressions.length || !window.katex?.render) return;
+    for (const expression of expressions) {
+      const source = expression.textContent;
+      try {
+        window.katex.render(source, expression, {
+          displayMode: expression.dataset.display === "true",
+          output: "htmlAndMathml",
+          strict: "warn",
+          throwOnError: false,
+          trust: false,
+        });
+      } catch (error) {
+        expression.textContent = source;
+        expression.classList.add("math-error");
+        expression.title = error instanceof Error ? error.message : "Math rendering failed";
+      }
+    }
+  }
+
   function renderMermaid(root, isCurrent) {
     const diagrams = [...root.querySelectorAll("pre.mermaid")];
     if (!diagrams.length || !window.mermaid) return Promise.resolve();
@@ -755,6 +776,7 @@
       const changedIndexes = live ? changedBlockIndexes(state.highlightBaseline, signatures) : new Set();
       const changedBlocks = blocks.filter((_, index) => changedIndexes.has(index));
       prepareDocument(template.content, renderedPath);
+      renderMath(template.content);
       await renderMermaid(template.content, () => isCurrentLoad(controller));
       if (!isCurrentLoad(controller)) return;
       state.currentPath = renderedPath;
@@ -973,6 +995,7 @@
       initializeMermaid,
       isCurrentLoad,
       isDocumentAvailable,
+      renderMath,
       renderMermaid,
       rootElement: document.documentElement,
       setColorTheme,

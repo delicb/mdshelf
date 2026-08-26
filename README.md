@@ -85,6 +85,10 @@ The names `add`, `list`, `remove`, `status`, and `stop` are reserved as the firs
 
 Use `[^name]` to add a footnote reference. Define the note with `[^name]: Note text`. MDShelf adds linked references and backlinks.
 
+### Math notation
+
+Use `$...$` or `\(...\)` for inline math. Use `$$...$$` or `\[...\]` for display math. MDShelf bundles KaTeX 0.18.4 for offline rendering.
+
 ## Mermaid diagrams
 
 MDShelf renders fenced `mermaid` blocks in ad hoc and daemon modes:

@@ -9,7 +9,7 @@ function deferred() {
   return { promise, resolve };
 }
 
-function loadApp(mermaid, dark = false, stored = {}) {
+function loadApp(mermaid, dark = false, stored = {}, katex = null) {
   const storage = new Map(Object.entries(stored));
   const window = {
     __MDSHELF_TEST__: true,
@@ -17,6 +17,7 @@ function loadApp(mermaid, dark = false, stored = {}) {
       getItem: (key) => storage.get(key) ?? null,
       setItem: (key, value) => storage.set(key, value),
     },
+    katex,
     matchMedia: (query) => ({ matches: dark && query === "(prefers-color-scheme: dark)" }),
     mermaid,
   };
@@ -98,6 +99,27 @@ test("Theme choices load, apply, and persist", () => {
   api.setSyntaxTheme("dracula");
   assert.equal(api.rootElement.dataset.syntaxTheme, "dracula");
   assert.equal(api.storage.get("mdshelf.syntaxTheme"), "dracula");
+});
+
+test("Math expressions render with safe KaTeX options", () => {
+  let call;
+  const katex = {
+    render(source, element, options) { call = { source, element, options }; },
+  };
+  const expression = {
+    classList: { add() {} },
+    dataset: { display: "true" },
+    textContent: "E = mc^2",
+    title: "",
+  };
+  const api = loadApp(null, false, {}, katex);
+  api.renderMath({ querySelectorAll: () => [expression] });
+
+  assert.equal(call.source, "E = mc^2");
+  assert.equal(call.element, expression);
+  assert.equal(call.options.displayMode, true);
+  assert.equal(call.options.throwOnError, false);
+  assert.equal(call.options.trust, false);
 });
 
 test("Mermaid uses the active color scheme", () => {

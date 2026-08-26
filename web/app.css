@@ -896,6 +896,17 @@ body.drawer-open .backdrop {
   overflow-wrap: normal;
 }
 
+.markdown .math-display {
+  margin: 1.4rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.markdown .math-display .katex-display {
+  margin: 0;
+  padding: 0.5rem 0;
+}
+
 .markdown pre.mermaid-rendered {
   padding: 0.75rem;
   text-align: center;

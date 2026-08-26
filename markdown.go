@@ -34,6 +34,7 @@ func newMarkdownRenderer() goldmark.Markdown {
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 	}
 	options = append(options, mermaidOptions()...)
+	options = append(options, mathOptions()...)
 	return goldmark.New(options...)
 }
 

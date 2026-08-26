@@ -12,6 +12,7 @@ Use the table of contents to inspect each feature:
 - [Footnotes](#footnotes)
 - [Links and images](#links-and-images)
 - [Syntax highlighting](#syntax-highlighting)
+- [Math notation](#math-notation)
 - [Mermaid diagrams](#mermaid-diagrams)
 
 ---
@@ -35,6 +36,7 @@ MDShelf renders CommonMark and GitHub Flavored Markdown through Goldmark. It add
 | Table | Pipes and a header row | A scrollable table |
 | Footnote | `text[^name]` and `[^name]: note` | A linked note at the end |
 | Code block | A fenced block with a language | Highlighted source code |
+| Math | `$...$` or `$$...$$` | Inline or display notation |
 | Diagram | A fenced `mermaid` block | A rendered Mermaid diagram |
 | Image | `![alt](image.png)` | A local or remote raster image |
 | Rule | `---` | A thematic break |
@@ -189,6 +191,24 @@ An indented block renders as plain code:
 
     no language tag
     no syntax colors
+
+## Math notation
+
+Inline math can use dollar delimiters, such as $E = mc^2$, or slash delimiters, such as \(a^2 + b^2 = c^2\).
+
+Display math can use double-dollar delimiters:
+
+$$
+\int_0^1 x^2\,dx = \frac{1}{3}
+$$
+
+Slash delimiters also work for display math:
+
+\[
+\sum_{k=1}^{n} k = \frac{n(n+1)}{2}
+\]
+
+MDShelf bundles KaTeX, so math rendering works without a network connection.
 
 ## Mermaid diagrams
 
