@@ -8,11 +8,13 @@ import (
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/yuin/goldmark"
 	emoji "github.com/yuin/goldmark-emoji"
+	emojiast "github.com/yuin/goldmark-emoji/ast"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 )
 
 const demoDocumentPath = "__mdshelf_demo__"
@@ -27,7 +29,10 @@ func newMarkdownRenderer() goldmark.Markdown {
 	options := []goldmark.Option{
 		goldmark.WithExtensions(
 			extension.GFM,
-			emoji.New(emoji.WithRenderingMethod(emoji.Unicode)),
+			emoji.New(
+				emoji.WithRenderingMethod(emoji.Func),
+				emoji.WithRendererFunc(renderEmoji),
+			),
 			extension.DefinitionList,
 			extension.Footnote,
 			highlighting.NewHighlighting(
@@ -47,6 +52,15 @@ func newMarkdownRenderer() goldmark.Markdown {
 	options = append(options, calloutOptions()...)
 	options = append(options, citationOptions()...)
 	return goldmark.New(options...)
+}
+
+func renderEmoji(w util.BufWriter, _ []byte, node *emojiast.Emoji, _ *emoji.RendererConfig) {
+	shortcode := util.EscapeHTML(node.ShortName)
+	value := ":" + string(node.ShortName) + ":"
+	if node.Value.IsUnicode() {
+		value = string(node.Value.Unicode)
+	}
+	fmt.Fprintf(w, `<span class="emoji" title=":%s:">%s</span>`, shortcode, value)
 }
 
 func renderDemo(markdown goldmark.Markdown) (renderedMarkdown, error) {

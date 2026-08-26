@@ -10,7 +10,25 @@ func TestRenderEmojiShortcodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, fragment := range []string{"Launch 🚀", "Smile 😄", "Approve 👍", "Unknown :not_a_real_emoji:"} {
+	for _, fragment := range []string{
+		`Launch <span class="emoji" title=":rocket:">🚀</span>`,
+		`Smile <span class="emoji" title=":smile:">😄</span>`,
+		`Approve <span class="emoji" title=":+1:">👍</span>`,
+		"Unknown :not_a_real_emoji:",
+	} {
+		if !strings.Contains(rendered.html, fragment) {
+			t.Errorf("emoji HTML does not contain %q: %s", fragment, rendered.html)
+		}
+	}
+}
+
+func TestRenderEmojiTooltipUsesOriginalAlias(t *testing.T) {
+	rendered, err := renderMarkdown(newMarkdownRenderer(), []byte(":laughing: :satisfied:\n"), "emoji.md", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, shortcode := range []string{"laughing", "satisfied"} {
+		fragment := `title=":` + shortcode + `:">😆</span>`
 		if !strings.Contains(rendered.html, fragment) {
 			t.Errorf("emoji HTML does not contain %q: %s", fragment, rendered.html)
 		}
