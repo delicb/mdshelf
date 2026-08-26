@@ -841,6 +841,29 @@ body.drawer-open .backdrop {
   font-size: 1.05rem;
 }
 
+.markdown .heading-permalink {
+  display: inline-block;
+  margin-left: 0.12em;
+  color: var(--text-faint);
+  font-size: 0.72em;
+  font-weight: 600;
+  text-decoration: none;
+  opacity: 0;
+  transition: color 140ms ease, opacity 140ms ease;
+}
+
+.markdown :is(h1, h2, h3, h4, h5, h6):hover > .heading-permalink,
+.markdown .heading-permalink:focus {
+  color: var(--accent-strong);
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .markdown .heading-permalink {
+    opacity: 0.65;
+  }
+}
+
 .markdown p,
 .markdown ul,
 .markdown ol,

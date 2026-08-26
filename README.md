@@ -101,6 +101,10 @@ Put a term on one line. Start its definition on the next line with `:`. A term c
 
 Put YAML between `---` lines or TOML between `+++` lines at the start of a document. The `title` field sets the page title. MDShelf shows other fields in a metadata panel.
 
+### Heading permalinks
+
+Move the pointer over a heading or focus it with the keyboard to show its permalink. The link opens the same document at that heading.
+
 ## Mermaid diagrams
 
 MDShelf renders fenced `mermaid` blocks in ad hoc and daemon modes:

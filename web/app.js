@@ -617,6 +617,21 @@
     link.dataset.documentRoute = "true";
   }
 
+  function addHeadingPermalinks(root, documentPath) {
+    for (const heading of root.querySelectorAll("h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]")) {
+      if (heading.querySelector(".heading-permalink")) continue;
+      const link = document.createElement("a");
+      const label = heading.textContent.trim() || "heading";
+      link.className = "heading-permalink";
+      link.href = buildRoute(documentPath, heading.id);
+      link.dataset.documentRoute = "true";
+      link.setAttribute("aria-label", `Link to ${label}`);
+      link.title = "Link to this heading";
+      link.textContent = "#";
+      heading.append(" ", link);
+    }
+  }
+
   function prepareDocument(root, documentPath) {
     for (const image of root.querySelectorAll("img[src]")) {
       rewriteImage(image, documentPath);
@@ -638,6 +653,7 @@
       table.before(wrapper);
       wrapper.append(table);
     }
+    addHeadingPermalinks(root, documentPath);
   }
 
   function renderMath(root) {
@@ -993,6 +1009,7 @@
 
   if (window.__MDSHELF_TEST__) {
     window.__MDSHELF_TEST_API__ = {
+      addHeadingPermalinks,
       buildRoute,
       cancelDocumentLoad,
       colorThemeElement: elements.colorTheme,

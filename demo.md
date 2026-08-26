@@ -17,6 +17,7 @@ Use the table of contents to inspect each feature:
 - [Markdown primer](#markdown-primer)
 - [Front matter](#front-matter)
 - [Text and headings](#text-and-headings)
+- [Heading permalinks](#heading-permalinks)
 - [Lists and tasks](#lists-and-tasks)
 - [Definition lists](#definition-lists)
 - [Quotes and rules](#quotes-and-rules)
@@ -37,6 +38,7 @@ MDShelf renders CommonMark and GitHub Flavored Markdown through Goldmark. It add
 | Feature | Markdown form | Result |
 | :--- | :--- | :--- |
 | Heading | `## Heading` | A heading with a route fragment |
+| Heading link | Point to a heading | A stable MDShelf route |
 | Front matter | YAML between `---` or TOML between `+++` | A title and metadata panel |
 | Emphasis | `*text*` or `_text_` | *Emphasized text* |
 | Strong text | `**text**` | **Strong text** |
@@ -103,6 +105,12 @@ Unicode text works without extra settings: café, Ελληνικά, 日本語, �
 
 This line ends with two spaces.  
 This text starts on the next line.
+
+## Heading permalinks
+
+Move the pointer over any heading to show its `#` permalink. Keyboard focus also keeps the control visible.
+
+Select a permalink to update the MDShelf route and move to that heading. The route opens the same heading after a reload.
 
 ## Lists and tasks
 

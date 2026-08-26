@@ -33,6 +33,11 @@ function loadApp(mermaid, dark = false, stored = {}, katex = null) {
     ["#syntax-theme", syntaxTheme],
   ]);
   const document = {
+    createElement: () => ({
+      attributes: new Map(),
+      dataset: {},
+      setAttribute(name, value) { this.attributes.set(name, value); },
+    }),
     documentElement: root,
     querySelector: (selector) => elements.get(selector) ?? null,
   };
@@ -82,6 +87,24 @@ test("The embedded demo is always available", () => {
   assert.equal(api.buildRoute("__mdshelf_demo__", "alerts and callouts"), "#/__mdshelf_demo__?alerts%20and%20callouts");
   assert.equal(api.shouldReloadDocument("__mdshelf_demo__", true, null), false);
   assert.equal(api.shouldReloadDocument("guide.md", true, null), true);
+});
+
+test("Heading permalinks use document routes and accessible labels", () => {
+  const api = loadApp(null);
+  const appended = [];
+  const heading = {
+    append: (...values) => appended.push(...values),
+    id: "setup",
+    querySelector: () => null,
+    textContent: "Setup",
+  };
+  api.addHeadingPermalinks({ querySelectorAll: () => [heading] }, "guides/start.md");
+
+  const link = appended[1];
+  assert.equal(link.href, "#/guides/start.md?setup");
+  assert.equal(link.dataset.documentRoute, "true");
+  assert.equal(link.attributes.get("aria-label"), "Link to Setup");
+  assert.equal(link.textContent, "#");
 });
 
 test("Theme choices load, apply, and persist", () => {
