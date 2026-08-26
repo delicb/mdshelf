@@ -93,6 +93,10 @@ Use `$...$` or `\(...\)` for inline math. Use `$$...$$` or `\[...\]` for display
 
 Start a block quote with `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, or `[!CAUTION]`. MDShelf renders a labeled callout.
 
+### Definition lists
+
+Put a term on one line. Start its definition on the next line with `:`. A term can have more than one definition.
+
 ## Mermaid diagrams
 
 MDShelf renders fenced `mermaid` blocks in ad hoc and daemon modes:

@@ -7,6 +7,7 @@ Use the table of contents to inspect each feature:
 - [Markdown primer](#markdown-primer)
 - [Text and headings](#text-and-headings)
 - [Lists and tasks](#lists-and-tasks)
+- [Definition lists](#definition-lists)
 - [Quotes and rules](#quotes-and-rules)
 - [Alerts and callouts](#alerts-and-callouts)
 - [Tables](#tables)
@@ -34,6 +35,7 @@ MDShelf renders CommonMark and GitHub Flavored Markdown through Goldmark. It add
 | Quote | `> text` | A block quote |
 | Callout | `> [!NOTE]` | A labeled alert or note |
 | Lists | `- item` or `1. item` | Ordered and unordered lists |
+| Definition | `Term` followed by `: Meaning` | A term and its meaning |
 | Task | `- [x] item` | A task list item |
 | Table | Pipes and a header row | A scrollable table |
 | Footnote | `text[^name]` and `[^name]: note` | A linked note at the end |
@@ -84,6 +86,20 @@ This text starts on the next line.
 - [x] Highlight source code
 - [x] Render Mermaid diagrams
 - [ ] Add more Markdown extensions
+
+## Definition lists
+
+MDShelf
+: A local reader for Markdown documents.
+: A daemon that can watch selected files.
+
+Goldmark
+: The Go parser that converts Markdown into HTML.
+
+Live update
+: A browser update that appears after a watched file changes.
+
+Definition text can include **emphasis**, `inline code`, and [links](https://commonmark.org/).
 
 ## Quotes and rules
 
