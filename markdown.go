@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	_ "embed"
+	"fmt"
 
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/yuin/goldmark"
@@ -17,6 +18,9 @@ const demoDocumentPath = "__mdshelf_demo__"
 
 //go:embed demo.md
 var demoMarkdown []byte
+
+//go:embed demo.bib
+var demoBibliography []byte
 
 func newMarkdownRenderer() goldmark.Markdown {
 	options := []goldmark.Option{
@@ -39,11 +43,19 @@ func newMarkdownRenderer() goldmark.Markdown {
 	options = append(options, mermaidOptions()...)
 	options = append(options, mathOptions()...)
 	options = append(options, calloutOptions()...)
+	options = append(options, citationOptions()...)
 	return goldmark.New(options...)
 }
 
 func renderDemo(markdown goldmark.Markdown) (renderedMarkdown, error) {
-	return renderMarkdown(markdown, demoMarkdown, "demo.md", nil)
+	return renderMarkdownWithOptions(markdown, demoMarkdown, "demo.md", markdownRenderOptions{
+		loadBibliography: func(reference string) ([]byte, error) {
+			if reference != "demo.bib" {
+				return nil, fmt.Errorf("unknown demo bibliography %q", reference)
+			}
+			return demoBibliography, nil
+		},
+	})
 }
 
 type renderedMarkdown struct {
@@ -52,16 +64,30 @@ type renderedMarkdown struct {
 	metadata map[string]any
 }
 
+type markdownRenderOptions struct {
+	rewrite          func(ast.Node)
+	loadBibliography func(string) ([]byte, error)
+}
+
 func renderMarkdown(markdown goldmark.Markdown, source []byte, documentPath string, rewrite func(ast.Node)) (renderedMarkdown, error) {
+	return renderMarkdownWithOptions(markdown, source, documentPath, markdownRenderOptions{rewrite: rewrite})
+}
+
+func renderMarkdownWithOptions(markdown goldmark.Markdown, source []byte, documentPath string, options markdownRenderOptions) (renderedMarkdown, error) {
 	frontMatter, err := extractFrontMatter(source)
 	if err != nil {
 		return renderedMarkdown{}, err
 	}
 	source = frontMatter.body
-	document := markdown.Parser().Parse(text.NewReader(source))
-	if rewrite != nil {
-		rewrite(document)
+	bibliography, err := loadCitationBibliography(frontMatter.values, options.loadBibliography)
+	if err != nil {
+		return renderedMarkdown{}, err
 	}
+	document := markdown.Parser().Parse(text.NewReader(source))
+	if options.rewrite != nil {
+		options.rewrite(document)
+	}
+	applyCitationBibliography(document.OwnerDocument(), bibliography)
 	var output bytes.Buffer
 	if err := markdown.Renderer().Render(&output, source, document); err != nil {
 		return renderedMarkdown{}, err

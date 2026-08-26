@@ -150,7 +150,7 @@ func TestRenderEmbeddedDemo(t *testing.T) {
 	if payload.Path != demoDocumentPath || payload.Title != "MDShelf feature demo" || payload.AbsolutePath != "" {
 		t.Fatalf("demo response = %#v", payload)
 	}
-	for _, fragment := range []string{`<table>`, `class="chroma"`, `class="mermaid"`, `type="checkbox"`} {
+	for _, fragment := range []string{`<table>`, `class="chroma"`, `class="mermaid"`, `class="citation-group"`, `class="bibliography"`, `type="checkbox"`} {
 		if !strings.Contains(payload.HTML, fragment) {
 			t.Errorf("demo HTML does not contain %q", fragment)
 		}
@@ -491,7 +491,7 @@ func TestEmbeddedWebShell(t *testing.T) {
 		contentTypePrefixes []string
 		contains            []string
 	}{
-		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./vendor/katex/katex.min.css?v=0.18.4"`, `href="./app.css?v=11"`, `href="./chroma.css?v=2"`, `src="./vendor/katex/katex.min.js?v=0.18.4"`, `src="./vendor/mermaid.min.js?v=11.17.2"`, `src="./app.js?v=12"`, `id="settings-popup"`, `id="demo-link"`, `id="document-path"`, `id="update-notice"`}},
+		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./vendor/katex/katex.min.css?v=0.18.4"`, `href="./app.css?v=12"`, `href="./chroma.css?v=2"`, `src="./vendor/katex/katex.min.js?v=0.18.4"`, `src="./vendor/mermaid.min.js?v=11.17.2"`, `src="./app.js?v=12"`, `id="settings-popup"`, `id="demo-link"`, `id="document-path"`, `id="update-notice"`}},
 		{path: "/app.css", contentTypePrefixes: []string{"text/css"}, contains: []string{":root", "data-color-theme", "@keyframes content-updated"}},
 		{path: "/chroma.css", contentTypePrefixes: []string{"text/css"}, contains: []string{".chroma .kd", `data-syntax-theme="dracula"`}},
 		{path: "/app.js", contentTypePrefixes: []string{"text/javascript", "application/javascript"}, contains: []string{`"use strict"`, "/api/watch?since=", "window.mermaid"}},

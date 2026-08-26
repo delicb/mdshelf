@@ -1,5 +1,6 @@
 ---
 title: MDShelf feature demo
+bibliography: demo.bib
 description: Built-in guide to MDShelf rendering
 document_type: Feature reference
 tags:
@@ -24,6 +25,7 @@ Use the table of contents to inspect each feature:
 - [Alerts and callouts](#alerts-and-callouts)
 - [Tables](#tables)
 - [Footnotes](#footnotes)
+- [Citations and bibliography](#citations-and-bibliography)
 - [Links and images](#links-and-images)
 - [Syntax highlighting](#syntax-highlighting)
 - [Advanced code blocks](#advanced-code-blocks)
@@ -54,6 +56,7 @@ MDShelf renders CommonMark and GitHub Flavored Markdown through Goldmark. It add
 | Task | `- [x] item` | A task list item |
 | Table | Pipes and a header row | A scrollable table |
 | Footnote | `text[^name]` and `[^name]: note` | A linked note at the end |
+| Citation | `[@reference-key]` | An author-year link and reference entry |
 | Code block | A fenced block with a language | Highlighted source code |
 | Code options | Attributes after the language | A title, line numbers, and marked lines |
 | Math | `$...$` or `$$...$$` | Inline or display notation |
@@ -207,6 +210,14 @@ Footnotes can also contain more than one paragraph.[^footnote-detail]
 [^footnote-detail]: The first paragraph can contain **formatting**, links, and `inline code`.
 
     Indent the next paragraph to keep it in the same footnote.
+
+## Citations and bibliography
+
+Markdown began as a plain-text formatting syntax [@gruber2004markdown]. CommonMark later defined a detailed specification [@macfarlane2024commonmark, section 1.2].
+
+Put a sibling BibTeX file in the `bibliography` front matter field. Use more than one key in a citation group like this: [@gruber2004markdown; @macfarlane2024commonmark].
+
+MDShelf uses a simple author-year format. It adds cited entries to the References section at the end of the document.
 
 ## Links and images
 

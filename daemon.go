@@ -203,9 +203,14 @@ func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "Markdown file not found")
 		return
 	}
-	rendered, err := renderMarkdown(d.markdown, document.source, filepath.Base(document.Path), func(node ast.Node) {
-		rewriteDaemonImages(node, document)
-		rewriteDaemonLinks(node, document, paths)
+	rendered, err := renderMarkdownWithOptions(d.markdown, document.source, filepath.Base(document.Path), markdownRenderOptions{
+		rewrite: func(node ast.Node) {
+			rewriteDaemonImages(node, document)
+			rewriteDaemonLinks(node, document, paths)
+		},
+		loadBibliography: func(reference string) ([]byte, error) {
+			return loadDaemonBibliography(document.Path, reference)
+		},
 	})
 	if err != nil {
 		log.Printf("render daemon document: %v", err)

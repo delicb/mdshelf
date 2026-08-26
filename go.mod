@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/chroma/v2 v2.24.1
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/jschaf/bibtex v0.0.0-20250819063624-2ec82ed44a1e
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/rjeczalik/notify v0.9.3
 	github.com/yuin/goldmark v1.8.2

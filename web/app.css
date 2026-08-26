@@ -1188,6 +1188,31 @@ body.drawer-open .backdrop {
   margin: 0.25rem 0 0.8rem 1.25rem;
 }
 
+.markdown .citation-group {
+  white-space: normal;
+}
+
+.markdown .citation {
+  white-space: nowrap;
+}
+
+.markdown .citation-missing {
+  color: #f85149;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.16em;
+}
+
+.markdown .bibliography {
+  margin-top: 3rem;
+  padding-top: 0.1rem;
+  color: var(--text-soft);
+  border-top: 1px solid var(--line);
+}
+
+.markdown .bibliography li {
+  scroll-margin-top: calc(var(--header-height) + 1rem);
+}
+
 .markdown .footnotes {
   margin-top: 3rem;
   color: var(--text-soft);

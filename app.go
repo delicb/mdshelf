@@ -207,8 +207,13 @@ func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rendered, err := renderMarkdown(a.markdown, source, cleanPath, func(document ast.Node) {
-		rewriteLocalImages(document, cleanPath)
+	rendered, err := renderMarkdownWithOptions(a.markdown, source, cleanPath, markdownRenderOptions{
+		rewrite: func(document ast.Node) {
+			rewriteLocalImages(document, cleanPath)
+		},
+		loadBibliography: func(reference string) ([]byte, error) {
+			return a.loadBibliography(cleanPath, reference)
+		},
 	})
 	if err != nil {
 		log.Printf("render Markdown file %q: %v", cleanPath, err)
