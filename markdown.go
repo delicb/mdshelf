@@ -7,6 +7,7 @@ import (
 
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/yuin/goldmark"
+	emoji "github.com/yuin/goldmark-emoji"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -26,6 +27,7 @@ func newMarkdownRenderer() goldmark.Markdown {
 	options := []goldmark.Option{
 		goldmark.WithExtensions(
 			extension.GFM,
+			emoji.New(emoji.WithRenderingMethod(emoji.Unicode)),
 			extension.DefinitionList,
 			extension.Footnote,
 			highlighting.NewHighlighting(

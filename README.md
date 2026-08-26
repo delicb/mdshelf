@@ -113,6 +113,10 @@ Every code block has a copy button. Fenced blocks accept Pandoc-style attributes
 
 Set `bibliography: references.bib` in the front matter. The BibTeX file must be beside the Markdown file. Use `[@key]`, `[@key, p. 10]`, or `[@first; @second]` for citations. MDShelf renders a simple author-year style and adds cited entries to a References section.
 
+### Emoji shortcodes
+
+Use GitHub emoji aliases such as `:rocket:`, `:smile:`, and `:+1:`. MDShelf renders Unicode emoji and keeps unknown aliases unchanged.
+
 ## Mermaid diagrams
 
 MDShelf renders fenced `mermaid` blocks in ad hoc and daemon modes:

@@ -31,6 +31,7 @@ Use the table of contents to inspect each feature:
 - [Advanced code blocks](#advanced-code-blocks)
 - [Math notation](#math-notation)
 - [Mermaid diagrams](#mermaid-diagrams)
+- [Emoji shortcodes](#emoji-shortcodes)
 
 ---
 
@@ -60,6 +61,7 @@ MDShelf renders CommonMark and GitHub Flavored Markdown through Goldmark. It add
 | Code block | A fenced block with a language | Highlighted source code |
 | Code options | Attributes after the language | A title, line numbers, and marked lines |
 | Math | `$...$` or `$$...$$` | Inline or display notation |
+| Emoji | `:rocket:` | A GitHub emoji character |
 | Diagram | A fenced `mermaid` block | A rendered Mermaid diagram |
 | Image | `![alt](image.png)` | A local or remote raster image |
 | Rule | `---` | A thematic break |
@@ -370,6 +372,12 @@ stateDiagram-v2
     Ready --> Loading: file changes
     Error --> Loading: retry
 ```
+
+## Emoji shortcodes
+
+MDShelf converts GitHub emoji aliases into Unicode characters: :rocket: :sparkles: :+1: :warning: :heart:.
+
+Unknown aliases such as `:not_a_real_emoji:` stay unchanged. Shortcodes inside inline code and code blocks also stay unchanged.
 
 ---
 
