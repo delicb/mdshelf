@@ -2,6 +2,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const test = require("node:test");
 const vm = require("node:vm");
+const textSelection = require("./text-selection.js");
+require("./text-selection.test.cjs");
 
 function deferred() {
   let resolve;
@@ -50,11 +52,13 @@ function loadApp(mermaid, dark = false, stored = {}, katex = null) {
     Set,
     Map,
     Uint32Array,
+    TextEncoder,
     URL,
     console,
     document,
     window,
   });
+  vm.runInContext(fs.readFileSync(new URL("text-selection.js", `file://${__dirname}/`), "utf8"), context);
   vm.runInContext(fs.readFileSync(new URL("app.js", `file://${__dirname}/`), "utf8"), context);
   window.__MDSHELF_TEST_API__.storage = storage;
   return window.__MDSHELF_TEST_API__;
@@ -374,6 +378,71 @@ test("Comment replies accept one level and known authors", () => {
   assert.throws(() => api.validateReviewView(payload, path), /invalid comment reply/);
 });
 
+test("Text range review data stays optional and validates compatibility fields", () => {
+  const api = loadApp(null);
+  const path = "00112233445566778899aabb";
+  const anchor = {
+    blockKey: "112233445566778899aabbcc",
+    kind: "paragraph",
+    startLine: 2,
+    endLine: 2,
+    headingPath: ["Heading"],
+    quote: "Source text",
+  };
+  const payload = {
+    schemaVersion: 1,
+    revision: 1,
+    document: {
+      id: path,
+      path,
+      title: "Range",
+      sourceHash: "a".repeat(64),
+      reviewStatus: "comments",
+    },
+    comments: [{
+      id: "comment_00112233445566778899aabb",
+      body: "Range comment",
+      status: "open",
+      baseHash: "a".repeat(64),
+      outdated: false,
+      anchor,
+      textRange: {
+        version: 1,
+        anchors: [{ ...anchor }],
+        startOffset: 0,
+        endOffset: 4,
+        quote: "text",
+        currentBlockKeys: [anchor.blockKey],
+      },
+      currentLocation: { startLine: 2, endLine: 2 },
+      currentBlockKey: anchor.blockKey,
+      replies: [],
+    }],
+  };
+  const comment = api.validateReviewView(payload, path).comments[0];
+  assert.equal(comment.textRange.quote, "text");
+  assert.equal(comment.ranges.length, 0);
+
+  const overlapping = structuredClone(payload);
+  overlapping.comments[0].anchor.endLine = 4;
+  overlapping.comments[0].textRange.anchors = [
+    { ...overlapping.comments[0].anchor },
+    {
+      ...overlapping.comments[0].anchor,
+      blockKey: "2233445566778899aabbccdd",
+      startLine: 4,
+      endLine: 5,
+    },
+  ];
+  overlapping.comments[0].textRange.currentBlockKeys.push("33445566778899aabbccddee");
+  assert.throws(() => api.validateReviewView(overlapping, path), /unordered text range anchors/);
+
+  delete payload.comments[0].textRange.currentBlockKeys;
+  assert.throws(() => api.validateReviewView(payload, path), /no current text range blocks/);
+  delete payload.comments[0].textRange;
+  assert.equal(api.validateReviewView(payload, path).comments[0].textRange, null);
+});
+
 test("A delayed comment save cannot update a new document", () => {
   const api = loadApp(null);
   const mutation = { token: 4, path: "document-a" };
@@ -396,6 +465,19 @@ test("A pending Save keeps one focusable comment field", () => {
     JSON.parse(JSON.stringify(api.commentComposerControlState({ blocked: true, invalid: true }))),
     { bodyDisabled: false, bodyReadOnly: true, saveDisabled: true, actionsDisabled: false },
   );
+});
+
+test("Enter and Space floating Comment activation use the live selection without pointerdown", () => {
+  const api = loadApp(null);
+  const live = { quote: "selected text" };
+  for (const key of ["Enter", "Space"]) {
+    assert.equal(api.selectionCommentLiveDescriptor(null, live, true), live, key);
+    assert.equal(api.selectionCommentActionDescriptor(null, live), live, key);
+  }
+  assert.equal(api.selectionCommentLiveDescriptor(null, live, false), null);
+  const latched = { quote: "pointer selection" };
+  assert.equal(api.selectionCommentActionDescriptor(latched, live), latched);
+  assert.equal(api.selectionCommentActionDescriptor(null, null), null);
 });
 
 test("A comment submits with Command-Enter or Control-Enter", () => {

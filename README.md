@@ -128,7 +128,7 @@ mdshelf review address --message "Updated the storage section." comment_8f31c2
 mdshelf review show --json /path/to/notes/implementation-plan.md
 ```
 
-Select a document section and use its `+` button to add a comment. The form uses the same rail as existing comments. Select a comment to highlight its section. Use Reply, Resolve, or Reopen beside the section or in the Comments panel. Replies stay one level deep. Opening the panel does not change the document text width.
+Select rendered text to show the **Comment** button. Select the button or press `c` to comment on that text. If no valid text selection exists, `c` comments on the active block. The `+` button still adds a whole-block comment. Select a comment to activate its text or block. Use Reply, Resolve, or Reopen beside the section or in the Comments panel. Replies stay one level deep.
 
 Document status uses these values:
 
@@ -234,7 +234,7 @@ Press `?` to show all keyboard shortcuts.
 | :--- | :--- |
 | Arrow keys or `h`, `j`, `k`, `l` | Move between Markdown blocks |
 | `Home` or `End` | Move to the first or last block |
-| `c` | Comment on the active block |
+| `c` | Comment on selected text, or on the active block if no valid selection exists |
 | `/` or Command/Ctrl-K | Open the document list and focus its filter |
 | Arrow keys or `j`, `k` in the document list | Select a document |
 | `Enter` | Open the selected document |
@@ -260,6 +260,7 @@ Use the all-interface option only on a trusted network.
 ```sh
 go test -race ./...
 go vet ./...
+node --check web/text-selection.js
 node --check web/app.js
 node --test web/app.test.cjs
 ```

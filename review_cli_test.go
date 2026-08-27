@@ -143,6 +143,55 @@ func TestReviewShowDefaultOutputUsesSharedStableMarkdown(t *testing.T) {
 	}
 }
 
+func TestReviewTextRangeMarkdownAndOldJSONShape(t *testing.T) {
+	response := testReviewShowResponse("/tmp/range.md")
+	first := *response.Comments[0].Anchor
+	first.BlockKey = "00112233445566778899aabb"
+	second := first
+	second.BlockKey = "112233445566778899aabbcc"
+	second.StartLine = 6
+	second.EndLine = 7
+	response.Comments[0].Anchor = &first
+	response.Comments[0].TextRange = &reviewTextRangeResponse{
+		Version: reviewTextRangeVersion, Anchors: []reviewAnchorResponse{first, second},
+		StartOffset: 2, EndOffset: 5, Quote: "selected rendered text",
+		CurrentBlockKeys: []string{"aabbccddeeff001122334455", "bbccddeeff00112233445566"},
+	}
+	var output bytes.Buffer
+	if err := formatReviewMarkdown(&output, response); err != nil {
+		t.Fatal(err)
+	}
+	for _, text := range []string{
+		"Original quote:\n\nOriginal text",
+		"Original source blocks:",
+		first.BlockKey,
+		second.BlockKey,
+		"Selected rendered text:\n\nselected rendered text",
+		"Comment body:\n\nComment text",
+	} {
+		if !strings.Contains(output.String(), text) {
+			t.Errorf("Markdown does not contain %q:\n%s", text, output.String())
+		}
+	}
+
+	data, err := json.Marshal(response.Comments[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var oldShape struct {
+		ID              string                `json:"id"`
+		Body            string                `json:"body"`
+		Anchor          *reviewAnchorResponse `json:"anchor"`
+		CurrentBlockKey *string               `json:"currentBlockKey"`
+	}
+	if err := json.Unmarshal(data, &oldShape); err != nil {
+		t.Fatal(err)
+	}
+	if oldShape.ID != response.Comments[0].ID || oldShape.Anchor == nil || oldShape.Anchor.Quote != "Original text" {
+		t.Fatalf("old JSON shape = %#v", oldShape)
+	}
+}
+
 func TestReviewAddressValidatesArgumentsAndReturnsUpdatedComment(t *testing.T) {
 	for name, args := range map[string][]string{
 		"missing id":      {"address", "--message", "Done"},

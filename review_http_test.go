@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -379,6 +380,50 @@ func TestDaemonCommentSaveFailureDoesNotPublishEvent(t *testing.T) {
 	_ = response.Body.Close()
 	if changeFeedRevision(d.updater.feed) != revision {
 		t.Fatal("failed save published a review event")
+	}
+}
+
+func TestDaemonTextRangeCommentRoundTrip(t *testing.T) {
+	d, document, rendered := newReviewHTTPFixture(t, "# Range\n\nFirst.\n\nSecond.\n")
+	selection := testSelection(rendered.blocks, 1, 2)
+	selection.StartOffset = 1
+	selection.EndOffset = 4
+	selection.Quote = "irst\n\nSeco"
+	response := postControl(t, d.handler, "/api/control/review/comments/add", addReviewCommentRequest{
+		Path: document.ID, ExpectedRevision: 0, ExpectedSourceHash: rendered.sourceHash,
+		Body: "Selected comment.", Selection: selection,
+	})
+	var mutation reviewMutationResponse
+	decodeReviewMutation(t, response, &mutation)
+	if mutation.Comment == nil || mutation.Comment.TextRange == nil {
+		t.Fatalf("mutation = %#v", mutation)
+	}
+	textRange := mutation.Comment.TextRange
+	if textRange.Quote != selection.Quote || len(textRange.Anchors) != 2 || len(textRange.CurrentBlockKeys) != 2 {
+		t.Fatalf("text range response = %#v", textRange)
+	}
+	if mutation.Comment.CurrentBlockKey == nil || *mutation.Comment.CurrentBlockKey != textRange.CurrentBlockKeys[0] {
+		t.Fatalf("compatibility block key = %v, range = %#v", mutation.Comment.CurrentBlockKey, textRange)
+	}
+
+	show := daemonRequest(t, d.handler, http.MethodGet, reviewAPIPath("/api/review", document.ID, true), nil)
+	defer show.Body.Close()
+	var payload browserReviewResponse
+	decodeJSON(t, show, &payload)
+	if len(payload.Comments) != 1 || !reflect.DeepEqual(payload.Comments[0].TextRange, textRange) {
+		t.Fatalf("review response = %#v", payload.Comments)
+	}
+}
+
+func TestDaemonRejectsBlockAndSelectionTogether(t *testing.T) {
+	d, document, rendered := newReviewHTTPFixture(t, "# Both\n")
+	response := postControl(t, d.handler, "/api/control/review/comments/add", addReviewCommentRequest{
+		Path: document.ID, ExpectedRevision: 0, ExpectedSourceHash: rendered.sourceHash,
+		Body: "Invalid.", BlockKey: rendered.blocks[0].Key, Selection: testSelection(rendered.blocks, 0, 0),
+	})
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", response.StatusCode, readBody(t, response))
 	}
 }
 

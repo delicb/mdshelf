@@ -9,11 +9,12 @@ import (
 )
 
 type addReviewCommentRequest struct {
-	Path               string `json:"path"`
-	ExpectedRevision   uint64 `json:"expectedRevision"`
-	ExpectedSourceHash string `json:"expectedSourceHash"`
-	Body               string `json:"body"`
-	BlockKey           string `json:"blockKey,omitempty"`
+	Path               string                  `json:"path"`
+	ExpectedRevision   uint64                  `json:"expectedRevision"`
+	ExpectedSourceHash string                  `json:"expectedSourceHash"`
+	Body               string                  `json:"body"`
+	BlockKey           string                  `json:"blockKey,omitempty"`
+	Selection          *reviewSelectionRequest `json:"selection,omitempty"`
 }
 
 type commentReviewerRequest struct {
@@ -107,8 +108,8 @@ func (d *daemonServer) handleControlReviewCommentAdd(w http.ResponseWriter, r *h
 	var comment reviewComment
 	current, removed, err := d.updater.withCurrentDocument(document, func() error {
 		var mutationErr error
-		stored, comment, mutationErr = d.reviews.addComment(
-			context, request.ExpectedRevision, request.ExpectedSourceHash, request.Body, request.BlockKey,
+		stored, comment, mutationErr = d.reviews.addCommentWithSelection(
+			context, request.ExpectedRevision, request.ExpectedSourceHash, request.Body, request.BlockKey, request.Selection,
 		)
 		if mutationErr == nil {
 			d.publishReviewChange(document.ID)

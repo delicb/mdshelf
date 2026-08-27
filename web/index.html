@@ -9,11 +9,12 @@
     <title>MDShelf</title>
     <link rel="stylesheet" href="./vendor/fonts/fonts.css?v=1">
     <link rel="stylesheet" href="./vendor/katex/katex.min.css?v=0.18.4">
-    <link rel="stylesheet" href="./app.css?v=29">
+    <link rel="stylesheet" href="./app.css?v=31">
     <link rel="stylesheet" href="./chroma.css?v=2">
     <script defer src="./vendor/katex/katex.min.js?v=0.18.4"></script>
     <script defer src="./vendor/mermaid.min.js?v=11.17.2"></script>
-    <script defer src="./app.js?v=29"></script>
+    <script defer src="./text-selection.js?v=2"></script>
+    <script defer src="./app.js?v=32"></script>
   </head>
   <body>
     <a class="skip-link" href="#reader">Skip to document</a>
@@ -154,6 +155,14 @@
       </div>
     </main>
 
+    <button
+      class="selection-comment-action"
+      id="selection-comment-action"
+      type="button"
+      aria-keyshortcuts="c"
+      hidden
+    >Comment</button>
+
     <aside class="outline-rail" id="outline-rail" aria-label="Document outline" hidden>
       <p class="rail-label" id="outline-label">Outline</p>
       <nav class="outline-list" id="outline-list" aria-labelledby="outline-label"></nav>
@@ -203,6 +212,7 @@
     >
       <h2 id="comment-composer-title">Add comment</h2>
       <p id="comment-target"></p>
+      <blockquote class="comment-selected-quote" id="comment-selected-quote" hidden></blockquote>
       <label class="sr-only" for="comment-body">Comment</label>
       <textarea id="comment-body" rows="2" aria-describedby="comment-body-help comment-error"></textarea>
       <p class="comment-error" id="comment-error" role="alert" hidden></p>
@@ -247,7 +257,7 @@
             <div><dt>Next block</dt><dd><kbd>&darr;</kbd><kbd>&rarr;</kbd><kbd>j</kbd><kbd>l</kbd></dd></div>
             <div><dt>First block</dt><dd><kbd>Home</kbd></dd></div>
             <div><dt>Last block</dt><dd><kbd>End</kbd></dd></div>
-            <div><dt>Comment on active block</dt><dd><kbd>c</kbd></dd></div>
+            <div><dt>Comment on selection, else active block</dt><dd><kbd>c</kbd></dd></div>
           </dl>
         </section>
         <section>

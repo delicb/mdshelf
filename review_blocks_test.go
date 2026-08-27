@@ -222,6 +222,38 @@ func TestReviewWrappersKeepHeadingIDsLinksAndBlockChanges(t *testing.T) {
 	}
 }
 
+func TestReviewTextRangeRelocatesOnlyAsOneConsecutiveGroup(t *testing.T) {
+	before := mustRenderReviewBlocks(t, "# Group\n\nFirst.\n\nSecond.\n\n# Tail\n")
+	anchors := []blockAnchor{*anchorForBlock(before.blocks[1]), *anchorForBlock(before.blocks[2])}
+
+	after := mustRenderReviewBlocks(t, "# Group\n\nBefore.\n\nFirst.\n\nSecond.\n\n# Tail\n")
+	location, currentKey, currentKeys, outdated := matchTextRangeAnchors(before.sourceHash, after.sourceHash, anchors, after.blocks)
+	if outdated || location == nil || currentKey == nil || len(currentKeys) != 2 {
+		t.Fatalf("group match = %#v, key=%v, keys=%v, outdated=%v", location, currentKey, currentKeys, outdated)
+	}
+	if location.StartLine != after.blocks[2].StartLine || location.EndLine != after.blocks[3].EndLine {
+		t.Fatalf("group location = %#v", location)
+	}
+
+	for name, source := range map[string]string{
+		"changed":   "# Group\n\nFirst changed.\n\nSecond.\n\n# Tail\n",
+		"missing":   "# Group\n\nFirst.\n\n# Tail\n",
+		"duplicate": "# Group\n\nFirst.\n\nSecond.\n\nFirst.\n\n# Tail\n",
+		"reordered": "# Group\n\nSecond.\n\nFirst.\n\n# Tail\n",
+		"inserted":  "# Group\n\nFirst.\n\nBetween.\n\nSecond.\n\n# Tail\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidate := mustRenderReviewBlocks(t, source)
+			location, currentKey, currentKeys, outdated := matchTextRangeAnchors(
+				before.sourceHash, candidate.sourceHash, anchors, candidate.blocks,
+			)
+			if !outdated || location != nil || currentKey != nil || currentKeys != nil {
+				t.Fatalf("match = %#v, key=%v, keys=%v, outdated=%v", location, currentKey, currentKeys, outdated)
+			}
+		})
+	}
+}
+
 func mustRenderReviewBlocks(t *testing.T, source string) renderedMarkdown {
 	t.Helper()
 	rendered, err := renderMarkdown(newMarkdownRenderer(), []byte(source), "review.md", nil)

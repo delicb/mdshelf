@@ -82,10 +82,32 @@ func loadReviewStoreFile(path string) (reviewStoreFile, error) {
 	if err := ensureJSONEnd(decoder); err != nil {
 		return reviewStoreFile{}, fmt.Errorf("decode reviews: %w", err)
 	}
+	if err := migrateReviewStoreFile(&stored); err != nil {
+		return reviewStoreFile{}, fmt.Errorf("migrate reviews: %w", err)
+	}
 	if err := validateReviewStoreFile(stored); err != nil {
 		return reviewStoreFile{}, fmt.Errorf("validate reviews: %w", err)
 	}
 	return stored, nil
+}
+
+func migrateReviewStoreFile(stored *reviewStoreFile) error {
+	switch stored.Version {
+	case 1:
+		for _, document := range stored.Documents {
+			for _, comment := range document.Comments {
+				if comment.TextRange != nil {
+					return errors.New("version 1 review state contains a text range")
+				}
+			}
+		}
+		stored.Version = reviewStoreVersion
+		return nil
+	case reviewStoreVersion:
+		return nil
+	default:
+		return fmt.Errorf("unsupported review store version %d", stored.Version)
+	}
 }
 
 func saveReviewStoreFile(path string, stored reviewStoreFile) error {
@@ -190,12 +212,16 @@ func reviewStatusForDocument(stored documentReview, currentHash string, removed 
 }
 
 func (s *reviewStore) addComment(document reviewDocumentContext, expectedRevision uint64, expectedSourceHash, body, blockKey string) (documentReview, reviewComment, error) {
+	return s.addCommentWithSelection(document, expectedRevision, expectedSourceHash, body, blockKey, nil)
+}
+
+func (s *reviewStore) addCommentWithSelection(document reviewDocumentContext, expectedRevision uint64, expectedSourceHash, body, blockKey string, selection *reviewSelectionRequest) (documentReview, reviewComment, error) {
 	if err := validateReviewText(body, maxReviewTextBytes, false, "comment body"); err != nil {
 		return documentReview{}, reviewComment{}, reviewInputTextError(body, maxReviewTextBytes, err)
 	}
-	anchor, err := blockAnchorByKey(document.Blocks, blockKey)
+	anchor, textRange, err := commentRangeForRequest(document.Blocks, blockKey, selection)
 	if err != nil {
-		return documentReview{}, reviewComment{}, err
+		return documentReview{}, reviewComment{}, reviewInputTextError(selectionQuote(selection), maxReviewTextBytes, err)
 	}
 
 	s.mu.Lock()
@@ -215,7 +241,7 @@ func (s *reviewStore) addComment(document reviewDocumentContext, expectedRevisio
 	}
 	comment := reviewComment{
 		ID: id, Body: body, Status: commentStatusOpen, BaseHash: document.SourceHash,
-		Anchor: anchor, Replies: []reviewReply{}, CreatedAt: now, UpdatedAt: now,
+		Anchor: anchor, TextRange: textRange, Replies: []reviewReply{}, CreatedAt: now, UpdatedAt: now,
 	}
 	stored.Comments = append(stored.Comments, comment)
 	stored.Revision++
@@ -392,6 +418,56 @@ func checkReviewExpectation(document *documentReview, expectedRevision uint64, e
 	return nil
 }
 
+func commentRangeForRequest(blocks []markdownBlock, blockKey string, selection *reviewSelectionRequest) (*blockAnchor, *reviewTextRange, error) {
+	if blockKey != "" && selection != nil {
+		return nil, nil, errors.New("block key and selection cannot both be set")
+	}
+	if selection == nil {
+		anchor, err := blockAnchorByKey(blocks, blockKey)
+		return anchor, nil, err
+	}
+	if err := validateReviewSelection(selection); err != nil {
+		return nil, nil, err
+	}
+	indexes := make(map[string]int, len(blocks))
+	for index, block := range blocks {
+		indexes[block.Key] = index
+	}
+	anchors := make([]blockAnchor, len(selection.BlockKeys))
+	seen := make(map[string]struct{}, len(selection.BlockKeys))
+	previous := -1
+	for index, key := range selection.BlockKeys {
+		if !blockKeyPattern.MatchString(key) {
+			return nil, nil, errors.New("selection has an invalid block key")
+		}
+		if _, exists := seen[key]; exists {
+			return nil, nil, errors.New("selection has duplicate block keys")
+		}
+		seen[key] = struct{}{}
+		blockIndex, exists := indexes[key]
+		if !exists {
+			return nil, nil, errors.New("selection block key does not match the current document")
+		}
+		if previous >= 0 && blockIndex != previous+1 {
+			return nil, nil, errors.New("selection blocks must be consecutive and in document order")
+		}
+		previous = blockIndex
+		anchors[index] = *anchorForBlock(blocks[blockIndex])
+	}
+	compatibilityAnchor := cloneBlockAnchor(anchors[0])
+	return &compatibilityAnchor, &reviewTextRange{
+		Version: reviewTextRangeVersion, Anchors: anchors,
+		StartOffset: selection.StartOffset, EndOffset: selection.EndOffset, Quote: selection.Quote,
+	}, nil
+}
+
+func selectionQuote(selection *reviewSelectionRequest) string {
+	if selection == nil {
+		return ""
+	}
+	return selection.Quote
+}
+
 func blockAnchorByKey(blocks []markdownBlock, blockKey string) (*blockAnchor, error) {
 	if blockKey == "" {
 		return nil, nil
@@ -490,9 +566,16 @@ func cloneReviewComment(comment reviewComment) reviewComment {
 	clone.Replies = make([]reviewReply, len(comment.Replies))
 	copy(clone.Replies, comment.Replies)
 	if comment.Anchor != nil {
-		anchor := *comment.Anchor
-		anchor.HeadingPath = append([]string(nil), comment.Anchor.HeadingPath...)
+		anchor := cloneBlockAnchor(*comment.Anchor)
 		clone.Anchor = &anchor
+	}
+	if comment.TextRange != nil {
+		textRange := *comment.TextRange
+		textRange.Anchors = make([]blockAnchor, len(comment.TextRange.Anchors))
+		for index, anchor := range comment.TextRange.Anchors {
+			textRange.Anchors[index] = cloneBlockAnchor(anchor)
+		}
+		clone.TextRange = &textRange
 	}
 	if comment.AddressedAt != nil {
 		value := *comment.AddressedAt
@@ -503,6 +586,11 @@ func cloneReviewComment(comment reviewComment) reviewComment {
 		clone.ResolvedAt = &value
 	}
 	return clone
+}
+
+func cloneBlockAnchor(anchor blockAnchor) blockAnchor {
+	anchor.HeadingPath = append([]string(nil), anchor.HeadingPath...)
+	return anchor
 }
 
 func timePointer(value time.Time) *time.Time {

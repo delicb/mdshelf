@@ -11,9 +11,12 @@ import (
 )
 
 const (
-	reviewStoreVersion       = 1
+	reviewStoreVersion       = 2
 	reviewAPISchemaVersion   = 1
+	reviewTextRangeVersion   = 1
 	maxReviewTextBytes       = 16 << 10
+	maxReviewRangeAnchors    = 16
+	maxReviewTextOffset      = 1 << 30
 	maxCommentsPerDocument   = 500
 	maxRepliesPerComment     = 100
 	maxReviewStoreBytes      = 32 << 20
@@ -73,16 +76,33 @@ type documentReview struct {
 }
 
 type reviewComment struct {
-	ID          string        `json:"id"`
-	Body        string        `json:"body"`
-	Status      commentStatus `json:"status"`
-	BaseHash    string        `json:"baseHash"`
-	Anchor      *blockAnchor  `json:"anchor,omitempty"`
-	Replies     []reviewReply `json:"replies,omitempty"`
-	CreatedAt   time.Time     `json:"createdAt"`
-	UpdatedAt   time.Time     `json:"updatedAt"`
-	AddressedAt *time.Time    `json:"addressedAt,omitempty"`
-	ResolvedAt  *time.Time    `json:"resolvedAt,omitempty"`
+	ID          string           `json:"id"`
+	Body        string           `json:"body"`
+	Status      commentStatus    `json:"status"`
+	BaseHash    string           `json:"baseHash"`
+	Anchor      *blockAnchor     `json:"anchor,omitempty"`
+	TextRange   *reviewTextRange `json:"textRange,omitempty"`
+	Replies     []reviewReply    `json:"replies,omitempty"`
+	CreatedAt   time.Time        `json:"createdAt"`
+	UpdatedAt   time.Time        `json:"updatedAt"`
+	AddressedAt *time.Time       `json:"addressedAt,omitempty"`
+	ResolvedAt  *time.Time       `json:"resolvedAt,omitempty"`
+}
+
+type reviewTextRange struct {
+	Version     int           `json:"version"`
+	Anchors     []blockAnchor `json:"anchors"`
+	StartOffset int64         `json:"startOffset"`
+	EndOffset   int64         `json:"endOffset"`
+	Quote       string        `json:"quote"`
+}
+
+type reviewSelectionRequest struct {
+	Version     int      `json:"version"`
+	BlockKeys   []string `json:"blockKeys"`
+	StartOffset int64    `json:"startOffset"`
+	EndOffset   int64    `json:"endOffset"`
+	Quote       string   `json:"quote"`
 }
 
 type reviewReply struct {
@@ -117,16 +137,26 @@ type reviewReplyResponse struct {
 	CreatedAt time.Time   `json:"createdAt"`
 }
 
+type reviewTextRangeResponse struct {
+	Version          int                    `json:"version"`
+	Anchors          []reviewAnchorResponse `json:"anchors"`
+	StartOffset      int64                  `json:"startOffset"`
+	EndOffset        int64                  `json:"endOffset"`
+	Quote            string                 `json:"quote"`
+	CurrentBlockKeys []string               `json:"currentBlockKeys,omitempty"`
+}
+
 type reviewCommentResponse struct {
-	ID              string                `json:"id"`
-	Body            string                `json:"body"`
-	Status          commentStatus         `json:"status"`
-	BaseHash        string                `json:"baseHash"`
-	Outdated        bool                  `json:"outdated"`
-	Anchor          *reviewAnchorResponse `json:"anchor"`
-	CurrentLocation *sourceLocation       `json:"currentLocation"`
-	CurrentBlockKey *string               `json:"currentBlockKey"`
-	Replies         []reviewReplyResponse `json:"replies"`
+	ID              string                   `json:"id"`
+	Body            string                   `json:"body"`
+	Status          commentStatus            `json:"status"`
+	BaseHash        string                   `json:"baseHash"`
+	Outdated        bool                     `json:"outdated"`
+	Anchor          *reviewAnchorResponse    `json:"anchor"`
+	TextRange       *reviewTextRangeResponse `json:"textRange,omitempty"`
+	CurrentLocation *sourceLocation          `json:"currentLocation"`
+	CurrentBlockKey *string                  `json:"currentBlockKey"`
+	Replies         []reviewReplyResponse    `json:"replies"`
 }
 
 type reviewShowResponse struct {
@@ -252,6 +282,11 @@ func validateReviewComment(comment *reviewComment) error {
 			return err
 		}
 	}
+	if comment.TextRange != nil {
+		if err := validateReviewTextRange(comment.TextRange, comment.Anchor); err != nil {
+			return err
+		}
+	}
 	if err := validateUTCTime(comment.CreatedAt, "creation time"); err != nil {
 		return err
 	}
@@ -293,6 +328,62 @@ func validateReviewComment(comment *reviewComment) error {
 	return nil
 }
 
+func validateReviewTextRange(textRange *reviewTextRange, compatibilityAnchor *blockAnchor) error {
+	if textRange.Version != reviewTextRangeVersion {
+		return fmt.Errorf("unsupported text range version %d", textRange.Version)
+	}
+	if len(textRange.Anchors) < 1 || len(textRange.Anchors) > maxReviewRangeAnchors {
+		return fmt.Errorf("text range anchor count must be from 1 through %d", maxReviewRangeAnchors)
+	}
+	if compatibilityAnchor == nil || !blockAnchorsEqual(*compatibilityAnchor, textRange.Anchors[0]) {
+		return errors.New("text range compatibility anchor does not match its first anchor")
+	}
+	seenKeys := make(map[string]struct{}, len(textRange.Anchors))
+	for index := range textRange.Anchors {
+		anchor := &textRange.Anchors[index]
+		if err := validateBlockAnchor(anchor); err != nil {
+			return fmt.Errorf("text range anchor %d: %w", index, err)
+		}
+		if _, exists := seenKeys[anchor.BlockKey]; exists {
+			return errors.New("text range has duplicate block keys")
+		}
+		seenKeys[anchor.BlockKey] = struct{}{}
+		if index > 0 && anchor.StartLine <= textRange.Anchors[index-1].EndLine {
+			return errors.New("text range anchors are not in source order")
+		}
+	}
+	if err := validateReviewRangeOffsets(textRange.StartOffset, textRange.EndOffset, len(textRange.Anchors)); err != nil {
+		return err
+	}
+	return validateReviewText(textRange.Quote, maxReviewTextBytes, false, "selected quote")
+}
+
+func validateReviewSelection(selection *reviewSelectionRequest) error {
+	if selection.Version != reviewTextRangeVersion {
+		return fmt.Errorf("unsupported selection version %d", selection.Version)
+	}
+	if len(selection.BlockKeys) < 1 || len(selection.BlockKeys) > maxReviewRangeAnchors {
+		return fmt.Errorf("selection block count must be from 1 through %d", maxReviewRangeAnchors)
+	}
+	if err := validateReviewRangeOffsets(selection.StartOffset, selection.EndOffset, len(selection.BlockKeys)); err != nil {
+		return err
+	}
+	return validateReviewText(selection.Quote, maxReviewTextBytes, false, "selected quote")
+}
+
+func validateReviewRangeOffsets(startOffset, endOffset int64, anchorCount int) error {
+	if startOffset < 0 || startOffset > maxReviewTextOffset {
+		return errors.New("selection start offset is out of range")
+	}
+	if endOffset <= 0 || endOffset > maxReviewTextOffset {
+		return errors.New("selection end offset is out of range")
+	}
+	if anchorCount == 1 && startOffset >= endOffset {
+		return errors.New("selection offsets are not in order")
+	}
+	return nil
+}
+
 func validateReviewReply(reply *reviewReply) error {
 	if !replyIDPattern.MatchString(reply.ID) {
 		return errors.New("invalid reply id")
@@ -313,6 +404,16 @@ func commentHasAgentReply(comment *reviewComment) bool {
 		}
 	}
 	return false
+}
+
+func blockAnchorsEqual(left, right blockAnchor) bool {
+	return left.BlockKey == right.BlockKey &&
+		left.BlockHash == right.BlockHash &&
+		left.Kind == right.Kind &&
+		left.StartLine == right.StartLine &&
+		left.EndLine == right.EndLine &&
+		left.Quote == right.Quote &&
+		slicesEqual(left.HeadingPath, right.HeadingPath)
 }
 
 func validateBlockAnchor(anchor *blockAnchor) error {

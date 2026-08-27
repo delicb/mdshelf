@@ -58,6 +58,7 @@ jobs:
 
       - name: Check JavaScript
         run: |
+          node --check web/text-selection.js
           node --check web/app.js
           node --test web/app.test.cjs
 

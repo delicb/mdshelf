@@ -1580,6 +1580,44 @@ body.drawer-open .backdrop {
   flex-direction: column;
   align-items: stretch;
   gap: 0.3rem;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+::highlight(mdshelf-text-comments) {
+  background-color: color-mix(in srgb, var(--accent) 24%, transparent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 72%, transparent);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.12em;
+}
+
+::highlight(mdshelf-active-text-comment) {
+  background-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  text-decoration: underline double var(--accent-strong) 0.1em;
+  text-underline-offset: 0.14em;
+}
+
+.markdown.is-text-comment-hover {
+  cursor: pointer;
+}
+
+.selection-comment-action {
+  position: fixed;
+  z-index: 75;
+  min-width: 5.5rem;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.8rem;
+  color: var(--surface);
+  background: var(--accent-strong);
+  border: 1px solid var(--accent-strong);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  font: 700 0.82rem/1 var(--sans);
+}
+
+.selection-comment-action[hidden] {
+  display: none;
 }
 
 .md-block-review-controls.has-comments,
@@ -1699,6 +1737,39 @@ body.drawer-open .backdrop {
   color: var(--text);
   border-color: var(--accent);
   opacity: 1;
+}
+
+.md-comment-bubble.is-active,
+.review-thread.is-active {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.md-comment-bubble.is-active .md-comment-bubble-select::before,
+.review-thread.is-active .review-thread-select::before {
+  content: "Active comment";
+  color: var(--accent-strong);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.review-selected-quote,
+.comment-selected-quote {
+  display: block;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  font-style: italic;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.comment-selected-quote {
+  padding: 0.45rem 0.6rem;
+  background: var(--surface-soft);
+  border-left: 2px solid var(--accent);
 }
 
 /* Actions stay out of the way until you reach for them. */
@@ -2446,6 +2517,13 @@ body.review-overlay {
     background: Highlight;
   }
 
+  ::highlight(mdshelf-text-comments),
+  ::highlight(mdshelf-active-text-comment) {
+    color: HighlightText;
+    background-color: Highlight;
+    text-decoration: underline;
+  }
+
   .review-thread-status,
   .review-outdated,
   .md-comment-bubble,
@@ -2453,6 +2531,12 @@ body.review-overlay {
   .file-review-count,
   .md-block-comment-count {
     border: 1px solid ButtonText;
+  }
+
+  .selection-comment-action,
+  .md-comment-bubble.is-active,
+  .review-thread.is-active {
+    outline: 2px solid ButtonText;
   }
 
   button:disabled {

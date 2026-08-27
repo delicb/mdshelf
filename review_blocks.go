@@ -384,6 +384,33 @@ func matchBlockAnchor(baseHash, currentHash string, anchor *blockAnchor, blocks 
 	return nil, nil, true
 }
 
+func matchTextRangeAnchors(baseHash, currentHash string, anchors []blockAnchor, blocks []markdownBlock) (*sourceLocation, *string, []string, bool) {
+	if len(anchors) == 0 {
+		return nil, nil, nil, true
+	}
+	blockIndexes := make(map[string]int, len(blocks))
+	for index, block := range blocks {
+		blockIndexes[block.Key] = index
+	}
+	currentKeys := make([]string, len(anchors))
+	previousIndex := -1
+	for index := range anchors {
+		_, currentKey, outdated := matchBlockAnchor(baseHash, currentHash, &anchors[index], blocks)
+		if outdated || currentKey == nil {
+			return nil, nil, nil, true
+		}
+		blockIndex, exists := blockIndexes[*currentKey]
+		if !exists || (previousIndex >= 0 && blockIndex != previousIndex+1) {
+			return nil, nil, nil, true
+		}
+		previousIndex = blockIndex
+		currentKeys[index] = *currentKey
+	}
+	first := blocks[blockIndexes[currentKeys[0]]]
+	last := blocks[blockIndexes[currentKeys[len(currentKeys)-1]]]
+	return &sourceLocation{StartLine: first.StartLine, EndLine: last.EndLine}, stringPointer(first.Key), currentKeys, false
+}
+
 func stringPointer(value string) *string { return &value }
 
 func slicesEqual(left, right []string) bool {

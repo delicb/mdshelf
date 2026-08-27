@@ -44,6 +44,12 @@ func reviewCommentResponses(comments []reviewComment, currentHash string, blocks
 			continue
 		}
 		location, currentBlockKey, outdated := matchBlockAnchor(comment.BaseHash, currentHash, comment.Anchor, blocks)
+		var currentBlockKeys []string
+		if comment.TextRange != nil {
+			location, currentBlockKey, currentBlockKeys, outdated = matchTextRangeAnchors(
+				comment.BaseHash, currentHash, comment.TextRange.Anchors, blocks,
+			)
+		}
 		replies := make([]reviewReplyResponse, len(comment.Replies))
 		for index, reply := range comment.Replies {
 			replies[index] = reviewReplyResponse{
@@ -55,15 +61,31 @@ func reviewCommentResponses(comments []reviewComment, currentHash string, blocks
 			Outdated: outdated, CurrentLocation: location, CurrentBlockKey: currentBlockKey, Replies: replies,
 		}
 		if comment.Anchor != nil {
-			response.Anchor = &reviewAnchorResponse{
-				BlockKey: comment.Anchor.BlockKey, Kind: comment.Anchor.Kind,
-				StartLine: comment.Anchor.StartLine, EndLine: comment.Anchor.EndLine,
-				HeadingPath: append([]string(nil), comment.Anchor.HeadingPath...), Quote: comment.Anchor.Quote,
+			anchor := reviewAnchorResponseFor(*comment.Anchor)
+			response.Anchor = &anchor
+		}
+		if comment.TextRange != nil {
+			anchors := make([]reviewAnchorResponse, len(comment.TextRange.Anchors))
+			for index, anchor := range comment.TextRange.Anchors {
+				anchors[index] = reviewAnchorResponseFor(anchor)
+			}
+			response.TextRange = &reviewTextRangeResponse{
+				Version: comment.TextRange.Version, Anchors: anchors,
+				StartOffset: comment.TextRange.StartOffset, EndOffset: comment.TextRange.EndOffset,
+				Quote: comment.TextRange.Quote, CurrentBlockKeys: currentBlockKeys,
 			}
 		}
 		responses = append(responses, response)
 	}
 	return responses
+}
+
+func reviewAnchorResponseFor(anchor blockAnchor) reviewAnchorResponse {
+	return reviewAnchorResponse{
+		BlockKey: anchor.BlockKey, Kind: anchor.Kind,
+		StartLine: anchor.StartLine, EndLine: anchor.EndLine,
+		HeadingPath: append([]string(nil), anchor.HeadingPath...), Quote: anchor.Quote,
+	}
 }
 
 func formatReviewMarkdown(w io.Writer, response reviewShowResponse) error {
@@ -118,7 +140,28 @@ func formatReviewMarkdown(w io.Writer, response reviewShowResponse) error {
 		if comment.Anchor != nil {
 			quote = comment.Anchor.Quote
 		}
-		if _, err := fmt.Fprintf(w, "\nOriginal quote:\n\n%s\n\nComment body:\n\n%s\n", quote, comment.Body); err != nil {
+		if _, err := fmt.Fprintf(w, "\nOriginal quote:\n\n%s\n", quote); err != nil {
+			return err
+		}
+		if comment.TextRange != nil {
+			if len(comment.TextRange.Anchors) > 1 {
+				if _, err := io.WriteString(w, "\nOriginal source blocks:\n"); err != nil {
+					return err
+				}
+				for _, anchor := range comment.TextRange.Anchors {
+					if _, err := fmt.Fprintf(w, "\n- Block %s: lines %s", anchor.BlockKey, formatLineRange(anchor.StartLine, anchor.EndLine)); err != nil {
+						return err
+					}
+				}
+				if _, err := io.WriteString(w, "\n"); err != nil {
+					return err
+				}
+			}
+			if _, err := fmt.Fprintf(w, "\nSelected rendered text:\n\n%s\n", comment.TextRange.Quote); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintf(w, "\nComment body:\n\n%s\n", comment.Body); err != nil {
 			return err
 		}
 		for _, reply := range comment.Replies {

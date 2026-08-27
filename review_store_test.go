@@ -137,7 +137,7 @@ func TestReviewStoreSaveOrderIsStable(t *testing.T) {
 
 func TestReviewStoreRejectsCorruptData(t *testing.T) {
 	for name, data := range map[string]string{
-		"version":         `{"version":2,"documents":[]}`,
+		"version":         `{"version":3,"documents":[]}`,
 		"top-level field": `{"version":1,"documents":[],"extra":true}`,
 		"nested field":    `{"version":1,"documents":[{"documentId":"000000000000000000000000","path":"/tmp/a.md","revision":0,"comments":[],"extra":true}]}`,
 	} {

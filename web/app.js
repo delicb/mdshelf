@@ -14,6 +14,7 @@
     commentComposerTitle: document.querySelector("#comment-composer-title"),
     commentError: document.querySelector("#comment-error"),
     commentSave: document.querySelector("#comment-save"),
+    commentSelectedQuote: document.querySelector("#comment-selected-quote"),
     commentTarget: document.querySelector("#comment-target"),
     currentFile: document.querySelector("#current-file"),
     document: document.querySelector("#document"),
@@ -43,6 +44,7 @@
     settings: document.querySelector(".settings"),
     settingsButton: document.querySelector("#settings-button"),
     settingsPopup: document.querySelector("#settings-popup"),
+    selectionCommentAction: document.querySelector("#selection-comment-action"),
     skipLink: document.querySelector(".skip-link"),
     statusMessage: document.querySelector("#status-message"),
     statusView: document.querySelector("#status-view"),
@@ -55,6 +57,7 @@
     updateNotice: document.querySelector("#update-notice"),
   };
 
+  const textSelection = window.MDShelfTextSelection || null;
   const desktop = window.matchMedia("(min-width: 56.25rem)");
   const reviewWide = window.matchMedia("(min-width: 105rem)");
   const touchComments = window.matchMedia("(hover: none), (pointer: coarse)");
@@ -115,6 +118,14 @@
     reviewBlockError: "",
     reviewErrorNeedsRender: false,
     reviewComposer: null,
+    reviewTextIndex: null,
+    reviewRenderGeneration: 0,
+    liveSelection: null,
+    latchedSelection: null,
+    selectionFrame: 0,
+    textCommentHoverFrame: 0,
+    textCommentHoverPoint: null,
+    highlightAvailable: false,
     shortcutsOpen: false,
     shortcutsReturnFocus: null,
     fileReviews: new Map(),
@@ -1201,6 +1212,36 @@
       && value.endLine >= value.startLine;
   }
 
+  function validateReviewAnchor(anchor) {
+    if (
+      !anchor
+      || !blockKeyPattern.test(anchor.blockKey)
+      || typeof anchor.kind !== "string"
+      || !validLineRange(anchor)
+      || !Array.isArray(anchor.headingPath)
+      || !anchor.headingPath.every((heading) => typeof heading === "string")
+      || typeof anchor.quote !== "string"
+    ) throw new Error("The server returned an invalid comment anchor.");
+    return {
+      blockKey: anchor.blockKey,
+      kind: anchor.kind,
+      startLine: anchor.startLine,
+      endLine: anchor.endLine,
+      headingPath: [...anchor.headingPath],
+      quote: anchor.quote,
+    };
+  }
+
+  function reviewAnchorsEqual(left, right) {
+    return left.blockKey === right.blockKey
+      && left.kind === right.kind
+      && left.startLine === right.startLine
+      && left.endLine === right.endLine
+      && left.quote === right.quote
+      && left.headingPath.length === right.headingPath.length
+      && left.headingPath.every((heading, index) => heading === right.headingPath[index]);
+  }
+
   function validateReviewView(payload, path) {
     if (payload?.schemaVersion !== 1 || !Number.isSafeInteger(payload.revision) || payload.revision < 0) {
       throw new Error("The server returned an invalid review.");
@@ -1230,24 +1271,55 @@
         || !Array.isArray(comment.replies)
       ) throw new Error("The server returned an invalid comment.");
       ids.add(comment.id);
-      let anchor = null;
-      if (comment.anchor !== null) {
+      const anchor = comment.anchor === null ? null : validateReviewAnchor(comment.anchor);
+      let textRange = null;
+      if (comment.textRange !== undefined) {
+        const value = comment.textRange;
         if (
-          !comment.anchor
-          || !blockKeyPattern.test(comment.anchor.blockKey)
-          || typeof comment.anchor.kind !== "string"
-          || !validLineRange(comment.anchor)
-          || !Array.isArray(comment.anchor.headingPath)
-          || !comment.anchor.headingPath.every((heading) => typeof heading === "string")
-          || typeof comment.anchor.quote !== "string"
-        ) throw new Error("The server returned an invalid comment anchor.");
-        anchor = {
-          blockKey: comment.anchor.blockKey,
-          kind: comment.anchor.kind,
-          startLine: comment.anchor.startLine,
-          endLine: comment.anchor.endLine,
-          headingPath: [...comment.anchor.headingPath],
-          quote: comment.anchor.quote,
+          !textSelection
+          || !value
+          || value.version !== textSelection.rangeVersion
+          || !Array.isArray(value.anchors)
+          || value.anchors.length < 1
+          || value.anchors.length > textSelection.maxBlocks
+          || !Number.isSafeInteger(value.startOffset)
+          || !Number.isSafeInteger(value.endOffset)
+          || value.startOffset < 0
+          || value.endOffset <= 0
+          || typeof value.quote !== "string"
+          || !value.quote.trim()
+          || value.quote.includes("\0")
+          || textSelection.textByteLength(value.quote) > textSelection.maxQuoteBytes
+        ) throw new Error("The server returned an invalid text range.");
+        const anchors = value.anchors.map(validateReviewAnchor);
+        if (
+          new Set(anchors.map((candidate) => candidate.blockKey)).size !== anchors.length
+          || anchors.some((candidate, index) => index > 0 && candidate.startLine <= anchors[index - 1].endLine)
+        ) throw new Error("The server returned unordered text range anchors.");
+        if (!anchor || !reviewAnchorsEqual(anchor, anchors[0])) {
+          throw new Error("The text range anchor does not match the comment anchor.");
+        }
+        if (anchors.length === 1 && value.startOffset >= value.endOffset) {
+          throw new Error("The server returned invalid text range offsets.");
+        }
+        const currentBlockKeys = value.currentBlockKeys === undefined ? null : value.currentBlockKeys;
+        if (
+          currentBlockKeys !== null
+          && (!Array.isArray(currentBlockKeys)
+            || currentBlockKeys.length !== anchors.length
+            || !currentBlockKeys.every((key) => blockKeyPattern.test(key))
+            || new Set(currentBlockKeys).size !== currentBlockKeys.length)
+        ) throw new Error("The server returned invalid current text range blocks.");
+        if (!comment.outdated && currentBlockKeys === null) {
+          throw new Error("The server returned no current text range blocks.");
+        }
+        textRange = {
+          version: value.version,
+          anchors,
+          startOffset: value.startOffset,
+          endOffset: value.endOffset,
+          quote: value.quote,
+          currentBlockKeys: currentBlockKeys ? [...currentBlockKeys] : null,
         };
       }
       if (comment.currentLocation !== null && !validLineRange(comment.currentLocation)) {
@@ -1255,6 +1327,9 @@
       }
       if (comment.currentBlockKey !== null && !blockKeyPattern.test(comment.currentBlockKey)) {
         throw new Error("The server returned an invalid current block key.");
+      }
+      if (textRange?.currentBlockKeys && comment.currentBlockKey !== textRange.currentBlockKeys[0]) {
+        throw new Error("The current text range does not match the current block key.");
       }
       const replies = comment.replies.map((reply) => {
         if (
@@ -1276,6 +1351,9 @@
         baseHash: comment.baseHash,
         outdated: comment.outdated,
         anchor,
+        textRange,
+        ranges: [],
+        rangeUnavailable: false,
         currentLocation: comment.currentLocation ? { ...comment.currentLocation } : null,
         currentBlockKey: comment.currentBlockKey,
         replies,
@@ -1300,8 +1378,10 @@
       }
       elementsByKey.set(key, wrapper);
     }
+    if (metadata.length !== wrappers.length) throw new Error("Document block metadata does not match the document.");
     const blocks = new Map();
-    for (const block of metadata) {
+    for (let index = 0; index < metadata.length; index += 1) {
+      const block = metadata[index];
       if (
         !block
         || !blockKeyPattern.test(block.key)
@@ -1309,6 +1389,7 @@
         || !validLineRange(block)
         || blocks.has(block.key)
         || !elementsByKey.has(block.key)
+        || elementsByKey.get(block.key) !== wrappers[index]
       ) throw new Error("The server returned invalid document block metadata.");
       blocks.set(block.key, { ...block, element: elementsByKey.get(block.key) });
     }
@@ -1550,7 +1631,146 @@
     block.classList.add("is-comment-armed");
   }
 
+  function clearOwnedHighlights() {
+    if (!textSelection || !window.CSS?.highlights) return;
+    window.CSS.highlights.delete(textSelection.highlightNames.comments);
+    window.CSS.highlights.delete(textSelection.highlightNames.active);
+  }
+
+  function hideSelectionCommentAction() {
+    state.liveSelection = null;
+    state.latchedSelection = null;
+    if (elements.selectionCommentAction) elements.selectionCommentAction.hidden = true;
+  }
+
+  function clearTextCommentHover() {
+    if (state.textCommentHoverFrame) {
+      window.cancelAnimationFrame(state.textCommentHoverFrame);
+      state.textCommentHoverFrame = 0;
+    }
+    state.textCommentHoverPoint = null;
+    elements.document.classList.remove("is-text-comment-hover");
+  }
+
+  function updateTextCommentHover() {
+    state.textCommentHoverFrame = 0;
+    const point = state.textCommentHoverPoint;
+    const commentID = point && state.highlightAvailable
+      ? textSelection.textCommentIDAtPoint(
+        state.reviewComments,
+        point.x,
+        point.y,
+        state.activeCommentID,
+      )
+      : "";
+    elements.document.classList.toggle("is-text-comment-hover", Boolean(commentID));
+  }
+
+  function scheduleTextCommentHover(event) {
+    state.textCommentHoverPoint = { x: event.clientX, y: event.clientY };
+    if (state.textCommentHoverFrame) return;
+    state.textCommentHoverFrame = window.requestAnimationFrame(updateTextCommentHover);
+  }
+
+  function clearTextSelectionState() {
+    if (state.selectionFrame) {
+      window.clearTimeout(state.selectionFrame);
+      state.selectionFrame = 0;
+    }
+    clearTextCommentHover();
+    hideSelectionCommentAction();
+    clearOwnedHighlights();
+    state.reviewTextIndex = null;
+  }
+
+  function resolveCommentTextRanges(comments) {
+    for (const comment of comments) {
+      comment.ranges = [];
+      comment.rangeUnavailable = false;
+      if (!comment.textRange || comment.outdated || !state.reviewTextIndex || !textSelection) continue;
+      const result = textSelection.reconstructTextRange(comment.textRange, state.reviewTextIndex);
+      comment.ranges = result.ranges;
+      comment.rangeUnavailable = !result.available;
+    }
+  }
+
+  function refreshTextHighlights() {
+    clearOwnedHighlights();
+    if (!textSelection || !state.highlightAvailable) return;
+    const groups = textSelection.planHighlightGroups(
+      state.reviewComments,
+      state.activeCommentID,
+      state.highlightAvailable,
+    );
+    try {
+      if (groups.current.length) {
+        window.CSS.highlights.set(textSelection.highlightNames.comments, new window.Highlight(...groups.current));
+      }
+      if (groups.active.length) {
+        window.CSS.highlights.set(textSelection.highlightNames.active, new window.Highlight(...groups.active));
+      }
+    } catch {
+      state.highlightAvailable = false;
+      clearOwnedHighlights();
+    }
+  }
+
+  function positionSelectionCommentAction(descriptor) {
+    const button = elements.selectionCommentAction;
+    const rect = textSelection?.descriptorRect(descriptor);
+    if (!button || !rect || button.hidden) return;
+    const viewport = window.visualViewport;
+    const leftEdge = (viewport?.offsetLeft || 0) + 8;
+    const topEdge = (viewport?.offsetTop || 0) + 8;
+    const rightEdge = leftEdge + (viewport?.width || window.innerWidth) - 16;
+    const bottomEdge = topEdge + (viewport?.height || window.innerHeight) - 16;
+    const buttonRect = button.getBoundingClientRect();
+    const left = Math.min(Math.max(rect.left, leftEdge), Math.max(leftEdge, rightEdge - buttonRect.width));
+    let top = rect.bottom + 8;
+    if (top + buttonRect.height > bottomEdge) top = rect.top - buttonRect.height - 8;
+    top = Math.min(Math.max(top, topEdge), Math.max(topEdge, bottomEdge - buttonRect.height));
+    button.style.left = `${left}px`;
+    button.style.top = `${top}px`;
+  }
+
+  function captureLiveSelection() {
+    if (!textSelection || !state.reviewTextIndex || !canAddComment() || state.reviewComposer) return null;
+    const descriptor = textSelection.captureSelection(window.getSelection(), state.reviewTextIndex, elements.document);
+    return textSelection.selectionForGeneration(descriptor, state.reviewRenderGeneration);
+  }
+
+  function selectionCommentActionDescriptor(latchedDescriptor, liveDescriptor) {
+    return latchedDescriptor || liveDescriptor || null;
+  }
+
+  function selectionCommentLiveDescriptor(capturedDescriptor, currentDescriptor, actionFocused) {
+    return capturedDescriptor || (actionFocused ? currentDescriptor : null);
+  }
+
+  function updateSelectionCommentAction() {
+    state.selectionFrame = 0;
+    const button = elements.selectionCommentAction;
+    const descriptor = selectionCommentLiveDescriptor(
+      captureLiveSelection(),
+      state.liveSelection,
+      button === document.activeElement,
+    );
+    state.liveSelection = descriptor;
+    if (!button) return;
+    button.hidden = !descriptor;
+    if (!descriptor) return;
+    const quote = textSelection.shortQuote(descriptor.quote, 72);
+    button.setAttribute("aria-label", `Comment on selected text: ${quote}`);
+    positionSelectionCommentAction(descriptor);
+  }
+
+  function scheduleSelectionCommentAction() {
+    if (state.selectionFrame) return;
+    state.selectionFrame = window.setTimeout(updateSelectionCommentAction, 0);
+  }
+
   function clearReviewState(closePanel = true) {
+    clearTextSelectionState();
     state.reviewEnabled = false;
     state.reviewRevision = 0;
     state.reviewStatus = "needs_review";
@@ -1647,7 +1867,16 @@
   function commentLocationText(comment) {
     if (!comment.anchor) return "Whole document";
     const heading = comment.anchor.headingPath.length ? comment.anchor.headingPath.join(" > ") : "Document root";
-    return `${heading}, ${lineRangeLabel(comment.anchor.startLine, comment.anchor.endLine)}`;
+    const location = `${heading}, ${lineRangeLabel(comment.anchor.startLine, comment.anchor.endLine)}`;
+    return comment.textRange ? `Selected text in ${location}` : location;
+  }
+
+  function makeSelectedQuote(comment) {
+    if (!comment.textRange) return null;
+    const quote = document.createElement("span");
+    quote.className = "review-selected-quote";
+    quote.textContent = `“${textSelection.shortQuote(comment.textRange.quote)}”`;
+    return quote;
   }
 
   function makeCommentReplies(comment, compact = false) {
@@ -1715,13 +1944,18 @@
     const body = document.createElement("span");
     body.className = "review-comment-body";
     body.textContent = comment.body;
-    select.append(header, body);
+    select.append(header);
+    const quote = makeSelectedQuote(comment);
+    if (quote) select.append(quote);
+    select.append(body);
     if (comment.replies.length) select.append(makeCommentReplies(comment));
-    if (comment.outdated) {
-      const outdated = document.createElement("span");
-      outdated.className = "review-outdated";
-      outdated.textContent = "Original section no longer exists";
-      select.append(outdated);
+    if (comment.outdated || comment.rangeUnavailable) {
+      const unavailable = document.createElement("span");
+      unavailable.className = "review-outdated";
+      unavailable.textContent = comment.outdated
+        ? "Original section no longer exists"
+        : "Selected text mark is not available";
+      select.append(unavailable);
     }
     const host = document.createElement("div");
     host.className = "comment-composer-host";
@@ -1769,6 +2003,7 @@
 
     updateBlockCommentControls();
     renderCommentComposer();
+    if (!state.reviewComposer) scheduleSelectionCommentAction();
     if (options.preserveFocus) {
       if (focusKey) focusByKey(focusKey);
       elements.reviewPanelScroll.scrollTop = panelScroll;
@@ -1832,7 +2067,10 @@
     elements.commentComposerTitle.textContent = replying ? "Reply" : "Add comment";
     elements.commentTarget.textContent = replying
       ? "Add a reply to this comment."
-      : (block ? `Comment on ${lineRangeLabel(block.startLine, block.endLine)}` : composer.targetLabel);
+      : (composer.selection ? composer.targetLabel : (block ? `Comment on ${lineRangeLabel(block.startLine, block.endLine)}` : composer.targetLabel));
+    const selectedQuote = composer.selection ? textSelection.shortQuote(composer.selection.quote) : "";
+    elements.commentSelectedQuote.hidden = !selectedQuote;
+    elements.commentSelectedQuote.textContent = selectedQuote ? `“${selectedQuote}”` : "";
     elements.commentSave.textContent = replying ? "Save reply" : "Save comment";
     elements.commentBody.value = composer.body;
     const detail = state.reviewError || state.reviewBlockError;
@@ -1868,6 +2106,7 @@
     for (const button of document.querySelectorAll("[data-comment-id]")) {
       button.classList.toggle("is-active", button.dataset.commentId === state.activeCommentID);
     }
+    refreshTextHighlights();
   }
 
   function activateComment(commentID, scroll = false) {
@@ -1876,9 +2115,48 @@
     state.activeCommentID = comment.id;
     state.activeBlockKey = commentBlockKey(comment);
     syncActiveComment();
-    if (scroll && state.activeBlockKey) {
-      state.reviewBlocks.get(state.activeBlockKey)?.element.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (comment.textRange && (comment.rangeUnavailable || !state.highlightAvailable)) {
+      elements.reviewLiveStatus.textContent = comment.rangeUnavailable
+        ? "The selected text is not available in this rendering."
+        : "Inline text marks are not available in this browser.";
     }
+    const viewportTop = elements.topbar.getBoundingClientRect().bottom;
+    const outside = comment.ranges?.length
+      ? textSelection.rangeOutsideViewport(comment.ranges, viewportTop, window.innerHeight)
+      : true;
+    if (scroll && state.activeBlockKey && outside) {
+      const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+      const delta = comment.textRange && comment.ranges?.length
+        ? textSelection.rangeScrollDelta(comment.ranges, viewportTop, window.innerHeight)
+        : 0;
+      if (delta) window.scrollBy({ top: delta, behavior });
+      else state.reviewBlocks.get(state.activeBlockKey)?.element.scrollIntoView({ block: "center", behavior });
+    }
+  }
+
+  function activateTextCommentAtPoint(event) {
+    if (
+      !state.highlightAvailable
+      || state.reviewMutationPending
+      || state.reviewComposer
+      || event.metaKey
+      || event.ctrlKey
+      || event.altKey
+      || event.shiftKey
+    ) return false;
+    const selection = window.getSelection();
+    if (selection?.rangeCount && !selection.isCollapsed) return false;
+    const commentID = textSelection.textCommentIDAtPoint(
+      state.reviewComments,
+      event.clientX,
+      event.clientY,
+      state.activeCommentID,
+    );
+    if (!commentID) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    activateComment(commentID);
+    return true;
   }
 
   function makeBlockCommentBubble(comment) {
@@ -1893,6 +2171,8 @@
     select.setAttribute("aria-label", `${commentStatusLabel(comment.status)} comment: ${comment.body}`);
     const body = document.createElement("span");
     body.textContent = comment.body;
+    const quote = makeSelectedQuote(comment);
+    if (quote) select.append(quote);
     select.append(body);
     if (comment.replies.length) select.append(makeCommentReplies(comment, true));
     const host = document.createElement("div");
@@ -1947,6 +2227,7 @@
     state.reviewRevision = view.revision;
     state.reviewStatus = view.reviewStatus;
     state.reviewSourceHash = view.sourceHash;
+    resolveCommentTextRanges(view.comments);
     state.reviewComments = view.comments;
     state.reviewError = "";
     state.reviewErrorNeedsRender = false;
@@ -2039,6 +2320,33 @@
     window.requestAnimationFrame(() => elements.commentBody.focus());
   }
 
+  function openSelectionCommentComposer(descriptor, returnFocusKey = "reader") {
+    if (
+      !descriptor
+      || descriptor.generation !== state.reviewRenderGeneration
+      || !descriptor.blockKeys.length
+      || !state.reviewBlocks.has(descriptor.blockKeys[0])
+      || !canAddComment()
+    ) return false;
+    const blockKey = descriptor.blockKeys[0];
+    const block = state.reviewBlocks.get(blockKey);
+    state.reviewComposer = {
+      kind: "comment",
+      blockKey,
+      body: "",
+      baseHash: state.reviewSourceHash,
+      targetLabel: `Comment on selected text in ${lineRangeLabel(block.startLine, block.endLine)}`,
+      returnFocusKey,
+      selection: textSelection.requestSelection(descriptor),
+      savedRange: descriptor.nativeRange?.cloneRange?.() || null,
+      generation: descriptor.generation,
+    };
+    hideSelectionCommentAction();
+    renderCommentComposer();
+    window.requestAnimationFrame(() => elements.commentBody.focus());
+    return true;
+  }
+
   function commentOnActiveNavigationBlock() {
     const block = activeNavigationBlock();
     if (!block) return false;
@@ -2074,12 +2382,31 @@
     return composer?.returnFocusKey || "";
   }
 
+  function restoreComposerSelection(composer) {
+    if (!composer?.savedRange || composer.generation !== state.reviewRenderGeneration) return;
+    try {
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(composer.savedRange);
+      state.liveSelection = textSelection.captureSelection(selection, state.reviewTextIndex, elements.document);
+    } catch {
+      state.liveSelection = null;
+    }
+  }
+
   function closeCommentComposer(restoreFocus = true) {
     const composer = state.reviewComposer;
     state.reviewComposer = null;
     renderCommentComposer();
     updateBlockCommentControls();
-    if (!restoreFocus || focusByKey(composerReturnKey(composer))) return;
+    if (!restoreFocus) return;
+    if (composerReturnKey(composer) === "reader") {
+      elements.reader.focus({ preventScroll: true });
+      restoreComposerSelection(composer);
+      scheduleSelectionCommentAction();
+      return;
+    }
+    if (focusByKey(composerReturnKey(composer))) return;
     if (state.reviewPanelOpen) elements.reviewPanelTitle.focus();
     else if (!elements.reviewButton.hidden) elements.reviewButton.focus();
   }
@@ -2175,7 +2502,9 @@
     const returnKey = composerReturnKey(composer);
     const replying = composer.kind === "reply";
     const endpoint = replying ? "/api/control/review/comments/reply" : "/api/control/review/comments/add";
-    const extra = replying ? { body, commentId: composer.commentID } : { body, blockKey: composer.blockKey };
+    const extra = replying
+      ? { body, commentId: composer.commentID }
+      : (composer.selection ? { body, selection: composer.selection } : { body, blockKey: composer.blockKey });
     await mutateReview(endpoint, reviewMutationBody(extra), {
       message: replying ? "Reply published" : "Comment published",
       focusKey: returnKey,
@@ -2338,10 +2667,24 @@
       renderMath(template.content);
       await renderMermaid(template.content, () => isCurrentLoad(controller));
       if (!isCurrentLoad(controller)) return;
+      const reviewGeneration = ++state.reviewRenderGeneration;
+      let reviewTextIndex = null;
+      if (reviewEnabled && !blockError && textSelection) {
+        try {
+          reviewTextIndex = textSelection.buildIndex(
+            [...reviewBlocks].map(([key, block]) => ({ key, element: block.element })),
+            reviewGeneration,
+          );
+        } catch (error) {
+          blockError = error.message;
+        }
+      }
       state.currentPath = renderedPath;
       state.reviewEnabled = reviewEnabled;
       state.reviewSourceHash = reviewEnabled ? payload.sourceHash : "";
       state.reviewBlocks = reviewBlocks;
+      clearTextSelectionState();
+      state.reviewTextIndex = reviewTextIndex;
       elements.document.replaceChildren(template.content);
       elements.document.setAttribute("aria-label", title);
       elements.currentFile.textContent = displayName(renderedPath);
@@ -2618,6 +2961,7 @@
 
   loadThemePreferences();
   applyThemePreferences();
+  state.highlightAvailable = Boolean(textSelection?.supportsHighlights(window));
 
   if (window.__MDSHELF_TEST__) {
     window.__MDSHELF_TEST_API__ = {
@@ -2651,6 +2995,8 @@
       reviewPanelAvailable,
       reviewStatusLabel,
       rootElement: document.documentElement,
+      selectionCommentActionDescriptor,
+      selectionCommentLiveDescriptor,
       setAppearance,
       setDesign,
       setDocumentPath,
@@ -2663,6 +3009,25 @@
     };
     return;
   }
+
+  document.addEventListener("selectionchange", scheduleSelectionCommentAction);
+  elements.selectionCommentAction.addEventListener("blur", scheduleSelectionCommentAction);
+  elements.selectionCommentAction.addEventListener("pointerdown", (event) => {
+    const descriptor = state.liveSelection || captureLiveSelection();
+    state.latchedSelection = textSelection.latchDescriptor(descriptor);
+    event.preventDefault();
+  });
+  elements.selectionCommentAction.addEventListener("click", () => {
+    const descriptor = selectionCommentActionDescriptor(
+      state.latchedSelection,
+      state.liveSelection || captureLiveSelection(),
+    );
+    state.latchedSelection = null;
+    if (!openSelectionCommentComposer(descriptor, "reader")) scheduleSelectionCommentAction();
+  });
+  window.visualViewport?.addEventListener("scroll", () => positionSelectionCommentAction(state.liveSelection));
+  window.visualViewport?.addEventListener("resize", () => positionSelectionCommentAction(state.liveSelection));
+  window.addEventListener("pagehide", clearTextSelectionState);
 
   elements.menuButton.addEventListener("click", () => {
     if (state.reviewMutationPending) return;
@@ -2714,9 +3079,13 @@
     event.preventDefault();
   });
 
+  elements.document.addEventListener("pointermove", scheduleTextCommentHover, { passive: true });
+  elements.document.addEventListener("pointerleave", clearTextCommentHover);
+
   elements.document.addEventListener("click", (event) => {
     const block = event.target.closest(".md-block[data-md-block]");
     if (block) setActiveNavigationBlock(block);
+    if (activateTextCommentAtPoint(event)) return;
     const copyButton = event.target.closest(".code-copy");
     if (copyButton) {
       void copyCodeBlock(copyButton);
@@ -2915,18 +3284,30 @@
       || state.reviewPanelOpen
       || !elements.settingsPopup.hidden
       || document.body.classList.contains("drawer-open")
-      || shortcutTargetIsInteractive(event.target)
     ) return;
     if (action === "comment") {
-      if (commentOnActiveNavigationBlock()) event.preventDefault();
+      const descriptor = captureLiveSelection();
+      if (descriptor) {
+        if (openSelectionCommentComposer(descriptor, "reader")) event.preventDefault();
+      } else if (!shortcutTargetIsInteractive(event.target) && commentOnActiveNavigationBlock()) {
+        event.preventDefault();
+      }
       return;
     }
+    if (shortcutTargetIsInteractive(event.target)) return;
     if (moveActiveNavigationBlock(action)) event.preventDefault();
   });
 
-  window.addEventListener("resize", () => window.requestAnimationFrame(updateBlockCommentControls));
+  window.addEventListener("resize", () => window.requestAnimationFrame(() => {
+    updateBlockCommentControls();
+    positionSelectionCommentAction(state.liveSelection);
+  }));
   window.addEventListener("scroll", scheduleOutlineTracking, { passive: true });
   window.addEventListener("scroll", scheduleActiveNavigationTracking, { passive: true });
+  window.addEventListener("scroll", () => {
+    clearTextCommentHover();
+    positionSelectionCommentAction(state.liveSelection);
+  }, { passive: true });
   window.addEventListener("resize", scheduleOutlineTracking);
   window.addEventListener("resize", scheduleActiveNavigationTracking);
   window.addEventListener("focus", showPendingUpdate);
