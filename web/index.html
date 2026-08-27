@@ -4,15 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
-    <meta name="theme-color" content="#f7f7f4" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#161817" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f4f5f2" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#15181a" media="(prefers-color-scheme: dark)">
     <title>MDShelf</title>
+    <link rel="stylesheet" href="./vendor/fonts/fonts.css?v=1">
     <link rel="stylesheet" href="./vendor/katex/katex.min.css?v=0.18.4">
-    <link rel="stylesheet" href="./app.css?v=20">
+    <link rel="stylesheet" href="./app.css?v=23">
     <link rel="stylesheet" href="./chroma.css?v=2">
     <script defer src="./vendor/katex/katex.min.js?v=0.18.4"></script>
     <script defer src="./vendor/mermaid.min.js?v=11.17.2"></script>
-    <script defer src="./app.js?v=20"></script>
+    <script defer src="./app.js?v=23"></script>
   </head>
   <body>
     <a class="skip-link" href="#reader">Skip to document</a>
@@ -31,6 +32,7 @@
       <a class="brand" id="brand" href="#" aria-label="MDShelf home">MDShelf</a>
       <p class="current-file" id="current-file">Documents</p>
       <div class="topbar-actions">
+        <span class="kbd-hint" aria-hidden="true">&#8984;K</span>
         <button
           class="review-toggle"
           id="review-button"
@@ -59,27 +61,30 @@
             </svg>
           </button>
           <section class="settings-popup" id="settings-popup" role="dialog" aria-labelledby="settings-title" hidden>
-            <h2 id="settings-title">Appearance</h2>
-            <label for="color-theme">
-              <span>Color theme</span>
-              <select id="color-theme">
+            <h2 id="settings-title">Reading</h2>
+            <label for="design">
+              <span>Design</span>
+              <select id="design">
+                <option value="ink">Ink: serif, margin notes</option>
+                <option value="signal">Signal: console, rails</option>
+                <option value="column">Column: one column, marks</option>
+              </select>
+            </label>
+            <p class="settings-hint" id="design-hint">Ink reads like a page. Signal keeps the file list and outline on screen. Column hides everything except the text.</p>
+            <label for="appearance">
+              <span>Appearance</span>
+              <select id="appearance">
                 <option value="system">System</option>
-                <option value="light">MDShelf Light</option>
-                <option value="dark">MDShelf Dark</option>
-                <option value="catppuccin-latte">Catppuccin Latte</option>
-                <option value="catppuccin-mocha">Catppuccin Mocha</option>
-                <option value="dracula">Dracula</option>
-                <option value="nord">Nord</option>
-                <option value="solarized-light">Solarized Light</option>
-                <option value="solarized-dark">Solarized Dark</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
               </select>
             </label>
             <label for="syntax-theme">
               <span>Syntax theme</span>
               <select id="syntax-theme">
-                <option value="github-auto">GitHub (match color theme)</option>
-                <option value="catppuccin-auto">Catppuccin (match color theme)</option>
-                <option value="solarized-auto">Solarized (match color theme)</option>
+                <option value="github-auto">GitHub (match appearance)</option>
+                <option value="catppuccin-auto">Catppuccin (match appearance)</option>
+                <option value="solarized-auto">Solarized (match appearance)</option>
                 <option value="dracula">Dracula</option>
                 <option value="monokai">Monokai</option>
                 <option value="nord">Nord</option>
@@ -136,6 +141,11 @@
       </div>
     </main>
 
+    <aside class="outline-rail" id="outline-rail" aria-label="Document outline" hidden>
+      <p class="rail-label" id="outline-label">Outline</p>
+      <nav class="outline-list" id="outline-list" aria-labelledby="outline-label"></nav>
+    </aside>
+
     <button
       class="review-backdrop"
       id="review-backdrop"
@@ -180,8 +190,8 @@
     >
       <h2 id="comment-composer-title">Add comment</h2>
       <p id="comment-target"></p>
-      <label for="comment-body">Comment</label>
-      <textarea id="comment-body" rows="4" aria-describedby="comment-body-help comment-error"></textarea>
+      <label class="sr-only" for="comment-body">Comment</label>
+      <textarea id="comment-body" rows="2" aria-describedby="comment-body-help comment-error"></textarea>
       <p class="comment-error" id="comment-error" role="alert" hidden></p>
       <p class="review-help" id="comment-body-help">16 KiB maximum.</p>
       <div class="review-actions">

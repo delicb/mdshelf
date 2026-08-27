@@ -21,13 +21,15 @@ function loadApp(mermaid, dark = false, stored = {}, katex = null) {
     matchMedia: (query) => ({ matches: dark && query === "(prefers-color-scheme: dark)" }),
     mermaid,
   };
-  const colorTheme = { value: "" };
+  const appearance = { value: "" };
+  const design = { value: "" };
   const documentPath = { hidden: true, textContent: "" };
   const documentView = { hidden: true };
   const root = { dataset: {} };
   const syntaxTheme = { value: "" };
   const elements = new Map([
-    ["#color-theme", colorTheme],
+    ["#appearance", appearance],
+    ["#design", design],
     ["#document", documentView],
     ["#document-path", documentPath],
     ["#syntax-theme", syntaxTheme],
@@ -128,24 +130,40 @@ test("Code copy text excludes rendered line numbers", () => {
   assert.equal(api.codeBlockText(figure), "code line\n");
 });
 
-test("Theme choices load, apply, and persist", () => {
+test("Design and appearance load, apply, and persist", () => {
   const api = loadApp(null, true, {
-    "mdshelf.colorTheme": "light",
+    "mdshelf.design": "signal",
+    "mdshelf.appearance": "light",
     "mdshelf.syntaxTheme": "solarized-auto",
   });
-  assert.equal(api.rootElement.dataset.colorTheme, "light");
+  assert.equal(api.rootElement.dataset.design, "signal");
+  assert.equal(api.rootElement.dataset.scheme, "light");
   assert.equal(api.rootElement.dataset.syntaxTheme, "solarized-light");
-  assert.equal(api.colorThemeElement.value, "light");
-  assert.equal(api.syntaxThemeElement.value, "solarized-auto");
+  assert.equal(api.designElement.value, "signal");
+  assert.equal(api.appearanceElement.value, "light");
 
-  api.setColorTheme("nord");
-  assert.equal(api.rootElement.dataset.colorTheme, "nord");
+  api.setAppearance("system");
+  assert.equal(api.rootElement.dataset.scheme, "dark");
   assert.equal(api.rootElement.dataset.syntaxTheme, "solarized-dark");
-  assert.equal(api.storage.get("mdshelf.colorTheme"), "nord");
+  assert.equal(api.storage.get("mdshelf.appearance"), "system");
+
+  api.setDesign("column");
+  assert.equal(api.rootElement.dataset.design, "column");
+  assert.equal(api.storage.get("mdshelf.design"), "column");
+
+  api.setDesign("nord");
+  assert.equal(api.rootElement.dataset.design, "column");
 
   api.setSyntaxTheme("dracula");
   assert.equal(api.rootElement.dataset.syntaxTheme, "dracula");
   assert.equal(api.storage.get("mdshelf.syntaxTheme"), "dracula");
+});
+
+test("Ink is the design a new reader gets", () => {
+  const api = loadApp(null);
+  assert.equal(api.rootElement.dataset.design, "ink");
+  assert.equal(api.rootElement.dataset.appearance, "system");
+  assert.equal(api.rootElement.dataset.scheme, "light");
 });
 
 test("Math expressions render with safe KaTeX options", () => {

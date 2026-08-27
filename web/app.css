@@ -1,177 +1,358 @@
+/* ---------------------------------------------------------------------
+   MDShelf reading designs.
+
+   Two settings drive everything:
+     data-design     ink | signal | column   (typography and layout)
+     data-scheme     light | dark            (set by app.js; the media
+                                              query covers the moment
+                                              before the script runs)
+
+   Every design defines the same token contract, so component rules below
+   never name a colour or a face directly.
+   --------------------------------------------------------------------- */
+
 :root {
   color-scheme: light dark;
-  --header-height: 3.5rem;
-  --drawer-width: 19rem;
-  --review-panel-width: 24rem;
+  --header-height: 3.25rem;
+  --drawer-width: 18.5rem;
+  --review-panel-width: 26rem;
   --review-panel-z: 60;
-  --page: #f7f7f4;
-  --surface: #ffffff;
-  --surface-soft: #efefeb;
-  --surface-hover: #e8e8e2;
-  --text: #20221f;
-  --text-soft: #62665f;
-  --text-faint: #858980;
-  --line: #dedfd9;
-  --accent: #356859;
-  --accent-soft: #dceae4;
-  --accent-strong: #234b40;
-  --code-bg: #eceeeb;
-  --quote: #c9d9d2;
-  --shadow: 0 18px 48px rgb(28 35 31 / 18%);
+  --outline-width: 13.5rem;
+  --notes-width: 20rem;
+  --notes-gap: 1.5rem;
+  --radius: 0.35rem;
+  --radius-lg: 0.5rem;
+  --measure: 42rem;
+  --body-size: 1.0625rem;
+  --body-leading: 1.7;
   --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --read: var(--sans);
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-:root[data-color-theme="light"],
-:root[data-color-theme="catppuccin-latte"],
-:root[data-color-theme="solarized-light"] {
-  color-scheme: light;
-}
+:root[data-scheme="light"] { color-scheme: light; }
+:root[data-scheme="dark"] { color-scheme: dark; }
 
-:root[data-color-theme="dark"],
-:root[data-color-theme="catppuccin-mocha"],
-:root[data-color-theme="dracula"],
-:root[data-color-theme="nord"],
-:root[data-color-theme="solarized-dark"] {
-  color-scheme: dark;
-}
+/* ============================ INK ============================
+   Paper and serif. Quiet chrome, comments in the margin. */
 
-:root[data-color-theme="dark"] {
-  --page: #161817;
-  --surface: #1d201e;
-  --surface-soft: #252825;
-  --surface-hover: #2c302d;
-  --text: #e7e9e5;
-  --text-soft: #adb2ab;
-  --text-faint: #858b84;
-  --line: #353a36;
-  --accent: #79b7a2;
-  --accent-soft: #263d35;
-  --accent-strong: #a1d3c1;
-  --code-bg: #242825;
-  --quote: #3d5b50;
-  --shadow: 0 20px 56px rgb(0 0 0 / 42%);
-}
+:root[data-design="ink"] {
+  --sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --read: Literata, Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --measure: 57rem;
+  --body-size: 1.0625rem;
+  --body-leading: 1.72;
+  --radius: 0.2rem;
+  --radius-lg: 0.3rem;
 
-:root[data-color-theme="catppuccin-latte"] {
-  --page: #eff1f5;
-  --surface: #e6e9ef;
-  --surface-soft: #dce0e8;
-  --surface-hover: #ccd0da;
-  --text: #4c4f69;
-  --text-soft: #6c6f85;
-  --text-faint: #8c8fa1;
-  --line: #bcc0cc;
-  --accent: #179299;
-  --accent-soft: #c6e0e2;
-  --accent-strong: #0f6f75;
-  --code-bg: #dce0e8;
-  --quote: #9ccfd2;
-  --shadow: 0 18px 48px rgb(76 79 105 / 18%);
-}
-
-:root[data-color-theme="catppuccin-mocha"] {
-  --page: #1e1e2e;
-  --surface: #181825;
-  --surface-soft: #313244;
-  --surface-hover: #45475a;
-  --text: #cdd6f4;
-  --text-soft: #a6adc8;
-  --text-faint: #7f849c;
-  --line: #45475a;
-  --accent: #94e2d5;
-  --accent-soft: #294b4b;
-  --accent-strong: #b5eee5;
-  --code-bg: #11111b;
-  --quote: #456d69;
-  --shadow: 0 20px 56px rgb(0 0 0 / 45%);
-}
-
-:root[data-color-theme="dracula"] {
-  --page: #282a36;
-  --surface: #21222c;
-  --surface-soft: #343746;
-  --surface-hover: #44475a;
-  --text: #f8f8f2;
-  --text-soft: #c7c8c2;
-  --text-faint: #8b91b1;
-  --line: #44475a;
-  --accent: #8be9fd;
-  --accent-soft: #364f5a;
-  --accent-strong: #a4efff;
-  --code-bg: #21222c;
-  --quote: #6272a4;
-  --shadow: 0 20px 56px rgb(0 0 0 / 45%);
-}
-
-:root[data-color-theme="nord"] {
-  --page: #2e3440;
-  --surface: #272c36;
-  --surface-soft: #3b4252;
-  --surface-hover: #434c5e;
-  --text: #eceff4;
-  --text-soft: #d8dee9;
-  --text-faint: #8f9aae;
-  --line: #4c566a;
-  --accent: #88c0d0;
-  --accent-soft: #354b58;
-  --accent-strong: #8fbcbb;
-  --code-bg: #242933;
-  --quote: #5e81ac;
-  --shadow: 0 20px 56px rgb(0 0 0 / 42%);
-}
-
-:root[data-color-theme="solarized-light"] {
-  --page: #fdf6e3;
-  --surface: #eee8d5;
-  --surface-soft: #e4ddc8;
-  --surface-hover: #d9d1bc;
-  --text: #586e75;
-  --text-soft: #657b83;
-  --text-faint: #839496;
-  --line: #d6cfb9;
-  --accent: #2aa198;
-  --accent-soft: #c9e1da;
-  --accent-strong: #147d77;
-  --code-bg: #eee8d5;
-  --quote: #93b7af;
-  --shadow: 0 18px 48px rgb(88 110 117 / 18%);
-}
-
-:root[data-color-theme="solarized-dark"] {
-  --page: #002b36;
-  --surface: #073642;
-  --surface-soft: #0b414d;
-  --surface-hover: #124d59;
-  --text: #93a1a1;
-  --text-soft: #839496;
-  --text-faint: #657b83;
-  --line: #31505a;
-  --accent: #2aa198;
-  --accent-soft: #0b4d50;
-  --accent-strong: #6bc8c0;
-  --code-bg: #00212a;
-  --quote: #2b6f70;
-  --shadow: 0 20px 56px rgb(0 0 0 / 46%);
+  --page: #f4f5f2;
+  --surface: #fbfbf9;
+  --surface-soft: #edefea;
+  --surface-hover: #e4e7e0;
+  --text: #1b1e20;
+  --text-soft: #555b5e;
+  --text-faint: #7f8689;
+  --line: #dcdfd8;
+  --line-strong: #c4c8bf;
+  --accent: #2c5c8f;
+  --accent-soft: #dde7f1;
+  --accent-strong: #234c77;
+  --code-bg: #edefea;
+  --quote: #c4c8bf;
+  --mark: #fbf1cd;
+  --mark-edge: #b8892b;
+  --note: #2c5c8f;
+  --tip: #2f6b4f;
+  --important: #6b4a9e;
+  --warn: #8f5a00;
+  --stop: #a33224;
+  --shadow: 0 16px 44px rgb(28 32 30 / 16%);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-color-theme]),
-  :root[data-color-theme="system"] {
-    --page: #161817;
-    --surface: #1d201e;
-    --surface-soft: #252825;
-    --surface-hover: #2c302d;
-    --text: #e7e9e5;
-    --text-soft: #adb2ab;
-    --text-faint: #858b84;
-    --line: #353a36;
-    --accent: #79b7a2;
-    --accent-soft: #263d35;
-    --accent-strong: #a1d3c1;
-    --code-bg: #242825;
-    --quote: #3d5b50;
-    --shadow: 0 20px 56px rgb(0 0 0 / 42%);
+  :root[data-design="ink"]:not([data-scheme="light"]) {
+    --page: #15181a;
+    --surface: #1b1f22;
+    --surface-soft: #22262a;
+    --surface-hover: #2a2f33;
+    --text: #e4e6e1;
+    --text-soft: #a9afaa;
+    --text-faint: #7f8781;
+    --line: #2b3034;
+    --line-strong: #3c4349;
+    --accent: #86b3de;
+    --accent-soft: #1e2c3a;
+    --accent-strong: #a5c9ea;
+    --code-bg: #1e2225;
+    --quote: #3c4349;
+    --mark: #3a3117;
+    --mark-edge: #d9ae4c;
+    --note: #86b3de;
+    --tip: #7fc4a1;
+    --important: #b79ae0;
+    --warn: #d9a44e;
+    --stop: #e08a7d;
+    --shadow: 0 20px 56px rgb(0 0 0 / 46%);
+  }
+}
+
+:root[data-design="ink"][data-scheme="dark"] {
+  --page: #15181a;
+  --surface: #1b1f22;
+  --surface-soft: #22262a;
+  --surface-hover: #2a2f33;
+  --text: #e4e6e1;
+  --text-soft: #a9afaa;
+  --text-faint: #7f8781;
+  --line: #2b3034;
+  --line-strong: #3c4349;
+  --accent: #86b3de;
+  --accent-soft: #1e2c3a;
+  --accent-strong: #a5c9ea;
+  --code-bg: #1e2225;
+  --quote: #3c4349;
+  --mark: #3a3117;
+  --mark-edge: #d9ae4c;
+  --note: #86b3de;
+  --tip: #7fc4a1;
+  --important: #b79ae0;
+  --warn: #d9a44e;
+  --stop: #e08a7d;
+  --shadow: 0 20px 56px rgb(0 0 0 / 46%);
+}
+
+/* =========================== SIGNAL ==========================
+   An instrument. Monospace chrome, file rail, outline rail. */
+
+:root[data-design="signal"] {
+  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --read: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --measure: 55rem;
+  --body-size: 1rem;
+  --body-leading: 1.68;
+  --radius: 0.25rem;
+  --radius-lg: 0.35rem;
+
+  --page: #eef1f4;
+  --surface: #ffffff;
+  --surface-soft: #e3e8ed;
+  --surface-hover: #d8dfe6;
+  --text: #0f1519;
+  --text-soft: #4c5a64;
+  --text-faint: #74838d;
+  --line: #d4dbe1;
+  --line-strong: #b9c3cb;
+  --accent: #3b5bdb;
+  --accent-soft: #dfe4fb;
+  --accent-strong: #2f49b0;
+  --code-bg: #f3f5f8;
+  --quote: #b9c3cb;
+  --mark: #dfe4fb;
+  --mark-edge: #3b5bdb;
+  --note: #3b5bdb;
+  --tip: #1f7a4d;
+  --important: #7c3fbf;
+  --warn: #8c5a05;
+  --stop: #b03030;
+  --shadow: 0 16px 44px rgb(15 21 25 / 18%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-design="signal"]:not([data-scheme="light"]) {
+    --page: #0e1216;
+    --surface: #141a1f;
+    --surface-soft: #1a222a;
+    --surface-hover: #212b34;
+    --text: #d8e1e7;
+    --text-soft: #93a3ad;
+    --text-faint: #6a7a85;
+    --line: #232d35;
+    --line-strong: #33414c;
+    --accent: #7c9aff;
+    --accent-soft: #1d2740;
+    --accent-strong: #9fb5ff;
+    --code-bg: #10161b;
+    --quote: #33414c;
+    --mark: #1d2740;
+    --mark-edge: #7c9aff;
+    --note: #7c9aff;
+    --tip: #86d3a4;
+    --important: #c792ea;
+    --warn: #e0b054;
+    --stop: #ef7a7a;
+    --shadow: 0 20px 56px rgb(0 0 0 / 52%);
+  }
+}
+
+:root[data-design="signal"][data-scheme="dark"] {
+  --page: #0e1216;
+  --surface: #141a1f;
+  --surface-soft: #1a222a;
+  --surface-hover: #212b34;
+  --text: #d8e1e7;
+  --text-soft: #93a3ad;
+  --text-faint: #6a7a85;
+  --line: #232d35;
+  --line-strong: #33414c;
+  --accent: #7c9aff;
+  --accent-soft: #1d2740;
+  --accent-strong: #9fb5ff;
+  --code-bg: #10161b;
+  --quote: #33414c;
+  --mark: #1d2740;
+  --mark-edge: #7c9aff;
+  --note: #7c9aff;
+  --tip: #86d3a4;
+  --important: #c792ea;
+  --warn: #e0b054;
+  --stop: #ef7a7a;
+  --shadow: 0 20px 56px rgb(0 0 0 / 52%);
+}
+
+/* =========================== COLUMN ==========================
+   One column, no panels. Colour only where a reviewer marked. */
+
+:root[data-design="column"] {
+  --sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --read: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --measure: 54rem;
+  --body-size: 1rem;
+  --body-leading: 1.68;
+  --radius: 0.25rem;
+  --radius-lg: 0.3rem;
+
+  --page: #ffffff;
+  --surface: #ffffff;
+  --surface-soft: #f4f6f7;
+  --surface-hover: #eaeef0;
+  --text: #12151a;
+  --text-soft: #545c64;
+  --text-faint: #868e95;
+  --line: #e3e7ea;
+  --line-strong: #c9cfd4;
+  --accent: #12151a;
+  --accent-soft: #eef0f2;
+  --accent-strong: #12151a;
+  --code-bg: #f6f8f9;
+  --quote: #c9cfd4;
+  --mark: #fbf1cd;
+  --mark-edge: #b8892b;
+  --note: #4a5560;
+  --tip: #3f6b52;
+  --important: #5b4a7a;
+  --warn: #9c7211;
+  --stop: #a8322a;
+  --shadow: 0 16px 44px rgb(18 21 26 / 14%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-design="column"]:not([data-scheme="light"]) {
+    --page: #0d0f11;
+    --surface: #0d0f11;
+    --surface-soft: #14181b;
+    --surface-hover: #1a1f22;
+    --text: #e8eaec;
+    --text-soft: #98a1a8;
+    --text-faint: #6e777d;
+    --line: #23282c;
+    --line-strong: #363d42;
+    --accent: #e8eaec;
+    --accent-soft: #1a1f22;
+    --accent-strong: #e8eaec;
+    --code-bg: #121517;
+    --quote: #363d42;
+    --mark: #3a3117;
+    --mark-edge: #d9ae4c;
+    --note: #a5b0b8;
+    --tip: #7fb497;
+    --important: #a795c9;
+    --warn: #d9ae4c;
+    --stop: #e08a7d;
+    --shadow: 0 20px 56px rgb(0 0 0 / 58%);
+  }
+}
+
+:root[data-design="column"][data-scheme="dark"] {
+  --page: #0d0f11;
+  --surface: #0d0f11;
+  --surface-soft: #14181b;
+  --surface-hover: #1a1f22;
+  --text: #e8eaec;
+  --text-soft: #98a1a8;
+  --text-faint: #6e777d;
+  --line: #23282c;
+  --line-strong: #363d42;
+  --accent: #e8eaec;
+  --accent-soft: #1a1f22;
+  --accent-strong: #e8eaec;
+  --code-bg: #121517;
+  --quote: #363d42;
+  --mark: #3a3117;
+  --mark-edge: #d9ae4c;
+  --note: #a5b0b8;
+  --tip: #7fb497;
+  --important: #a795c9;
+  --warn: #d9ae4c;
+  --stop: #e08a7d;
+  --shadow: 0 20px 56px rgb(0 0 0 / 58%);
+}
+
+/* A page loaded before app.js runs still needs a palette. */
+:root:not([data-design]) {
+  --sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --read: Literata, Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --page: #f4f5f2;
+  --surface: #fbfbf9;
+  --surface-soft: #edefea;
+  --surface-hover: #e4e7e0;
+  --text: #1b1e20;
+  --text-soft: #555b5e;
+  --text-faint: #7f8689;
+  --line: #dcdfd8;
+  --line-strong: #c4c8bf;
+  --accent: #2c5c8f;
+  --accent-soft: #dde7f1;
+  --accent-strong: #234c77;
+  --code-bg: #edefea;
+  --quote: #c4c8bf;
+  --mark: #fbf1cd;
+  --mark-edge: #b8892b;
+  --note: #2c5c8f;
+  --tip: #2f6b4f;
+  --important: #6b4a9e;
+  --warn: #8f5a00;
+  --stop: #a33224;
+  --shadow: 0 16px 44px rgb(28 32 30 / 16%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-design]) {
+    --page: #15181a;
+    --surface: #1b1f22;
+    --surface-soft: #22262a;
+    --surface-hover: #2a2f33;
+    --text: #e4e6e1;
+    --text-soft: #a9afaa;
+    --text-faint: #7f8781;
+    --line: #2b3034;
+    --line-strong: #3c4349;
+    --accent: #86b3de;
+    --accent-soft: #1e2c3a;
+    --accent-strong: #a5c9ea;
+    --code-bg: #1e2225;
+    --quote: #3c4349;
+    --mark: #3a3117;
+    --mark-edge: #d9ae4c;
+    --note: #86b3de;
+    --tip: #7fc4a1;
+    --important: #b79ae0;
+    --warn: #d9a44e;
+    --stop: #e08a7d;
+    --shadow: 0 20px 56px rgb(0 0 0 / 46%);
   }
 }
 
@@ -369,6 +550,13 @@ button {
 .settings-popup h2 {
   margin: 0;
   font-size: 1rem;
+}
+
+.settings-hint {
+  margin: -0.15rem 0 0.15rem;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  line-height: 1.4;
 }
 
 .settings-popup label {
@@ -755,12 +943,13 @@ body.drawer-open .backdrop {
 }
 
 .reader {
+  container: reader / inline-size;
   min-width: 0;
   min-height: calc(100vh - var(--header-height));
 }
 
 .reader-inner {
-  width: min(100%, 54rem);
+  width: min(100%, var(--measure));
   min-height: 60vh;
   padding: 1.6rem 1.15rem 5rem;
   margin: 0 auto;
@@ -866,8 +1055,9 @@ body.drawer-open .backdrop {
 
 .markdown {
   color: var(--text);
-  font-size: clamp(1rem, 0.96rem + 0.2vw, 1.075rem);
-  line-height: 1.72;
+  font-family: var(--read);
+  font-size: var(--body-size);
+  line-height: var(--body-leading);
   overflow-wrap: break-word;
 }
 
@@ -889,15 +1079,15 @@ body.drawer-open .backdrop {
 .markdown h6 {
   scroll-margin-top: calc(var(--header-height) + 1rem);
   color: var(--text);
-  font-weight: 750;
-  line-height: 1.22;
-  letter-spacing: -0.025em;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
 .markdown h1 {
-  margin: 0 0 1.6rem;
-  font-size: clamp(2rem, 1.7rem + 1.4vw, 2.8rem);
+  margin: 0 0 1.4rem;
+  font-size: clamp(1.9rem, 1.65rem + 1.1vw, 2.35rem);
 }
 
 .markdown .document-metadata {
@@ -934,22 +1124,20 @@ body.drawer-open .backdrop {
 }
 
 .markdown h2 {
-  padding-bottom: 0.35rem;
-  margin: 2.7rem 0 1rem;
-  border-bottom: 1px solid var(--line);
-  font-size: clamp(1.45rem, 1.3rem + 0.65vw, 1.85rem);
+  margin: 2.5rem 0 0.85rem;
+  font-size: clamp(1.35rem, 1.24rem + 0.55vw, 1.6rem);
 }
 
 .markdown h3 {
-  margin: 2.15rem 0 0.8rem;
-  font-size: 1.25rem;
+  margin: 2rem 0 0.7rem;
+  font-size: 1.15em;
 }
 
 .markdown h4,
 .markdown h5,
 .markdown h6 {
-  margin: 1.8rem 0 0.65rem;
-  font-size: 1.05rem;
+  margin: 1.7rem 0 0.6rem;
+  font-size: 1em;
 }
 
 .markdown .heading-permalink {
@@ -1015,9 +1203,9 @@ body.drawer-open .backdrop {
 }
 
 .markdown blockquote {
-  padding: 0.2rem 0 0.2rem 1rem;
+  padding: 0.15rem 0 0.15rem 1.1rem;
   color: var(--text-soft);
-  border-left: 4px solid var(--quote);
+  border-left: 3px solid var(--quote);
 }
 
 .markdown blockquote > :first-child {
@@ -1029,21 +1217,22 @@ body.drawer-open .backdrop {
 }
 
 .markdown .callout {
-  --callout-color: #4493f8;
+  --callout-color: var(--note);
   margin: 1.4rem 0;
-  padding: 0.85rem 1rem;
-  background: color-mix(in srgb, var(--callout-color) 10%, transparent);
-  border-left: 4px solid var(--callout-color);
-  border-radius: 0.35rem;
+  padding: 0.8rem 1rem;
+  background: color-mix(in srgb, var(--callout-color) 9%, transparent);
+  border-left: 3px solid var(--callout-color);
+  border-radius: 0 var(--radius) var(--radius) 0;
 }
 
 .markdown .callout-title {
-  margin: 0 0 0.55rem;
+  margin: 0 0 0.45rem;
   color: var(--callout-color);
-  font-weight: 750;
+  font-family: var(--sans);
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.045em;
-  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
 }
 
 .markdown .callout > :last-child {
@@ -1051,19 +1240,19 @@ body.drawer-open .backdrop {
 }
 
 .markdown .callout-tip {
-  --callout-color: #3fb950;
+  --callout-color: var(--tip);
 }
 
 .markdown .callout-important {
-  --callout-color: #a371f7;
+  --callout-color: var(--important);
 }
 
 .markdown .callout-warning {
-  --callout-color: #d29922;
+  --callout-color: var(--warn);
 }
 
 .markdown .callout-caution {
-  --callout-color: #f85149;
+  --callout-color: var(--stop);
 }
 
 .markdown code,
@@ -1085,7 +1274,7 @@ body.drawer-open .backdrop {
   margin: 1rem 0;
   background: var(--code-bg);
   border: 1px solid var(--line);
-  border-radius: 0.65rem;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -1138,7 +1327,7 @@ body.drawer-open .backdrop {
   color: var(--text);
   background: var(--code-bg);
   border: 1px solid var(--line);
-  border-radius: 0.65rem;
+  border-radius: var(--radius-lg);
   line-height: 1.55;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
@@ -1178,7 +1367,7 @@ body.drawer-open .backdrop {
 }
 
 .markdown pre.mermaid-error {
-  color: #a52a2a;
+  color: var(--stop);
   white-space: pre-wrap;
 }
 
@@ -1202,7 +1391,7 @@ body.drawer-open .backdrop {
   max-width: 100%;
   height: auto;
   margin: 1.35rem auto;
-  border-radius: 0.55rem;
+  border-radius: var(--radius-lg);
 }
 
 .markdown img {
@@ -1227,7 +1416,7 @@ body.drawer-open .backdrop {
   max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--line);
-  border-radius: 0.55rem;
+  border-radius: var(--radius-lg);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1279,7 +1468,7 @@ body.drawer-open .backdrop {
   padding: 0.75rem 0.9rem;
   background: var(--surface-soft);
   border: 1px solid var(--line);
-  border-radius: 0.55rem;
+  border-radius: var(--radius-lg);
 }
 
 .markdown summary {
@@ -1308,7 +1497,7 @@ body.drawer-open .backdrop {
 }
 
 .markdown .citation-missing {
-  color: #f85149;
+  color: var(--stop);
   text-decoration: underline dotted;
   text-underline-offset: 0.16em;
 }
@@ -1333,7 +1522,8 @@ body.drawer-open .backdrop {
 
 .md-block {
   position: relative;
-  border-radius: 0.45rem;
+  padding-right: 2.6rem;
+  border-radius: var(--radius);
   transition: background 140ms ease, box-shadow 140ms ease;
 }
 
@@ -1345,15 +1535,28 @@ body.drawer-open .backdrop {
 .md-block-review-controls {
   position: absolute;
   top: 0;
-  left: calc(100% + 0.6rem);
+  right: 0.2rem;
   z-index: 2;
   display: flex;
-  width: 14rem;
-  min-height: 1.7rem;
-  padding-left: 2rem;
+  width: 1.9rem;
+  min-height: 1.9rem;
   flex-direction: column;
   align-items: stretch;
   gap: 0.3rem;
+}
+
+.md-block-review-controls.has-comments {
+  position: relative;
+  right: auto;
+  width: 100%;
+  min-height: 0;
+  padding-top: 0.6rem;
+  padding-left: 2.6rem;
+}
+
+.md-block-review-controls.has-comments > .md-block-comment {
+  right: auto;
+  left: 0;
 }
 
 .md-block-comment {
@@ -1361,10 +1564,10 @@ body.drawer-open .backdrop {
   top: 0;
   left: 0;
   display: grid;
-  width: 1.6rem;
-  min-width: 1.6rem;
-  height: 1.6rem;
-  min-height: 1.6rem;
+  width: 1.8rem;
+  min-width: 1.8rem;
+  height: 1.8rem;
+  min-height: 1.8rem;
   padding: 0;
   place-items: center;
   color: var(--text-faint);
@@ -1373,7 +1576,7 @@ body.drawer-open .backdrop {
   border-radius: 999px;
   box-shadow: 0 1px 4px rgb(0 0 0 / 10%);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 650;
   line-height: 1;
   opacity: 0;
@@ -1408,42 +1611,45 @@ body.drawer-open .backdrop {
 
 .md-block-comment-count {
   width: fit-content;
-  min-width: 1.5rem;
-  min-height: 1.5rem;
-  padding: 0.1rem 0.42rem;
+  min-width: 1.6rem;
+  min-height: 1.6rem;
+  padding: 0.1rem 0.5rem;
   color: var(--text-soft);
   background: var(--surface-soft);
   border: 1px solid var(--line);
   border-radius: 999px;
   cursor: pointer;
-  font-size: 0.68rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  opacity: 0.58;
+  opacity: 0.72;
 }
 
 .md-block-comment-bubbles {
   display: flex;
+  max-width: 34rem;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.9rem;
 }
 
 .md-comment-bubble {
   display: flex;
   width: 100%;
-  padding: 0.55rem 0.65rem;
+  padding: 0.1rem 0 0.25rem 0.85rem;
   flex-direction: column;
   gap: 0.35rem;
   color: var(--text-soft);
-  background: var(--surface-soft);
-  border: 1px solid var(--line);
-  border-radius: 0.7rem;
-  box-shadow: 0 2px 10px rgb(0 0 0 / 8%);
+  background: none;
+  border: 0;
+  border-left: 2px solid var(--line-strong);
+  border-radius: 0;
+  box-shadow: none;
   font: inherit;
-  font-size: 0.76rem;
-  line-height: 1.35;
-  opacity: 0.52;
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  line-height: 1.5;
   text-align: left;
   white-space: pre-wrap;
+  transition: border-color 120ms ease, color 120ms ease;
 }
 
 .md-comment-bubble:hover,
@@ -1457,12 +1663,57 @@ body.drawer-open .backdrop {
   opacity: 1;
 }
 
+/* Actions stay out of the way until you reach for them. */
+.md-comment-bubble .comment-thread-actions {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.md-comment-bubble:hover .comment-thread-actions,
+.md-comment-bubble:focus-within .comment-thread-actions,
+.md-comment-bubble.is-active .comment-thread-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .md-comment-bubble .comment-thread-actions {
+    opacity: 1;
+  }
+}
+
+.md-comment-bubble .comment-thread-actions button {
+  min-height: 1.5rem;
+  padding: 0.1rem 0.35rem;
+  margin-left: -0.35rem;
+  background: none;
+  border-color: transparent;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.md-comment-bubble .comment-thread-actions button:hover,
+.md-comment-bubble .comment-thread-actions button:focus-visible {
+  background: var(--surface-hover);
+  border-color: transparent;
+}
+
+.md-comment-bubble .comment-replies li {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--text-faint);
+}
+
+.md-comment-bubble .comment-replies strong {
+  color: var(--text-soft);
+}
+
 .md-comment-bubble-select {
   display: flex;
   width: 100%;
   padding: 0;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.5rem;
   color: inherit;
   background: none;
   border: 0;
@@ -1473,42 +1724,34 @@ body.drawer-open .backdrop {
 }
 
 
-@media (min-width: 80rem) {
+/* Comments live beside the block they belong to whenever the reader is
+   wide enough to hold both. Under it, they stack under the block. */
+@container reader (min-width: 54rem) {
   body.review-comments-visible .reader-inner {
-    width: min(100%, 47rem);
+    width: min(100%, var(--measure), calc(100cqi - var(--notes-width) - var(--notes-gap)));
     margin-right: 0;
-    margin-left: max(0.5rem, calc((100% - 61rem) / 2));
+    margin-left: max(0px, calc((100cqi - var(--measure) - var(--notes-width) - var(--notes-gap)) / 2));
   }
-}
 
-@media (max-width: 79.999rem) {
   .md-block {
-    padding-right: 2.35rem;
+    padding-right: 0;
   }
 
-  .md-block-review-controls {
-    right: 0.2rem;
-    left: auto;
-    width: 1.7rem;
-    padding-left: 0;
-  }
-
+  .md-block-review-controls,
   .md-block-review-controls.has-comments {
-    position: relative;
+    position: absolute;
+    top: 0;
     right: auto;
-    width: 100%;
-    min-height: 0;
-    padding-top: 0.45rem;
-    padding-left: 2.35rem;
+    left: calc(100% + var(--notes-gap) / 2);
+    width: var(--notes-width);
+    min-height: 1.9rem;
+    padding-top: 0;
+    padding-left: 2.2rem;
   }
 
-  .md-block-review-controls.has-comments > .md-block-comment {
+  .md-block-review-controls > .md-block-comment {
     right: auto;
     left: 0;
-  }
-
-  .md-block-comment-bubbles {
-    width: 100%;
   }
 }
 
@@ -1663,30 +1906,35 @@ body.drawer-open .backdrop {
 .comment-composer {
   display: grid;
   width: 100%;
-  padding: 0.65rem;
-  gap: 0.5rem;
+  padding: 0;
+  gap: 0.45rem;
   color: var(--text);
-  background: var(--surface-soft);
-  border: 1px solid var(--line);
-  border-radius: 0.7rem;
-  box-shadow: 0 2px 10px rgb(0 0 0 / 8%);
+  background: none;
+  border: 0;
+  border-left: 2px solid var(--accent);
+  border-radius: 0;
+  padding-left: 0.85rem;
 }
 
 .comment-composer h2 {
   margin: 0;
-  font-size: 1rem;
+  color: var(--text-faint);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .comment-composer .review-actions button {
-  min-height: 2rem;
-  padding: 0.25rem 0.6rem;
+  min-height: 1.9rem;
+  padding: 0.2rem 0.6rem;
   font-size: 0.78rem;
 }
 
 .comment-composer #comment-target {
   margin: 0;
   color: var(--text-soft);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
 }
 
 .comment-composer label {
@@ -1698,16 +1946,23 @@ body.drawer-open .backdrop {
 .comment-composer textarea {
   width: 100%;
   min-width: 0;
-  padding: 0.6rem;
+  min-height: 3.2rem;
+  max-height: 40vh;
+  padding: 0.5rem 0.6rem;
+  overflow-y: hidden;
   color: var(--text);
-  background: var(--page);
+  background: var(--surface-soft);
   border: 1px solid var(--line);
-  border-radius: 0.55rem;
+  border-radius: var(--radius);
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  resize: none;
 }
 
-.comment-composer textarea {
-  resize: vertical;
-  line-height: 1.45;
+.comment-composer textarea:focus {
+  background: var(--surface);
+  border-color: var(--accent);
 }
 
 .comment-composer textarea[readonly] {
@@ -1768,11 +2023,12 @@ body.drawer-open .backdrop {
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
 }
 
 .review-comment-body {
-  line-height: 1.45;
+  font-size: 0.95rem;
+  line-height: 1.55;
 }
 
 .review-thread .review-outdated {
@@ -1796,18 +2052,19 @@ body.drawer-open .backdrop {
   color: var(--text-soft);
   background: var(--surface-soft);
   border-left: 2px solid var(--accent);
-  border-radius: 0.35rem;
-  font-size: 0.78rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
 .comment-replies strong {
   color: var(--text);
-  font-size: 0.68rem;
+  font-size: 0.72rem;
 }
 
 .comment-replies-compact li {
-  padding: 0.35rem 0.45rem;
-  font-size: 0.71rem;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.8rem;
 }
 
 .comment-thread-actions {
@@ -1898,12 +2155,21 @@ body.review-overlay {
 }
 
 @media (min-width: 56.25rem) {
-  .topbar {
+  .reader-inner {
+    padding: 3.2rem 2.5rem 6rem;
+  }
+
+  .topbar-actions {
+    padding-right: 0.4rem;
+  }
+
+  /* Only Signal keeps the file rail on screen. */
+  :root[data-design="signal"] .topbar {
     grid-template-columns: var(--drawer-width) minmax(0, 1fr) auto;
     padding: 0;
   }
 
-  .topbar .brand {
+  :root[data-design="signal"] .topbar .brand {
     display: flex;
     height: 100%;
     padding-left: 1.25rem;
@@ -1911,17 +2177,17 @@ body.review-overlay {
     border-right: 1px solid var(--line);
   }
 
-  .menu-button,
-  .close-button,
-  .backdrop {
+  :root[data-design="signal"] .menu-button,
+  :root[data-design="signal"] .close-button,
+  :root[data-design="signal"] .backdrop {
     display: none;
   }
 
-  .current-file {
+  :root[data-design="signal"] .current-file {
     padding: 0 1.25rem;
   }
 
-  .drawer {
+  :root[data-design="signal"] .drawer {
     top: var(--header-height);
     width: var(--drawer-width);
     padding: 1rem;
@@ -1931,24 +2197,16 @@ body.review-overlay {
     transition: none;
   }
 
-  .drawer-heading {
+  :root[data-design="signal"] .drawer-heading {
     display: none;
   }
 
-  body.drawer-open {
+  :root[data-design="signal"] body.drawer-open {
     overflow: auto;
   }
 
-  .reader {
+  :root[data-design="signal"] .reader {
     margin-left: var(--drawer-width);
-  }
-
-  .reader-inner {
-    padding: 2.7rem 2.5rem 6rem;
-  }
-
-  .topbar-actions {
-    padding-right: 0.4rem;
   }
 }
 
@@ -2038,5 +2296,482 @@ body.review-overlay {
     background: var(--accent-soft);
     box-shadow: 0 0 0 0.35rem var(--accent-soft);
     animation: none;
+  }
+}
+
+/* =====================================================================
+   Design layer
+   Everything above is shared. Below, each design changes only what its
+   idea needs: where files live, where comments sit, and how type reads.
+   ===================================================================== */
+
+/* --------------------------- outline rail --------------------------- */
+
+.outline-rail {
+  position: fixed;
+  top: var(--header-height);
+  right: 0;
+  z-index: 15;
+  width: var(--outline-width);
+  height: calc(100dvh - var(--header-height));
+  padding: 1.5rem 1rem 2rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--page);
+  border-left: 1px solid var(--line);
+}
+
+.outline-rail[hidden] {
+  display: none;
+}
+
+.rail-label {
+  margin: 0 0 0.7rem;
+  color: var(--text-faint);
+  font-family: var(--sans);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.outline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.outline-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.45rem;
+  color: var(--text-soft);
+  border-radius: var(--radius);
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.outline-item:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.outline-item .outline-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outline-item.level-3 { padding-left: 1.3rem; font-size: 0.74rem; }
+.outline-item.level-4 { padding-left: 2rem; font-size: 0.72rem; }
+
+.outline-item.is-current {
+  color: var(--text);
+  background: var(--surface-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+  font-weight: 600;
+}
+
+.outline-count {
+  margin-left: auto;
+  padding: 0 0.34rem;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.outline-tick { display: none; }
+
+@media (max-width: 79.999rem) {
+  .outline-rail { display: none; }
+}
+
+@media (min-width: 80rem) {
+  /* Signal reserves the rail. Column's map is thin enough to float over
+     the empty margin, so the text stays centred on the page. */
+  :root[data-design="signal"] body.has-outline:not(.review-open) .reader {
+    margin-right: var(--outline-width);
+  }
+
+  body.review-open .outline-rail {
+    display: none;
+  }
+}
+
+/* ============================== Ink ================================== */
+
+:root[data-design="ink"] .outline-rail {
+  display: none;
+}
+
+:root[data-design="ink"] .topbar {
+  background: color-mix(in srgb, var(--page) 86%, transparent);
+}
+
+:root[data-design="ink"] .brand {
+  font-family: var(--read);
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+:root[data-design="ink"] .current-file {
+  font-family: var(--read);
+  font-size: 0.84rem;
+}
+
+:root[data-design="ink"] .drawer-title,
+:root[data-design="ink"] .status-message h1 {
+  font-family: var(--read);
+  font-weight: 600;
+}
+
+:root[data-design="ink"] .markdown :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+:root[data-design="ink"] .markdown h1 {
+  font-size: clamp(2rem, 1.7rem + 1.3vw, 2.55rem);
+}
+
+/* Front matter reads as a colophon, not a data panel. */
+:root[data-design="ink"] .markdown .document-metadata {
+  padding: 0 0 0.9rem;
+  margin: -0.4rem 0 2rem;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  font-family: var(--sans);
+  font-size: 0.86rem;
+}
+
+:root[data-design="ink"] .markdown .document-metadata dl {
+  gap: 0.4rem 1.6rem;
+}
+
+:root[data-design="ink"] .markdown .document-metadata dt {
+  font-size: 0.66rem;
+  letter-spacing: 0.11em;
+}
+
+:root[data-design="ink"] .markdown blockquote {
+  font-style: italic;
+}
+
+:root[data-design="ink"] .markdown .code-block,
+:root[data-design="ink"] .markdown pre {
+  border-radius: var(--radius);
+}
+
+:root[data-design="ink"] .markdown th {
+  font-family: var(--sans);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+:root[data-design="ink"] .markdown td {
+  font-family: var(--sans);
+  font-size: 0.92em;
+}
+
+/* ============================= Signal ================================ */
+
+:root[data-design="signal"] {
+  --outline-width: 13.5rem;
+}
+
+:root[data-design="signal"] .brand {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+:root[data-design="signal"] .current-file,
+:root[data-design="signal"] .document-path,
+:root[data-design="signal"] .file-count {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+}
+
+:root[data-design="signal"] .eyebrow,
+:root[data-design="signal"] .rail-label {
+  font-family: var(--mono);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+}
+
+:root[data-design="signal"] .folder summary {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+}
+
+:root[data-design="signal"] .review-toggle,
+:root[data-design="signal"] .review-toggle-count,
+:root[data-design="signal"] .file-review-count {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+/* A long spec needs a spine you can point at. */
+:root[data-design="signal"] .markdown h2 {
+  padding-top: 0.7em;
+  border-top: 1px solid var(--line);
+}
+
+:root[data-design="signal"] .markdown h2::before {
+  content: attr(data-section);
+  display: block;
+  margin-bottom: 0.35em;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+}
+
+:root[data-design="signal"] .markdown .code-block {
+  background: var(--code-bg);
+}
+
+:root[data-design="signal"] .markdown .code-toolbar {
+  background: color-mix(in srgb, var(--line) 45%, transparent);
+}
+
+:root[data-design="signal"] .markdown .document-metadata {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+
+:root[data-design="signal"] .markdown pre.mermaid-rendered,
+:root[data-design="signal"] .markdown .math-display {
+  padding: 1rem 0.75rem;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+/* ============================= Column ================================ */
+
+:root[data-design="column"] {
+  --outline-width: 10rem;
+}
+
+:root[data-design="column"] .topbar {
+  background: color-mix(in srgb, var(--page) 92%, transparent);
+}
+
+:root[data-design="column"] .brand {
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+:root[data-design="column"] .markdown :is(h1, h2, h3) {
+  font-weight: 700;
+  letter-spacing: -0.028em;
+}
+
+/* One colour on the page: the mark a reviewer leaves. */
+:root[data-design="column"] .markdown .document-metadata {
+  padding: 0.9rem 0;
+  margin: -0.3rem 0 2rem;
+  background: none;
+  border-width: 1px 0;
+  border-radius: 0;
+}
+
+:root[data-design="column"] .markdown a {
+  color: var(--text);
+  text-decoration-color: var(--mark-edge);
+  text-decoration-thickness: 0.11em;
+  text-underline-offset: 0.19em;
+}
+
+:root[data-design="column"] .markdown a:hover {
+  color: var(--mark-edge);
+}
+
+:root[data-design="column"] .md-block:has(> .md-block-review-controls.has-comments) {
+  background: color-mix(in srgb, var(--mark) 60%, transparent);
+  box-shadow: 0 0 0 0.45rem color-mix(in srgb, var(--mark) 60%, transparent);
+}
+
+:root[data-design="column"] .md-block.is-review-active {
+  background: var(--mark);
+  box-shadow: 0 0 0 0.45rem var(--mark);
+}
+
+:root[data-design="column"] .md-comment-bubble {
+  border-left-color: var(--mark-edge);
+}
+
+:root[data-design="column"] .md-block-comment-count {
+  color: var(--mark-edge);
+  border-color: var(--mark-edge);
+}
+
+:root[data-design="column"] .outline-count {
+  color: var(--mark-edge);
+  background: var(--mark);
+}
+
+/* The map is a set of ticks, not a list. */
+:root[data-design="column"] .outline-rail {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1rem 0.75rem;
+  background: none;
+  border-left: 0;
+}
+
+:root[data-design="column"] .rail-label {
+  display: none;
+}
+
+:root[data-design="column"] .outline-list {
+  gap: 0.35rem;
+}
+
+:root[data-design="column"] .outline-item {
+  gap: 0.5rem;
+  padding: 0.1rem 0.2rem;
+  color: var(--text-faint);
+  background: none;
+  box-shadow: none;
+  font-size: 0.68rem;
+}
+
+:root[data-design="column"] .outline-item .outline-tick {
+  display: block;
+  width: 1.1rem;
+  height: 2px;
+  flex: none;
+  background: var(--line-strong);
+}
+
+:root[data-design="column"] .outline-item.level-3 .outline-tick,
+:root[data-design="column"] .outline-item.level-4 .outline-tick {
+  width: 0.6rem;
+}
+
+:root[data-design="column"] .outline-item.level-3,
+:root[data-design="column"] .outline-item.level-4 {
+  padding-left: 0.2rem;
+}
+
+:root[data-design="column"] .outline-item.has-comments .outline-tick {
+  background: var(--mark-edge);
+}
+
+:root[data-design="column"] .outline-item.is-current,
+:root[data-design="column"] .outline-item:hover {
+  color: var(--text);
+  background: none;
+}
+
+:root[data-design="column"] .outline-item.is-current .outline-tick {
+  width: 1.6rem;
+  background: var(--text);
+}
+
+/* Files open in a palette over the page. */
+:root[data-design="column"] .drawer {
+  inset: auto;
+  top: 9vh;
+  left: 50%;
+  width: min(34rem, calc(100vw - 1.5rem));
+  max-height: 74vh;
+  padding: 0.9rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  transform: translate(-50%, -0.75rem);
+  opacity: 0;
+  transition: transform 140ms ease, opacity 140ms ease, visibility 0s linear 140ms;
+}
+
+:root[data-design="column"] body.drawer-open .drawer {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+:root[data-design="column"] .drawer-heading {
+  display: none;
+}
+
+:root[data-design="column"] .search {
+  margin-bottom: 0.5rem;
+}
+
+:root[data-design="column"] .search input {
+  font-size: 1rem;
+}
+
+:root[data-design="column"] .drawer-footer {
+  padding-top: 0.6rem;
+}
+
+.kbd-hint {
+  display: none;
+  padding: 0.1rem 0.4rem;
+  color: var(--text-faint);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+}
+
+:root[data-design="column"] .kbd-hint {
+  display: inline-block;
+}
+
+@media (max-width: 40rem) {
+  .kbd-hint { display: none; }
+}
+
+/* The rail and the map exist only when the window can spare the width.
+   These repeat the design selectors so they beat the design layer above. */
+@media (max-width: 79.999rem) {
+  :root[data-design="ink"] .outline-rail,
+  :root[data-design="signal"] .outline-rail,
+  :root[data-design="column"] .outline-rail {
+    display: none;
+  }
+}
+
+@media (min-width: 80rem) {
+  :root[data-design="ink"] body.review-open .outline-rail,
+  :root[data-design="signal"] body.review-open .outline-rail,
+  :root[data-design="column"] body.review-open .outline-rail {
+    display: none;
+  }
+
+  /* Column's map floats over the margin the notes want, so give it a
+     lane of its own once a document carries comments. */
+  :root[data-design="column"] body.has-outline.review-comments-visible .reader {
+    margin-right: var(--outline-width);
+  }
+}
+
+/* Signal cannot hold a file rail, an outline rail and a notes column at
+   once below a very wide window. The outline is the one that gives way. */
+@media (max-width: 99.999rem) {
+  :root[data-design="signal"] body.review-comments-visible .outline-rail {
+    display: none;
+  }
+
+  :root[data-design="signal"] body.has-outline.review-comments-visible .reader {
+    margin-right: 0;
   }
 }

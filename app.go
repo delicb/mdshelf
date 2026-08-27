@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -59,6 +60,13 @@ func newAppWithWatcher(root string, watch bool) (*app, error) {
 	}
 	if !info.IsDir() {
 		return nil, errors.New("root is not a directory")
+	}
+
+	// Some systems have no mime table for web fonts.
+	for extension, contentType := range map[string]string{".woff2": "font/woff2", ".woff": "font/woff"} {
+		if err := mime.AddExtensionType(extension, contentType); err != nil {
+			return nil, fmt.Errorf("register %s content type: %w", extension, err)
+		}
 	}
 
 	web, err := fs.Sub(embeddedWeb, "web")

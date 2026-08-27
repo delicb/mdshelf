@@ -130,7 +130,7 @@ Select a permalink to update the MDShelf route and move to that heading. The rou
 
 1. Inspect the document.
 2. Open the appearance settings.
-3. Select a color theme.
+3. Select a reading design.
    1. Select a syntax theme.
    2. Reload the page.
 4. Confirm that both choices remain selected.
@@ -349,7 +349,7 @@ MDShelf bundles KaTeX, so math rendering works without a network connection.
 
 ## Mermaid diagrams
 
-Mermaid uses the selected light or dark color theme.
+Mermaid diagrams take their colors from the selected design and appearance.
 
 ### Flowchart
 
@@ -398,4 +398,4 @@ Unknown aliases such as `:not_a_real_emoji:` stay unchanged. Shortcodes inside i
 
 ## End of demo
 
-Open the settings popup to compare color themes and syntax themes. Return to a document from the sidebar when finished.
+Open the settings popup to compare the three designs, the light and dark appearance, and the syntax themes. Return to a document from the document list when finished.

@@ -5,7 +5,8 @@
     backdrop: document.querySelector("#backdrop"),
     brand: document.querySelector("#brand"),
     closeButton: document.querySelector("#close-button"),
-    colorTheme: document.querySelector("#color-theme"),
+    appearance: document.querySelector("#appearance"),
+    design: document.querySelector("#design"),
     commentBody: document.querySelector("#comment-body"),
     commentBodyHelp: document.querySelector("#comment-body-help"),
     commentCancel: document.querySelector("#comment-cancel"),
@@ -22,6 +23,8 @@
     fileCount: document.querySelector("#file-count"),
     fileFilter: document.querySelector("#file-filter"),
     fileNav: document.querySelector("#file-nav"),
+    outlineList: document.querySelector("#outline-list"),
+    outlineRail: document.querySelector("#outline-rail"),
     menuButton: document.querySelector("#menu-button"),
     reader: document.querySelector("#reader"),
     reviewBackdrop: document.querySelector("#review-backdrop"),
@@ -54,21 +57,22 @@
   const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
   const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
   const demoDocumentPath = "__mdshelf_demo__";
-  const colorThemes = new Set([
-    "system", "light", "dark", "catppuccin-latte", "catppuccin-mocha",
-    "dracula", "nord", "solarized-light", "solarized-dark",
-  ]);
-  const darkColorThemes = new Set(["dark", "catppuccin-mocha", "dracula", "nord", "solarized-dark"]);
+  const designs = new Set(["ink", "signal", "column"]);
+  const appearances = new Set(["system", "light", "dark"]);
   const syntaxThemes = new Set([
     "github-auto", "catppuccin-auto", "solarized-auto", "dracula", "monokai", "nord", "tokyonight-night",
   ]);
   const themeStorage = {
-    color: "mdshelf.colorTheme",
+    design: "mdshelf.design",
+    appearance: "mdshelf.appearance",
     syntax: "mdshelf.syntaxTheme",
   };
   const state = {
     abortController: null,
-    colorTheme: "system",
+    design: "ink",
+    appearance: "system",
+    outlineHeadings: [],
+    outlineFrame: 0,
     currentPath: "",
     files: [],
     fileSet: new Set(),
@@ -328,12 +332,32 @@
   }
 
   function loadThemePreferences() {
-    state.colorTheme = storedTheme(themeStorage.color, colorThemes, "system");
+    state.design = storedTheme(themeStorage.design, designs, "ink");
+    state.appearance = storedTheme(themeStorage.appearance, appearances, "system");
     state.syntaxTheme = storedTheme(themeStorage.syntax, syntaxThemes, "github-auto");
   }
 
   function isDarkColorTheme() {
-    return state.colorTheme === "system" ? colorScheme.matches : darkColorThemes.has(state.colorTheme);
+    return state.appearance === "system" ? colorScheme.matches : state.appearance === "dark";
+  }
+
+  /* Signal is the only design that keeps the file list on screen. */
+  function sidebarPinned() {
+    return state.design === "signal" && desktop.matches;
+  }
+
+  /* The stylesheet decides whether notes sit beside the block or under it,
+     so ask the layout instead of repeating the breakpoint here. */
+  function sideComments(controls) {
+    if (!controls || typeof window.getComputedStyle !== "function") return false;
+    return window.getComputedStyle(controls).position === "absolute";
+  }
+
+  function growCommentBody() {
+    const field = elements.commentBody;
+    if (!field?.style || typeof field.scrollHeight !== "number") return;
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
   }
 
   function resolvedSyntaxTheme() {
@@ -347,9 +371,13 @@
   }
 
   function applyThemePreferences() {
-    document.documentElement.dataset.colorTheme = state.colorTheme;
-    document.documentElement.dataset.syntaxTheme = resolvedSyntaxTheme();
-    elements.colorTheme.value = state.colorTheme;
+    const root = document.documentElement;
+    root.dataset.design = state.design;
+    root.dataset.appearance = state.appearance;
+    root.dataset.scheme = isDarkColorTheme() ? "dark" : "light";
+    root.dataset.syntaxTheme = resolvedSyntaxTheme();
+    elements.design.value = state.design;
+    elements.appearance.value = state.appearance;
     elements.syntaxTheme.value = state.syntaxTheme;
   }
 
@@ -368,10 +396,18 @@
     void loadDocument(state.currentPath, route.fragment, { force: true });
   }
 
-  function setColorTheme(value) {
-    if (!colorThemes.has(value)) return;
-    state.colorTheme = value;
-    saveTheme(themeStorage.color, value);
+  function setDesign(value) {
+    if (!designs.has(value)) return;
+    state.design = value;
+    saveTheme(themeStorage.design, value);
+    applyThemePreferences();
+    refreshDocumentTheme();
+  }
+
+  function setAppearance(value) {
+    if (!appearances.has(value)) return;
+    state.appearance = value;
+    saveTheme(themeStorage.appearance, value);
     applyThemePreferences();
     refreshDocumentTheme();
   }
@@ -392,7 +428,7 @@
   }
 
   function setDrawer(open, restoreFocus = true) {
-    if (desktop.matches) {
+    if (sidebarPinned()) {
       document.body.classList.remove("drawer-open");
       elements.drawer.inert = false;
       elements.drawer.removeAttribute("aria-hidden");
@@ -416,7 +452,7 @@
     elements.settingsButton.setAttribute("aria-expanded", String(open));
     elements.settingsButton.setAttribute("aria-label", open ? "Close settings" : "Open settings");
     if (open) {
-      window.requestAnimationFrame(() => elements.colorTheme.focus());
+      window.requestAnimationFrame(() => elements.design.focus());
     } else if (restoreFocus) {
       elements.settingsButton.focus();
     }
@@ -800,7 +836,7 @@
       await refreshFileList();
       if (state.currentPath === path) {
         const fallback = defaultDocument(path) || demoDocumentPath;
-        if (!desktop.matches) setDrawer(false, false);
+        if (!sidebarPinned()) setDrawer(false, false);
         window.location.hash = buildRoute(fallback);
       }
       announceUpdate(`${name} removed from MDShelf`);
@@ -1173,6 +1209,103 @@
     }
   }
 
+  function headingText(heading) {
+    let text = "";
+    for (const node of heading.childNodes) {
+      if (node.nodeType === 1 && node.classList?.contains("heading-permalink")) continue;
+      text += node.textContent || "";
+    }
+    return text.trim();
+  }
+
+  /* Unresolved comments belong to the last heading before their block. */
+  function outlineCommentCounts(headings) {
+    const counts = new Map();
+    if (!state.reviewEnabled || !headings.length) return counts;
+    const byBlock = commentCountsByBlockKey(state.reviewComments);
+    const headingBlocks = new Map();
+    for (const heading of headings) {
+      const block = heading.closest?.(".md-block");
+      if (block) headingBlocks.set(block, heading);
+    }
+    let current = null;
+    for (const block of elements.document.querySelectorAll(".md-block[data-md-block]")) {
+      if (headingBlocks.has(block)) current = headingBlocks.get(block);
+      if (!current) continue;
+      const count = byBlock[block.dataset.mdBlock];
+      if (!count || !count.unresolved) continue;
+      counts.set(current, (counts.get(current) || 0) + count.unresolved);
+    }
+    return counts;
+  }
+
+  function updateOutline() {
+    if (!elements.outlineRail || !elements.outlineList) return;
+    const headings = elements.document.hidden
+      ? []
+      : [...elements.document.querySelectorAll("h2, h3, h4")];
+    let section = 0;
+    for (const heading of headings) {
+      if (heading.tagName !== "H2") continue;
+      section += 1;
+      heading.dataset.section = `\u00a7 ${section}`;
+    }
+    const counts = outlineCommentCounts(headings);
+    const linked = headings.filter((heading) => heading.id);
+    const items = linked.map((heading) => {
+      const link = document.createElement("a");
+      link.className = `outline-item level-${heading.tagName.slice(1)}`;
+      link.href = buildRoute(state.currentPath, heading.id);
+      link.dataset.documentRoute = "true";
+      link.dataset.outlineTarget = heading.id;
+      const tick = document.createElement("span");
+      tick.className = "outline-tick";
+      tick.setAttribute("aria-hidden", "true");
+      const label = document.createElement("span");
+      label.className = "outline-text";
+      label.textContent = headingText(heading);
+      link.append(tick, label);
+      const unresolved = counts.get(heading) || 0;
+      if (unresolved) {
+        const badge = document.createElement("span");
+        badge.className = "outline-count";
+        badge.textContent = String(unresolved);
+        badge.setAttribute("aria-label", `${unresolved} unresolved ${unresolved === 1 ? "comment" : "comments"}`);
+        link.append(badge);
+        link.classList.add("has-comments");
+      }
+      return link;
+    });
+    state.outlineHeadings = linked;
+    elements.outlineList.replaceChildren(...items);
+    const show = items.length > 1;
+    elements.outlineRail.hidden = !show;
+    document.body.classList.toggle("has-outline", show);
+    trackOutline();
+  }
+
+  function trackOutline() {
+    if (!elements.outlineList || !elements.outlineRail || elements.outlineRail.hidden) return;
+    const limit = elements.topbar.getBoundingClientRect().height + 24;
+    let current = "";
+    for (const heading of state.outlineHeadings) {
+      if (heading.getBoundingClientRect().top > limit) break;
+      current = heading.id;
+    }
+    if (!current && state.outlineHeadings.length) current = state.outlineHeadings[0].id;
+    for (const item of elements.outlineList.children) {
+      item.classList.toggle("is-current", item.dataset.outlineTarget === current);
+    }
+  }
+
+  function scheduleOutlineTracking() {
+    if (state.outlineFrame) return;
+    state.outlineFrame = window.requestAnimationFrame(() => {
+      state.outlineFrame = 0;
+      trackOutline();
+    });
+  }
+
   function disarmBlockCommentControls(except = null) {
     for (const block of elements.document.querySelectorAll(".md-block.is-comment-armed")) {
       if (block !== except) block.classList.remove("is-comment-armed");
@@ -1433,7 +1566,7 @@
     host.append(elements.commentComposer);
     const block = host.closest(".md-block");
     const controls = block?.querySelector(".md-block-review-controls");
-    if (block && controls && desktop.matches) block.style.minHeight = `${controls.scrollHeight}px`;
+    if (block && controls && sideComments(controls)) block.style.minHeight = `${controls.scrollHeight}px`;
   }
 
   function renderCommentComposer() {
@@ -1469,6 +1602,7 @@
     elements.commentSave.disabled = controls.saveDisabled;
     elements.commentCancel.disabled = controls.actionsDisabled;
     mountCommentComposer(composer);
+    growCommentBody();
   }
 
   function commentBlockKey(comment) {
@@ -1546,11 +1680,12 @@
         marker.removeAttribute("aria-label");
       }
       bubbles.replaceChildren(...comments.map(makeBlockCommentBubble));
-      block.element.style.minHeight = desktop.matches && comments.length
+      block.element.style.minHeight = sideComments(controls) && comments.length
         ? `${controls.scrollHeight}px`
         : "";
     }
     document.body.classList.toggle("review-comments-visible", attachedComments > 0);
+    updateOutline();
     if (state.activeCommentID && !state.reviewComments.some((comment) => comment.id === state.activeCommentID)) {
       state.activeCommentID = "";
       state.activeBlockKey = "";
@@ -1615,7 +1750,7 @@
     elements.topbar.inert = overlay;
     elements.reader.inert = overlay;
     if (overlay) elements.drawer.inert = true;
-    else if (desktop.matches) elements.drawer.inert = false;
+    else if (sidebarPinned()) elements.drawer.inert = false;
   }
 
   function setReviewPanel(open, restoreFocus = true) {
@@ -1946,6 +2081,7 @@
       document.title = `${title} | MDShelf`;
       updateActiveFile();
       showDocument();
+      updateOutline();
       updateReviewButton();
 
       if (reviewEnabled) {
@@ -2109,16 +2245,69 @@
     }
   }
 
+  function designTokens() {
+    if (typeof window.getComputedStyle !== "function") return null;
+    const style = window.getComputedStyle(document.documentElement);
+    const read = (name) => (style.getPropertyValue(name) || "").trim();
+    const surface = read("--surface");
+    const text = read("--text");
+    return surface && text ? { style, read, surface, text } : null;
+  }
+
+  /* Diagrams take their colours from the design, so they stop looking pasted in. */
+  function mermaidThemeVariables() {
+    const tokens = designTokens();
+    if (!tokens) return null;
+    const { read, surface, text } = tokens;
+    const line = read("--line-strong") || read("--line");
+    const soft = read("--surface-soft") || surface;
+    const accent = read("--accent");
+    const accentSoft = read("--accent-soft") || soft;
+    return {
+      background: read("--page") || surface,
+      fontFamily: read("--sans") || "sans-serif",
+      fontSize: "14px",
+      primaryColor: soft,
+      primaryTextColor: text,
+      primaryBorderColor: line,
+      secondaryColor: accentSoft,
+      tertiaryColor: surface,
+      lineColor: line,
+      textColor: text,
+      mainBkg: soft,
+      nodeBorder: line,
+      nodeTextColor: text,
+      clusterBkg: surface,
+      clusterBorder: line,
+      titleColor: text,
+      edgeLabelBackground: surface,
+      labelBoxBkgColor: soft,
+      labelBoxBorderColor: line,
+      labelTextColor: text,
+      actorBkg: soft,
+      actorBorder: line,
+      actorTextColor: text,
+      signalColor: line,
+      signalTextColor: text,
+      noteBkgColor: accentSoft,
+      noteBorderColor: accent || line,
+      noteTextColor: text,
+      altBackground: surface,
+    };
+  }
+
   function initializeMermaid() {
+    const variables = mermaidThemeVariables();
     window.mermaid?.initialize({
       startOnLoad: false,
       securityLevel: "strict",
-      theme: isDarkColorTheme() ? "dark" : "default",
+      theme: variables ? "base" : (isDarkColorTheme() ? "dark" : "default"),
+      ...(variables ? { themeVariables: variables } : {}),
     });
   }
 
   function handleColorSchemeChange() {
-    if (state.colorTheme !== "system") return;
+    if (state.appearance !== "system") return;
     applyThemePreferences();
     refreshDocumentTheme();
   }
@@ -2175,7 +2364,8 @@
       commentCountsByBlockKey,
       commentSubmitShortcut,
       cancelDocumentLoad,
-      colorThemeElement: elements.colorTheme,
+      appearanceElement: elements.appearance,
+      designElement: elements.design,
       daemonRemoveRequest,
       documentPathElement: elements.documentPath,
       initializeMermaid,
@@ -2188,7 +2378,8 @@
       reviewPanelAvailable,
       reviewStatusLabel,
       rootElement: document.documentElement,
-      setColorTheme,
+      setAppearance,
+      setDesign,
       setDocumentPath,
       setSyntaxTheme,
       shouldReloadDocument,
@@ -2215,8 +2406,15 @@
     if (open && state.reviewPanelOpen) setReviewPanel(false, false);
     setSettingsPopup(open, false);
   });
-  elements.colorTheme.addEventListener("change", () => setColorTheme(elements.colorTheme.value));
+  elements.design.addEventListener("change", () => {
+    setDesign(elements.design.value);
+    setDrawer(false, false);
+    updateBlockCommentControls();
+    updateOutline();
+  });
+  elements.appearance.addEventListener("change", () => setAppearance(elements.appearance.value));
   elements.syntaxTheme.addEventListener("change", () => setSyntaxTheme(elements.syntaxTheme.value));
+  elements.commentBody.addEventListener("input", growCommentBody);
   elements.fileFilter.addEventListener("input", () => {
     state.filter = elements.fileFilter.value;
     renderFileTree();
@@ -2380,16 +2578,38 @@
       trapFocus(elements.reviewPanel, event);
       return;
     }
-    if (!desktop.matches && document.body.classList.contains("drawer-open")) trapFocus(elements.drawer, event);
+    if (!sidebarPinned() && document.body.classList.contains("drawer-open")) trapFocus(elements.drawer, event);
   });
 
   window.addEventListener("resize", () => window.requestAnimationFrame(updateBlockCommentControls));
+  window.addEventListener("scroll", scheduleOutlineTracking, { passive: true });
+  window.addEventListener("resize", scheduleOutlineTracking);
   window.addEventListener("focus", showPendingUpdate);
   window.addEventListener("hashchange", handleRoute);
   document.addEventListener("visibilitychange", showPendingUpdate);
   desktop.addEventListener("change", () => {
     setDrawer(false, false);
     updateBlockCommentControls();
+  });
+
+  /* One key reaches the document list from anywhere. */
+  document.addEventListener("keydown", (event) => {
+    if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+    if (event.key.toLowerCase() !== "k") return;
+    if (state.reviewMutationPending) return;
+    event.preventDefault();
+    if (sidebarPinned()) {
+      elements.fileFilter.focus();
+      elements.fileFilter.select();
+      return;
+    }
+    if (document.body.classList.contains("drawer-open")) {
+      setDrawer(false);
+      return;
+    }
+    if (state.reviewComposer) closeCommentComposer(false);
+    if (state.reviewPanelOpen) setReviewPanel(false, false);
+    setDrawer(true);
   });
   reviewWide.addEventListener("change", () => {
     syncReviewPanelMode();

@@ -48,7 +48,7 @@ MDShelf uses port `7331` by default. Choose another port with `-port`:
 
 Then open the local or network URL printed at startup. MDShelf listens on all network interfaces so another device can connect.
 
-MDShelf finds `.md` and `.markdown` files in the folder and its subfolders. It ignores hidden files, hidden folders, and symbolic links. It tracks changes only for Markdown files, using inotify on Linux, FSEvents on macOS, and ReadDirectoryChangesW on Windows. An open document refreshes at once and highlights only changed blocks. If the page is not active, MDShelf waits to show the update until it gets focus. Relative links between Markdown files and local images work in the reader. Language-tagged fenced code blocks use server-side syntax highlighting with matching light and dark themes.
+MDShelf finds `.md` and `.markdown` files in the folder and its subfolders. It ignores hidden files, hidden folders, and symbolic links. It tracks changes only for Markdown files, using inotify on Linux, FSEvents on macOS, and ReadDirectoryChangesW on Windows. An open document refreshes at once and highlights only changed blocks. If the page is not active, MDShelf waits to show the update until it gets focus. Relative links between Markdown files and local images work in the reader. Language-tagged fenced code blocks use server-side syntax highlighting with matching light and dark themes. Three reading designs are available, each with a light and a dark palette.
 
 ## Use daemon mode
 
@@ -182,9 +182,19 @@ MDShelf bundles Mermaid 11.17.2 in the executable. Diagram rendering works witho
 
 Select **Demo** at the bottom of the document list to open the feature guide. The build embeds the tracked `demo.md` source file in the executable.
 
-## Appearance settings
+## Reading settings
 
-Select the settings button at the top right to change the color theme and syntax theme. Automatic syntax themes match the selected light or dark color theme. MDShelf stores both choices in browser local storage for the current server address.
+Select the settings button at the top right to change the design, the appearance, and the syntax theme. MDShelf stores the three choices in browser local storage for the current server address.
+
+A design sets the reading type, the text width, where the file list lives, and where review comments appear:
+
+| Design | Reading type | File list | Comments |
+| :--- | :--- | :--- | :--- |
+| Ink | Literata, a serif for long prose | Opens over the page | In the right margin, beside the block |
+| Signal | IBM Plex Sans, with monospace labels | A rail that stays on screen | In the outline rail and the comments panel |
+| Column | Instrument Sans, one column, no panels | Opens as a palette, or with Command-K | Marked on the block, thread below it |
+
+Appearance is System, Light, or Dark. Each design has a light and a dark palette, and automatic syntax themes follow the appearance. MDShelf embeds all fonts, so the designs look the same without a network connection.
 
 ## Network access
 
