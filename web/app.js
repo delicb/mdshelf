@@ -46,6 +46,10 @@
     skipLink: document.querySelector(".skip-link"),
     statusMessage: document.querySelector("#status-message"),
     statusView: document.querySelector("#status-view"),
+    shortcutBackdrop: document.querySelector("#shortcut-backdrop"),
+    shortcutButton: document.querySelector("#shortcut-button"),
+    shortcutClose: document.querySelector("#shortcut-close"),
+    shortcutDialog: document.querySelector("#shortcut-dialog"),
     syntaxTheme: document.querySelector("#syntax-theme"),
     topbar: document.querySelector(".topbar"),
     updateNotice: document.querySelector("#update-notice"),
@@ -83,6 +87,10 @@
     focusAfterNavigation: false,
     highlightBaseline: [],
     highlightTimer: 0,
+    activeNavigationBlockKey: "",
+    sectionFrame: 0,
+    sectionTrackingLocked: false,
+    sectionTrackingTimer: 0,
     openFolders: new Set(),
     pendingUpdate: null,
     updateTimer: 0,
@@ -107,6 +115,8 @@
     reviewBlockError: "",
     reviewErrorNeedsRender: false,
     reviewComposer: null,
+    shortcutsOpen: false,
+    shortcutsReturnFocus: null,
     fileReviews: new Map(),
   };
 
@@ -154,6 +164,46 @@
 
   function commentSubmitShortcut(event = {}) {
     return event.key === "Enter" && !event.isComposing && Boolean(event.metaKey || event.ctrlKey);
+  }
+
+  function readingShortcutAction(event = {}) {
+    if (event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return "";
+    const key = event.key;
+    if (["ArrowUp", "ArrowLeft", "k", "K", "h", "H"].includes(key)) return "previous-block";
+    if (["ArrowDown", "ArrowRight", "j", "J", "l", "L"].includes(key)) return "next-block";
+    if (key === "Home") return "first-block";
+    if (key === "End") return "last-block";
+    if (key === "c" || key === "C") return "comment";
+    if (key === "/") return "documents";
+    if (key === "r" || key === "R") return "comments";
+    if (key === "?") return "shortcuts";
+    return "";
+  }
+
+  function blockIndexAtViewport(rects, offset) {
+    if (!Array.isArray(rects) || !rects.length) return -1;
+    for (let index = 0; index < rects.length; index += 1) {
+      if (rects[index].bottom >= offset) return index;
+    }
+    return rects.length - 1;
+  }
+
+  function navigationScrollDelta(rect, viewportTop, viewportBottom, direction) {
+    if (!rect || viewportBottom <= viewportTop || direction === 0) return 0;
+    const marker = rect.top + Math.min(Math.max((rect.bottom - rect.top) / 2, 0), 16);
+    const midpoint = viewportTop + ((viewportBottom - viewportTop) / 2);
+    if (direction > 0 && marker > midpoint) return marker - midpoint;
+    if (direction < 0 && marker < midpoint) return marker - midpoint;
+    return 0;
+  }
+
+  function listNavigationIndex(current, count, action) {
+    if (!Number.isInteger(count) || count < 1) return -1;
+    if (action === "first") return 0;
+    if (action === "last") return count - 1;
+    if (action === "next") return current < 0 ? 0 : Math.min(current + 1, count - 1);
+    if (action === "previous") return current < 0 ? count - 1 : Math.max(current - 1, 0);
+    return -1;
   }
 
   function commentStateAction(status) {
@@ -458,6 +508,74 @@
     }
   }
 
+  function setShortcutDialog(open, restoreFocus = true) {
+    if (open && state.reviewMutationPending) return;
+    if (open) {
+      state.shortcutsReturnFocus = document.activeElement;
+      if (state.reviewComposer) closeCommentComposer(false);
+      if (state.reviewPanelOpen) setReviewPanel(false, false);
+      setSettingsPopup(false, false);
+      setDrawer(false, false);
+    }
+    state.shortcutsOpen = open;
+    elements.shortcutBackdrop.hidden = !open;
+    elements.shortcutDialog.hidden = !open;
+    elements.shortcutButton.setAttribute("aria-expanded", String(open));
+    document.body.classList.toggle("shortcuts-open", open);
+    elements.skipLink.inert = open;
+    elements.topbar.inert = open;
+    elements.reader.inert = open;
+    elements.outlineRail.inert = open;
+    elements.reviewPanel.inert = open;
+    elements.drawer.inert = open || (!sidebarPinned() && !document.body.classList.contains("drawer-open"));
+    if (open) {
+      window.requestAnimationFrame(() => elements.shortcutClose.focus());
+      return;
+    }
+    const returnFocus = state.shortcutsReturnFocus;
+    state.shortcutsReturnFocus = null;
+    if (restoreFocus && returnFocus?.isConnected && !returnFocus.inert) {
+      returnFocus.focus();
+    } else if (restoreFocus) {
+      elements.shortcutButton.focus();
+    }
+  }
+
+  function focusDocumentFilter() {
+    if (state.reviewMutationPending) return;
+    if (state.shortcutsOpen) setShortcutDialog(false, false);
+    if (state.reviewComposer) closeCommentComposer(false);
+    if (state.reviewPanelOpen) setReviewPanel(false, false);
+    setSettingsPopup(false, false);
+    setDrawer(true, false);
+    window.requestAnimationFrame(() => {
+      elements.fileFilter.focus();
+      elements.fileFilter.select();
+    });
+  }
+
+  function toggleReviewPanelShortcut() {
+    if (state.reviewMutationPending) return;
+    if (!state.reviewEnabled || !reviewAvailable()) {
+      elements.routeStatus.textContent = "Comments are not available for this document.";
+      return;
+    }
+    if (state.shortcutsOpen) setShortcutDialog(false, false);
+    if (state.reviewComposer) closeCommentComposer(false);
+    setSettingsPopup(false, false);
+    setReviewPanel(!state.reviewPanelOpen);
+  }
+
+  function shortcutTargetIsEditable(target) {
+    return Boolean(target?.closest?.("input, select, textarea, [contenteditable='true']"));
+  }
+
+  function shortcutTargetIsInteractive(target) {
+    return Boolean(target?.closest?.(
+      "a, button, input, select, textarea, summary, [role='button'], [contenteditable='true']",
+    ));
+  }
+
   function showLoading() {
     elements.document.hidden = true;
     elements.statusView.hidden = false;
@@ -475,6 +593,7 @@
 
   function showMessage(title, message, retry) {
     elements.document.hidden = true;
+    state.activeNavigationBlockKey = "";
     elements.statusView.hidden = false;
     elements.statusView.setAttribute("aria-busy", "false");
     const skeleton = elements.statusView.querySelector(".document-skeleton");
@@ -762,6 +881,20 @@
     elements.fileCount.textContent = query
       ? `${visibleFiles.length} of ${total} ${total === 1 ? "document" : "documents"}`
       : `${total} ${total === 1 ? "document" : "documents"}`;
+  }
+
+  function visibleFileLinks() {
+    const links = [...elements.fileNav.querySelectorAll(".folder > summary, .file-link"), elements.demoLink];
+    return links.filter((link) => !link.closest("[hidden]") && link.getClientRects().length > 0);
+  }
+
+  function moveFileListFocus(action) {
+    const links = visibleFileLinks();
+    const current = links.indexOf(document.activeElement);
+    const index = listNavigationIndex(current, links.length, action);
+    if (index < 0) return false;
+    links[index].focus();
+    return true;
   }
 
   function updateActiveFile() {
@@ -1306,6 +1439,106 @@
     });
   }
 
+  function navigationBlocks() {
+    if (elements.document.hidden) return [];
+    return [...elements.document.querySelectorAll(".md-block[data-md-block]")];
+  }
+
+  function setActiveNavigationBlock(block, announce = false) {
+    const blocks = navigationBlocks();
+    if (!block || !blocks.includes(block)) return false;
+    state.activeNavigationBlockKey = block.dataset.mdBlock || "";
+    for (const candidate of blocks) {
+      candidate.classList.toggle("is-keyboard-active", candidate === block);
+    }
+    if (announce) {
+      const index = blocks.indexOf(block);
+      elements.routeStatus.textContent = `Block ${index + 1} of ${blocks.length}`;
+    }
+    return true;
+  }
+
+  function syncActiveNavigationBlock() {
+    const blocks = navigationBlocks();
+    const active = blocks.find((block) => block.dataset.mdBlock === state.activeNavigationBlockKey);
+    if (active) {
+      setActiveNavigationBlock(active);
+      return;
+    }
+    trackActiveNavigationBlock();
+  }
+
+  function trackActiveNavigationBlock() {
+    const blocks = navigationBlocks();
+    if (!blocks.length) {
+      state.activeNavigationBlockKey = "";
+      return;
+    }
+    const offset = elements.topbar.getBoundingClientRect().bottom + 20;
+    const index = blockIndexAtViewport(blocks.map((block) => block.getBoundingClientRect()), offset);
+    setActiveNavigationBlock(blocks[Math.max(0, index)]);
+  }
+
+  function scheduleActiveNavigationTracking() {
+    if (state.sectionTrackingLocked || state.sectionFrame) return;
+    state.sectionFrame = window.requestAnimationFrame(() => {
+      state.sectionFrame = 0;
+      trackActiveNavigationBlock();
+    });
+  }
+
+  function activeNavigationBlock() {
+    const blocks = navigationBlocks();
+    const active = blocks.find((block) => block.dataset.mdBlock === state.activeNavigationBlockKey);
+    if (active) return active;
+    if (!blocks.length) return null;
+    const offset = elements.topbar.getBoundingClientRect().bottom + 20;
+    const index = blockIndexAtViewport(blocks.map((block) => block.getBoundingClientRect()), offset);
+    return blocks[Math.max(0, index)];
+  }
+
+  function moveActiveNavigationBlock(action) {
+    const blocks = navigationBlocks();
+    if (!blocks.length) return false;
+    const current = activeNavigationBlock();
+    const currentIndex = blocks.indexOf(current);
+    let index = currentIndex;
+    if (action === "previous-block") index = Math.max(0, currentIndex - 1);
+    else if (action === "next-block") index = Math.min(blocks.length - 1, currentIndex + 1);
+    else if (action === "first-block") index = 0;
+    else if (action === "last-block") index = blocks.length - 1;
+    else return false;
+
+    if (state.sectionFrame) {
+      window.cancelAnimationFrame(state.sectionFrame);
+      state.sectionFrame = 0;
+    }
+    window.clearTimeout(state.sectionTrackingTimer);
+    state.sectionTrackingLocked = false;
+
+    const block = blocks[index];
+    setActiveNavigationBlock(block, true);
+    const direction = Math.sign(index - currentIndex);
+    const delta = navigationScrollDelta(
+      block.getBoundingClientRect(),
+      elements.topbar.getBoundingClientRect().bottom,
+      window.innerHeight,
+      direction,
+    );
+    if (delta === 0) return true;
+
+    state.sectionTrackingLocked = true;
+    const root = document.documentElement;
+    const previousScrollBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = "auto";
+    window.scrollTo(0, window.scrollY + delta);
+    root.style.scrollBehavior = previousScrollBehavior;
+    state.sectionTrackingTimer = window.setTimeout(() => {
+      state.sectionTrackingLocked = false;
+    }, 120);
+    return true;
+  }
+
   function disarmBlockCommentControls(except = null) {
     for (const block of elements.document.querySelectorAll(".md-block.is-comment-armed")) {
       if (block !== except) block.classList.remove("is-comment-armed");
@@ -1543,8 +1776,24 @@
     }
   }
 
+  function syncBlockReviewVisibility() {
+    const visible = elements.document.querySelector(
+      ".md-block-review-controls.has-comments, .md-block-review-controls.has-composer",
+    );
+    document.body.classList.toggle("review-comments-visible", Boolean(visible));
+  }
+
   function detachCommentComposer() {
+    const block = elements.commentComposer.closest(".md-block");
+    const controls = elements.commentComposer.closest(".md-block-review-controls");
+    controls?.classList.remove("has-composer");
     if (elements.commentComposer.parentElement !== document.body) document.body.append(elements.commentComposer);
+    syncBlockReviewVisibility();
+    if (block && controls) {
+      block.style.minHeight = sideComments(controls) && controls.classList.contains("has-comments")
+        ? `${controls.scrollHeight}px`
+        : "";
+    }
   }
 
   function commentComposerHost(composer) {
@@ -1566,6 +1815,8 @@
     host.append(elements.commentComposer);
     const block = host.closest(".md-block");
     const controls = block?.querySelector(".md-block-review-controls");
+    controls?.classList.add("has-composer");
+    syncBlockReviewVisibility();
     if (block && controls && sideComments(controls)) block.style.minHeight = `${controls.scrollHeight}px`;
   }
 
@@ -1655,7 +1906,6 @@
     if (remountComposer) detachCommentComposer();
     const counts = commentCountsByBlockKey(state.reviewComments);
     const canAdd = canAddComment();
-    let attachedComments = 0;
     for (const [key, block] of state.reviewBlocks) {
       const controls = block.element.querySelector(".md-block-review-controls");
       const button = block.element.querySelector(".md-block-comment");
@@ -1666,7 +1916,6 @@
       if (button.disabled) block.element.classList.remove("is-comment-armed");
       const comments = state.reviewComments.filter((comment) => commentBlockKey(comment) === key);
       const count = counts[key];
-      attachedComments += comments.length;
       controls.classList.toggle("has-comments", comments.length > 0);
       marker.hidden = !count;
       marker.textContent = count ? String(count.total) : "";
@@ -1684,7 +1933,7 @@
         ? `${controls.scrollHeight}px`
         : "";
     }
-    document.body.classList.toggle("review-comments-visible", attachedComments > 0);
+    syncBlockReviewVisibility();
     updateOutline();
     if (state.activeCommentID && !state.reviewComments.some((comment) => comment.id === state.activeCommentID)) {
       state.activeCommentID = "";
@@ -1775,7 +2024,7 @@
     }
   }
 
-  function openCommentComposer(blockKey = "") {
+  function openCommentComposer(blockKey = "", returnFocusKey = `block:${blockKey}:comment`) {
     const block = state.reviewBlocks.get(blockKey);
     if (!block || !canAddComment()) return;
     state.reviewComposer = {
@@ -1784,10 +2033,23 @@
       body: "",
       baseHash: state.reviewSourceHash,
       targetLabel: `Comment on ${lineRangeLabel(block.startLine, block.endLine)}`,
-      returnFocusKey: `block:${blockKey}:comment`,
+      returnFocusKey,
     };
     renderCommentComposer();
     window.requestAnimationFrame(() => elements.commentBody.focus());
+  }
+
+  function commentOnActiveNavigationBlock() {
+    const block = activeNavigationBlock();
+    if (!block) return false;
+    setActiveNavigationBlock(block);
+    const key = block.dataset.mdBlock || "";
+    if (!state.reviewEnabled || !state.reviewBlocks.has(key) || !canAddComment()) {
+      elements.routeStatus.textContent = "Comments are not available for this block.";
+      return true;
+    }
+    openCommentComposer(key, "reader");
+    return true;
   }
 
   function openReplyComposer(commentID, location, returnFocusKey) {
@@ -2003,6 +2265,7 @@
         if (!isCurrent()) return;
         scrollToRouteFragment(fragment, state.focusAfterNavigation);
         state.focusAfterNavigation = false;
+        trackActiveNavigationBlock();
       });
     });
     if (isCurrent()) elements.routeStatus.textContent = `Loaded ${title}`;
@@ -2015,7 +2278,12 @@
       return;
     }
 
-    if (path !== state.currentPath) clearReviewState(true);
+    if (path !== state.currentPath) {
+      clearReviewState(true);
+      window.clearTimeout(state.sectionTrackingTimer);
+      state.sectionTrackingLocked = false;
+      state.activeNavigationBlockKey = "";
+    }
     state.abortController?.abort();
     const controller = new AbortController();
     state.abortController = controller;
@@ -2083,6 +2351,7 @@
       showDocument();
       updateOutline();
       updateReviewButton();
+      syncActiveNavigationBlock();
 
       if (reviewEnabled) {
         state.reviewBlockError = blockError;
@@ -2357,6 +2626,8 @@
       buildRoute,
       codeBlockText,
       blockCommentTapAction,
+      blockIndexAtViewport,
+      navigationScrollDelta,
       commentComposerControlState,
       commentBlockKey,
       commentStateAction,
@@ -2371,7 +2642,9 @@
       initializeMermaid,
       isCurrentLoad,
       isDocumentAvailable,
+      listNavigationIndex,
       planLiveChanges,
+      readingShortcutAction,
       renderMath,
       renderMermaid,
       reviewMutationIsCurrent,
@@ -2397,6 +2670,9 @@
     if (state.reviewPanelOpen) setReviewPanel(false, false);
     setDrawer(true);
   });
+  elements.shortcutButton.addEventListener("click", () => setShortcutDialog(!state.shortcutsOpen));
+  elements.shortcutClose.addEventListener("click", () => setShortcutDialog(false));
+  elements.shortcutBackdrop.addEventListener("click", () => setShortcutDialog(false));
   elements.closeButton.addEventListener("click", () => setDrawer(false));
   elements.backdrop.addEventListener("click", () => setDrawer(false));
   elements.settingsButton.addEventListener("click", () => {
@@ -2419,8 +2695,28 @@
     state.filter = elements.fileFilter.value;
     renderFileTree();
   });
+  elements.drawer.addEventListener("keydown", (event) => {
+    if (event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
+    const inFilter = event.target === elements.fileFilter;
+    const listItem = event.target.closest(".folder > summary, .file-link, .demo-link");
+    const inList = Boolean(listItem);
+    if (inList && event.key === "Enter") {
+      event.preventDefault();
+      listItem.click();
+      return;
+    }
+    let action = "";
+    if (event.key === "ArrowDown" || (inList && ["j", "J"].includes(event.key))) action = "next";
+    else if (event.key === "ArrowUp" || (inList && ["k", "K"].includes(event.key))) action = "previous";
+    else if (inList && event.key === "Home") action = "first";
+    else if (inList && event.key === "End") action = "last";
+    if ((!inFilter && !inList) || !action || !moveFileListFocus(action)) return;
+    event.preventDefault();
+  });
 
   elements.document.addEventListener("click", (event) => {
+    const block = event.target.closest(".md-block[data-md-block]");
+    if (block) setActiveNavigationBlock(block);
     const copyButton = event.target.closest(".code-copy");
     if (copyButton) {
       void copyCodeBlock(copyButton);
@@ -2435,7 +2731,6 @@
       return;
     }
     const commentButton = event.target.closest(".md-block-comment");
-    const block = event.target.closest(".md-block");
     const interactive = Boolean(event.target.closest("a, button, input, select, textarea, summary, label, [role='button'], [contenteditable='true']"));
     const action = blockCommentTapAction({
       touch: touchComments.matches || event.pointerType === "touch",
@@ -2449,6 +2744,11 @@
     } else if (action === "arm") {
       armBlockCommentControl(block);
     }
+  });
+
+  elements.document.addEventListener("focusin", (event) => {
+    const block = event.target.closest(".md-block[data-md-block]");
+    if (block) setActiveNavigationBlock(block);
   });
 
   document.addEventListener("click", (event) => {
@@ -2555,6 +2855,10 @@
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.shortcutsOpen) {
+      setShortcutDialog(false);
+      return;
+    }
     if (event.key === "Escape" && state.reviewComposer) {
       if (commentComposerEscapeAction({ open: true, pending: state.reviewMutationPending }) === "close") {
         closeCommentComposer();
@@ -2574,6 +2878,10 @@
       return;
     }
     if (event.key !== "Tab") return;
+    if (state.shortcutsOpen) {
+      trapFocus(elements.shortcutDialog, event);
+      return;
+    }
     if (state.reviewPanelOpen && !reviewWide.matches) {
       trapFocus(elements.reviewPanel, event);
       return;
@@ -2581,9 +2889,46 @@
     if (!sidebarPinned() && document.body.classList.contains("drawer-open")) trapFocus(elements.drawer, event);
   });
 
+  document.addEventListener("keydown", (event) => {
+    const action = readingShortcutAction(event);
+    if (!action || shortcutTargetIsEditable(event.target)) return;
+    if (event.repeat && ["comment", "documents", "comments", "shortcuts"].includes(action)) return;
+
+    if (action === "shortcuts") {
+      event.preventDefault();
+      setShortcutDialog(!state.shortcutsOpen);
+      return;
+    }
+    if (action === "documents") {
+      event.preventDefault();
+      focusDocumentFilter();
+      return;
+    }
+    if (action === "comments") {
+      event.preventDefault();
+      toggleReviewPanelShortcut();
+      return;
+    }
+    if (
+      state.shortcutsOpen
+      || state.reviewComposer
+      || state.reviewPanelOpen
+      || !elements.settingsPopup.hidden
+      || document.body.classList.contains("drawer-open")
+      || shortcutTargetIsInteractive(event.target)
+    ) return;
+    if (action === "comment") {
+      if (commentOnActiveNavigationBlock()) event.preventDefault();
+      return;
+    }
+    if (moveActiveNavigationBlock(action)) event.preventDefault();
+  });
+
   window.addEventListener("resize", () => window.requestAnimationFrame(updateBlockCommentControls));
   window.addEventListener("scroll", scheduleOutlineTracking, { passive: true });
+  window.addEventListener("scroll", scheduleActiveNavigationTracking, { passive: true });
   window.addEventListener("resize", scheduleOutlineTracking);
+  window.addEventListener("resize", scheduleActiveNavigationTracking);
   window.addEventListener("focus", showPendingUpdate);
   window.addEventListener("hashchange", handleRoute);
   document.addEventListener("visibilitychange", showPendingUpdate);
@@ -2598,18 +2943,7 @@
     if (event.key.toLowerCase() !== "k") return;
     if (state.reviewMutationPending) return;
     event.preventDefault();
-    if (sidebarPinned()) {
-      elements.fileFilter.focus();
-      elements.fileFilter.select();
-      return;
-    }
-    if (document.body.classList.contains("drawer-open")) {
-      setDrawer(false);
-      return;
-    }
-    if (state.reviewComposer) closeCommentComposer(false);
-    if (state.reviewPanelOpen) setReviewPanel(false, false);
-    setDrawer(true);
+    focusDocumentFilter();
   });
   reviewWide.addEventListener("change", () => {
     syncReviewPanelMode();
@@ -2618,5 +2952,6 @@
   colorScheme.addEventListener("change", handleColorSchemeChange);
   setDrawer(false, false);
   setReviewPanel(false, false);
+  setShortcutDialog(false, false);
   initialize().then(watchChanges);
 })();

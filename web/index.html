@@ -9,11 +9,11 @@
     <title>MDShelf</title>
     <link rel="stylesheet" href="./vendor/fonts/fonts.css?v=1">
     <link rel="stylesheet" href="./vendor/katex/katex.min.css?v=0.18.4">
-    <link rel="stylesheet" href="./app.css?v=23">
+    <link rel="stylesheet" href="./app.css?v=29">
     <link rel="stylesheet" href="./chroma.css?v=2">
     <script defer src="./vendor/katex/katex.min.js?v=0.18.4"></script>
     <script defer src="./vendor/mermaid.min.js?v=11.17.2"></script>
-    <script defer src="./app.js?v=23"></script>
+    <script defer src="./app.js?v=29"></script>
   </head>
   <body>
     <a class="skip-link" href="#reader">Skip to document</a>
@@ -26,13 +26,25 @@
         aria-label="Open document list"
         aria-controls="drawer"
         aria-expanded="false"
+        aria-keyshortcuts="/ Control+K Meta+K"
       >
         <span class="menu-icon" aria-hidden="true"><i></i><i></i><i></i></span>
       </button>
       <a class="brand" id="brand" href="#" aria-label="MDShelf home">MDShelf</a>
       <p class="current-file" id="current-file">Documents</p>
       <div class="topbar-actions">
-        <span class="kbd-hint" aria-hidden="true">&#8984;K</span>
+        <button
+          class="shortcut-button"
+          id="shortcut-button"
+          type="button"
+          aria-label="Show keyboard shortcuts"
+          aria-controls="shortcut-dialog"
+          aria-expanded="false"
+          aria-keyshortcuts="?"
+        >
+          <kbd aria-hidden="true">?</kbd>
+          <span>Shortcuts</span>
+        </button>
         <button
           class="review-toggle"
           id="review-button"
@@ -40,6 +52,7 @@
           aria-controls="review-panel"
           aria-expanded="false"
           aria-label="Open comments, none unresolved"
+          aria-keyshortcuts="r"
           hidden
         >
           <span class="review-toggle-label">Comments</span>
@@ -126,7 +139,7 @@
       </div>
     </aside>
 
-    <main class="reader" id="reader" tabindex="-1">
+    <main class="reader" id="reader" tabindex="-1" data-focus-key="reader">
       <div class="reader-inner">
         <section class="status-view" id="status-view" aria-live="polite" aria-busy="true">
           <div class="document-skeleton" aria-hidden="true">
@@ -199,6 +212,64 @@
         <button id="comment-cancel" type="button">Cancel</button>
       </div>
     </form>
+
+    <button
+      class="shortcut-backdrop"
+      id="shortcut-backdrop"
+      type="button"
+      tabindex="-1"
+      aria-label="Close keyboard shortcuts"
+      hidden
+    ></button>
+
+    <section
+      class="shortcut-dialog"
+      id="shortcut-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="shortcut-title"
+      hidden
+    >
+      <header class="shortcut-dialog-header">
+        <div>
+          <p class="eyebrow">Keyboard navigation</p>
+          <h2 id="shortcut-title">Shortcuts</h2>
+        </div>
+        <button class="icon-button" id="shortcut-close" type="button" aria-label="Close keyboard shortcuts">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </header>
+      <div class="shortcut-groups">
+        <section>
+          <h3>Reading</h3>
+          <dl class="shortcut-list">
+            <div><dt>Previous block</dt><dd><kbd>&uarr;</kbd><kbd>&larr;</kbd><kbd>k</kbd><kbd>h</kbd></dd></div>
+            <div><dt>Next block</dt><dd><kbd>&darr;</kbd><kbd>&rarr;</kbd><kbd>j</kbd><kbd>l</kbd></dd></div>
+            <div><dt>First block</dt><dd><kbd>Home</kbd></dd></div>
+            <div><dt>Last block</dt><dd><kbd>End</kbd></dd></div>
+            <div><dt>Comment on active block</dt><dd><kbd>c</kbd></dd></div>
+          </dl>
+        </section>
+        <section>
+          <h3>Panels</h3>
+          <dl class="shortcut-list">
+            <div><dt>Document list and filter</dt><dd><kbd>/</kbd><kbd>&#8984;K</kbd><kbd>Ctrl K</kbd></dd></div>
+            <div><dt>Comments</dt><dd><kbd>r</kbd></dd></div>
+            <div><dt>Keyboard shortcuts</dt><dd><kbd>?</kbd></dd></div>
+            <div><dt>Close active panel</dt><dd><kbd>Esc</kbd></dd></div>
+          </dl>
+        </section>
+        <section>
+          <h3>Document list</h3>
+          <dl class="shortcut-list">
+            <div><dt>Previous document</dt><dd><kbd>&uarr;</kbd><kbd>k</kbd></dd></div>
+            <div><dt>Next document</dt><dd><kbd>&darr;</kbd><kbd>j</kbd></dd></div>
+            <div><dt>First or last document</dt><dd><kbd>Home</kbd><kbd>End</kbd></dd></div>
+            <div><dt>Open document</dt><dd><kbd>Enter</kbd></dd></div>
+          </dl>
+        </section>
+      </div>
+    </section>
 
     <p class="update-notice" id="update-notice" role="status" aria-live="polite" aria-atomic="true"></p>
     <p class="sr-only" id="review-live-status" role="status" aria-live="polite" aria-atomic="true"></p>

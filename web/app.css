@@ -473,6 +473,7 @@ button {
   gap: 0.2rem;
 }
 
+.shortcut-button,
 .review-toggle {
   display: inline-flex;
   min-height: 2.75rem;
@@ -488,6 +489,30 @@ button {
   font-weight: 720;
 }
 
+.shortcut-button {
+  min-height: 2.5rem;
+  padding: 0.35rem 0.55rem;
+  gap: 0.35rem;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 680;
+}
+
+.shortcut-button kbd {
+  min-width: 1.35rem;
+  padding: 0.08rem 0.3rem;
+  color: var(--text-soft);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  box-shadow: 0 1px 0 var(--line-strong);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.shortcut-button:hover,
 .review-toggle:hover {
   color: var(--text);
   background: var(--surface-hover);
@@ -1532,6 +1557,18 @@ body.drawer-open .backdrop {
   box-shadow: 0 0 0 0.45rem var(--accent-soft);
 }
 
+.md-block.is-keyboard-active::before {
+  position: absolute;
+  top: 0.15rem;
+  left: -0.8rem;
+  width: 2px;
+  height: 2rem;
+  max-height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  content: "";
+}
+
 .md-block-review-controls {
   position: absolute;
   top: 0;
@@ -1545,16 +1582,17 @@ body.drawer-open .backdrop {
   gap: 0.3rem;
 }
 
-.md-block-review-controls.has-comments {
+.md-block-review-controls.has-comments,
+.md-block-review-controls.has-composer {
   position: relative;
   right: auto;
-  width: 100%;
+  width: calc(100% + 2.6rem);
   min-height: 0;
   padding-top: 0.6rem;
   padding-left: 2.6rem;
 }
 
-.md-block-review-controls.has-comments > .md-block-comment {
+.md-block-review-controls:is(.has-comments, .has-composer) > .md-block-comment {
   right: auto;
   left: 0;
 }
@@ -1738,14 +1776,25 @@ body.drawer-open .backdrop {
   }
 
   .md-block-review-controls,
-  .md-block-review-controls.has-comments {
+  .md-block-review-controls.has-comments,
+  .md-block-review-controls.has-composer {
     position: absolute;
     top: 0;
     right: auto;
-    left: calc(100% + var(--notes-gap) / 2);
-    width: var(--notes-width);
     min-height: 1.9rem;
     padding-top: 0;
+  }
+
+  .md-block-review-controls {
+    left: 100%;
+    width: 1.9rem;
+    padding-left: 0;
+  }
+
+  .md-block-review-controls.has-comments,
+  .md-block-review-controls.has-composer {
+    left: calc(100% + var(--notes-gap) / 2);
+    width: var(--notes-width);
     padding-left: 2.2rem;
   }
 
@@ -1768,6 +1817,138 @@ body.drawer-open .backdrop {
   }
 }
 
+body.shortcuts-open {
+  overflow: hidden;
+}
+
+.shortcut-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 79;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background: rgb(9 12 10 / 58%);
+  border: 0;
+}
+
+.shortcut-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 80;
+  display: grid;
+  width: min(42rem, calc(100vw - 2rem));
+  max-height: min(44rem, calc(100dvh - 2rem));
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  box-shadow: var(--shadow);
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+}
+
+.shortcut-dialog-header {
+  display: flex;
+  min-height: var(--header-height);
+  padding: 0.6rem 0.7rem 0.6rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+}
+
+.shortcut-dialog-header h2 {
+  margin: 0.1rem 0 0;
+  font-size: 1.25rem;
+}
+
+.shortcut-groups {
+  display: grid;
+  padding: 1rem;
+  gap: 1.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.shortcut-groups h3 {
+  margin: 0 0 0.45rem;
+  color: var(--text-soft);
+  font-family: var(--sans);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shortcut-list {
+  display: grid;
+  margin: 0;
+  gap: 0;
+}
+
+.shortcut-list > div {
+  display: grid;
+  min-height: 2.6rem;
+  padding: 0.45rem 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.shortcut-list dt,
+.shortcut-list dd {
+  margin: 0;
+}
+
+.shortcut-list dt {
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.shortcut-list dd {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.3rem;
+}
+
+.shortcut-list kbd {
+  min-width: 1.8rem;
+  padding: 0.18rem 0.4rem;
+  color: var(--text);
+  background: var(--surface-soft);
+  border: 1px solid var(--line-strong);
+  border-radius: 0.35rem;
+  box-shadow: 0 1px 0 var(--line-strong);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+@media (min-width: 42rem) {
+  .shortcut-groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shortcut-groups > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 30rem) {
+  .shortcut-list > div {
+    align-items: start;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+  }
+
+  .shortcut-list dd {
+    justify-content: flex-start;
+  }
+}
+
 .review-backdrop {
   position: fixed;
   inset: 0;
@@ -1782,7 +1963,9 @@ body.drawer-open .backdrop {
 .review-backdrop[hidden],
 .review-panel[hidden],
 .review-error[hidden],
-.comment-composer[hidden] {
+.comment-composer[hidden],
+.shortcut-backdrop[hidden],
+.shortcut-dialog[hidden] {
   display: none;
 }
 
@@ -2259,6 +2442,10 @@ body.review-overlay {
 }
 
 @media (forced-colors: active) {
+  .md-block.is-keyboard-active::before {
+    background: Highlight;
+  }
+
   .review-thread-status,
   .review-outdated,
   .md-comment-bubble,
@@ -2722,22 +2909,10 @@ body.review-overlay {
   padding-top: 0.6rem;
 }
 
-.kbd-hint {
-  display: none;
-  padding: 0.1rem 0.4rem;
-  color: var(--text-faint);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  font-family: var(--mono);
-  font-size: 0.68rem;
-}
-
-:root[data-design="column"] .kbd-hint {
-  display: inline-block;
-}
-
 @media (max-width: 40rem) {
-  .kbd-hint { display: none; }
+  .shortcut-button span {
+    display: none;
+  }
 }
 
 /* The rail and the map exist only when the window can spare the width.

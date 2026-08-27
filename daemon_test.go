@@ -214,6 +214,77 @@ func TestDaemonControlChecksJSONAndLocalHost(t *testing.T) {
 	}
 }
 
+func TestDaemonDefaultRequestPolicyRejectsNetworkRequest(t *testing.T) {
+	d, err := newDaemonServer(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(d.close)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	request.Host = "192.0.2.10:7332"
+	request.RemoteAddr = "192.0.2.20:41000"
+	recorder := httptest.NewRecorder()
+	d.handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("network request status = %d", recorder.Code)
+	}
+}
+
+func TestDaemonConfiguredRequestPolicyAllowsNetworkRequest(t *testing.T) {
+	stateDir := t.TempDir()
+	configPath := filepath.Join(stateDir, daemonConfigFileName)
+	config := `{"listenOnAllInterfaces":true,"port":7444,"allowedHostnames":["mentat:7332"]}`
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d, err := newDaemonServer(stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(d.close)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	request.Host = "192.0.2.10:7444"
+	request.RemoteAddr = "192.0.2.20:41000"
+	recorder := httptest.NewRecorder()
+	d.handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("network request status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/control/status", strings.NewReader(`{}`))
+	request.Host = "mentat:7444"
+	request.RemoteAddr = "192.0.2.20:41000"
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Origin", "http://mentat:7444")
+	recorder = httptest.NewRecorder()
+	d.handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("same-origin control status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var status struct {
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status.URL != "http://localhost:7444" {
+		t.Fatalf("status URL = %q", status.URL)
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/control/list", strings.NewReader(`{}`))
+	request.Host = "mentat:7444"
+	request.RemoteAddr = "192.0.2.20:41000"
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Origin", "http://other:7444")
+	recorder = httptest.NewRecorder()
+	d.handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("cross-origin control status = %d", recorder.Code)
+	}
+}
+
 func daemonRequest(t *testing.T, handler http.Handler, method, target string, body io.Reader) *http.Response {
 	t.Helper()
 	request := httptest.NewRequest(method, target, body)

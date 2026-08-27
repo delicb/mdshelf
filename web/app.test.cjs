@@ -262,6 +262,67 @@ test("Navigation tokens reject aborted and replaced loads", () => {
   assert.equal(api.isCurrentLoad(second), false);
 });
 
+test("Reading shortcuts map to block and panel actions", () => {
+  const api = loadApp(null);
+  const expected = new Map([
+    ["ArrowUp", "previous-block"],
+    ["ArrowLeft", "previous-block"],
+    ["k", "previous-block"],
+    ["h", "previous-block"],
+    ["ArrowDown", "next-block"],
+    ["ArrowRight", "next-block"],
+    ["j", "next-block"],
+    ["l", "next-block"],
+    ["Home", "first-block"],
+    ["End", "last-block"],
+    ["c", "comment"],
+    ["/", "documents"],
+    ["r", "comments"],
+    ["?", "shortcuts"],
+  ]);
+  for (const [key, action] of expected) assert.equal(api.readingShortcutAction({ key }), action);
+  assert.equal(api.readingShortcutAction({ key: "j", ctrlKey: true }), "");
+  assert.equal(api.readingShortcutAction({ key: "j", altKey: true }), "");
+  assert.equal(api.readingShortcutAction({ key: "j", isComposing: true }), "");
+  assert.equal(api.readingShortcutAction({ key: "Escape" }), "");
+});
+
+test("The viewport selects the block that crosses its reading line", () => {
+  const api = loadApp(null);
+  const rects = [
+    { top: 20, bottom: 100 },
+    { top: 120, bottom: 220 },
+    { top: 240, bottom: 340 },
+  ];
+  assert.equal(api.blockIndexAtViewport(rects, 10), 0);
+  assert.equal(api.blockIndexAtViewport(rects, 110), 1);
+  assert.equal(api.blockIndexAtViewport(rects, 200), 1);
+  assert.equal(api.blockIndexAtViewport(rects, 400), 2);
+  assert.equal(api.blockIndexAtViewport([], 100), -1);
+});
+
+test("Block navigation scrolls only after the selection crosses the midpoint", () => {
+  const api = loadApp(null);
+  assert.equal(api.navigationScrollDelta({ top: 300, bottom: 340 }, 52, 600, 1), 0);
+  assert.equal(api.navigationScrollDelta({ top: 330, bottom: 370 }, 52, 600, 1), 20);
+  assert.equal(api.navigationScrollDelta({ top: 290, bottom: 330 }, 52, 600, -1), -20);
+  assert.equal(api.navigationScrollDelta({ top: 330, bottom: 370 }, 52, 600, -1), 0);
+  assert.equal(api.navigationScrollDelta({ top: 330, bottom: 370 }, 52, 600, 0), 0);
+});
+
+test("Document list navigation stays within its visible items", () => {
+  const api = loadApp(null);
+  assert.equal(api.listNavigationIndex(-1, 3, "next"), 0);
+  assert.equal(api.listNavigationIndex(-1, 3, "previous"), 2);
+  assert.equal(api.listNavigationIndex(1, 3, "next"), 2);
+  assert.equal(api.listNavigationIndex(2, 3, "next"), 2);
+  assert.equal(api.listNavigationIndex(1, 3, "previous"), 0);
+  assert.equal(api.listNavigationIndex(0, 3, "previous"), 0);
+  assert.equal(api.listNavigationIndex(1, 3, "first"), 0);
+  assert.equal(api.listNavigationIndex(1, 3, "last"), 2);
+  assert.equal(api.listNavigationIndex(0, 0, "next"), -1);
+});
+
 test("Block comment controls use hover or a two-step touch action", () => {
   const api = loadApp(null);
   assert.equal(api.blockCommentTapAction({ block: true }), "none");

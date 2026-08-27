@@ -201,7 +201,11 @@ func checkDaemonReviewHealth() error {
 }
 
 func readDaemonHealth() (daemonHealthResponse, error) {
-	response, err := daemonHTTPClient.Get(daemonBaseURL() + "/api/health")
+	baseURL, err := configuredDaemonBaseURL()
+	if err != nil {
+		return daemonHealthResponse{}, err
+	}
+	response, err := daemonHTTPClient.Get(baseURL + "/api/health")
 	if err != nil {
 		var networkError net.Error
 		if errors.As(err, &networkError) {
@@ -218,11 +222,15 @@ func readDaemonHealth() (daemonHealthResponse, error) {
 }
 
 func daemonControl(endpoint string, request, response any) error {
+	baseURL, err := configuredDaemonBaseURL()
+	if err != nil {
+		return err
+	}
 	body, err := json.Marshal(request)
 	if err != nil {
 		return err
 	}
-	httpRequest, err := http.NewRequest(http.MethodPost, daemonBaseURL()+"/api/control/"+endpoint, bytes.NewReader(body))
+	httpRequest, err := http.NewRequest(http.MethodPost, baseURL+"/api/control/"+endpoint, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -243,6 +251,22 @@ func daemonControl(endpoint string, request, response any) error {
 		return errors.New(payload.Error)
 	}
 	return json.NewDecoder(httpResponse.Body).Decode(response)
+}
+
+func configuredDaemonBaseURL() (string, error) {
+	stateDir, err := daemonStateDir()
+	if err != nil {
+		return "", err
+	}
+	return daemonBaseURLFromStateDir(stateDir)
+}
+
+func daemonBaseURLFromStateDir(stateDir string) (string, error) {
+	config, err := loadDaemonConfig(stateDir)
+	if err != nil {
+		return "", err
+	}
+	return daemonBaseURL(config.Port), nil
 }
 
 func startDaemon() error {

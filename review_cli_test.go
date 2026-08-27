@@ -29,7 +29,7 @@ func TestDaemonAddJSONReturnsOneObject(t *testing.T) {
 			value := reflect.ValueOf(response).Elem()
 			value.FieldByName("Added").SetBool(true)
 			value.FieldByName("Document").Set(reflect.ValueOf(daemonDocumentResponse{
-				ID: documentID(canonical), Path: canonical, Title: "JSON", URL: daemonBaseURL() + "/#/" + documentID(canonical),
+				ID: documentID(canonical), Path: canonical, Title: "JSON", URL: daemonBaseURL(defaultDaemonPort) + "/#/" + documentID(canonical),
 			}))
 			return nil
 		},
@@ -238,7 +238,7 @@ func testReviewShowResponse(path string) reviewShowResponse {
 		SchemaVersion: 1,
 		Document: reviewDocumentResponse{
 			ID: "00112233445566778899aabb", Path: path, Title: "Review",
-			URL: daemonBaseURL() + "/#/00112233445566778899aabb", SourceHash: strings.Repeat("b", 64),
+			URL: daemonBaseURL(defaultDaemonPort) + "/#/00112233445566778899aabb", SourceHash: strings.Repeat("b", 64),
 			ReviewStatus: documentReviewComments,
 		},
 		Comments: []reviewCommentResponse{{

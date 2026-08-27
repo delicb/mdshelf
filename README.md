@@ -52,7 +52,7 @@ MDShelf finds `.md` and `.markdown` files in the folder and its subfolders. It i
 
 ## Use daemon mode
 
-Daemon mode keeps a list of Markdown files from different folders. It listens only on `127.0.0.1:7332`.
+Daemon mode keeps a list of Markdown files from different folders. It listens on `127.0.0.1:7332` by default.
 
 Add one file:
 
@@ -71,7 +71,37 @@ mdshelf remove /path/to/notes/guide.md
 mdshelf stop
 ```
 
-The daemon stores its registry and log in the `mdshelf` folder under the user configuration folder. For example, macOS uses `~/Library/Application Support/mdshelf`. Linux usually uses `~/.config/mdshelf`. Windows uses the user configuration folder.
+The daemon stores its files in the `mdshelf` folder under the user configuration folder. For example, macOS uses `~/Library/Application Support/mdshelf`. Linux usually uses `~/.config/mdshelf`. Windows uses the user configuration folder.
+
+If the daemon runs, stop it before you change its configuration:
+
+```sh
+mdshelf stop
+```
+
+Create `config.json` in the configuration folder to set network access:
+
+```json
+{
+  "listenOnAllInterfaces": true,
+  "port": 7332,
+  "allowedHostnames": ["mentat", "mentat.example.ts.net:7332"]
+}
+```
+
+The `port` value is optional and defaults to `7332`.
+
+Each `allowedHostnames` entry can include a port. MDShelf ignores that entry port and uses the configured daemon port.
+
+IP address hosts do not need an entry when `listenOnAllInterfaces` is true. Other hostnames must be in `allowedHostnames`.
+
+Start the daemon again by adding a document:
+
+```sh
+mdshelf add /path/to/notes/guide.md
+```
+
+Use an allowed hostname or network interface IP from another device. For example, use `http://mentat:7332`.
 
 The daemon watches only each registered file. If a file or its parent folder is removed, the daemon keeps the registry row. The reader marks the document as removed. If the file returns, the reader makes it available again.
 
@@ -111,7 +141,7 @@ Document status uses these values:
 
 Comment data stays in `reviews.json` in the MDShelf state folder. MDShelf does not write comment files beside the Markdown file. Running `mdshelf remove` keeps comment data. If you add the same canonical path again, MDShelf restores its comments.
 
-Comment writes work only in daemon mode on `127.0.0.1:7332`. Ad hoc mode stays read-only. If a running daemon does not support comments, run `mdshelf stop` and retry the command to start the new binary.
+Comment writes work only in daemon mode. Ad hoc mode stays read-only. If a daemon does not support comments, stop it and retry the command.
 
 ### Install the agent skill
 
@@ -196,11 +226,34 @@ A design sets the reading type, the text width, where the file list lives, and w
 
 Appearance is System, Light, or Dark. Each design has a light and a dark palette, and automatic syntax themes follow the appearance. MDShelf embeds all fonts, so the designs look the same without a network connection.
 
+## Keyboard navigation
+
+Press `?` to show all keyboard shortcuts.
+
+| Keys | Action |
+| :--- | :--- |
+| Arrow keys or `h`, `j`, `k`, `l` | Move between Markdown blocks |
+| `Home` or `End` | Move to the first or last block |
+| `c` | Comment on the active block |
+| `/` or Command/Ctrl-K | Open the document list and focus its filter |
+| Arrow keys or `j`, `k` in the document list | Select a document |
+| `Enter` | Open the selected document |
+| `r` | Open or close comments |
+| `Escape` | Close the active panel |
+
+The active Markdown block has a short line on its left side.
+
 ## Network access
 
-Ad hoc mode has no sign-in screen. Anyone who can reach its port can read the Markdown files it lists. Run it only on a network you trust and stop it when you finish.
+MDShelf has no sign-in screen. Anyone who can reach its port can read its Markdown files and use its controls.
 
-Daemon mode accepts only local requests. It checks the request host and origin. Other local processes can still connect to it.
+Ad hoc mode listens on all network interfaces. Run it only on a network you trust, and stop it when you finish.
+
+Daemon mode accepts only local requests by default. Set `listenOnAllInterfaces` to accept network requests.
+
+MDShelf checks each request host and origin. Add each network hostname to `allowedHostnames`, or use an interface IP address.
+
+Use the all-interface option only on a trusted network.
 
 ## Development
 

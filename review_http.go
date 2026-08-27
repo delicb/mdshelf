@@ -66,12 +66,12 @@ func (d *daemonServer) handleReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stored, _ := d.reviews.snapshot(document.ID, document.Path)
-	writeJSON(w, http.StatusOK, buildBrowserReviewResponse(stored, document, rendered, includeResolved))
+	writeJSON(w, http.StatusOK, buildBrowserReviewResponse(stored, document, rendered, daemonBaseURL(d.config.Port), includeResolved))
 }
 
 func (d *daemonServer) handleControlReviewShow(w http.ResponseWriter, r *http.Request) {
 	var request showReviewRequest
-	if !decodeControl(w, r, &request) {
+	if !d.decodeControl(w, r, &request) {
 		return
 	}
 	canonical, err := canonicalDocumentPath(request.Path)
@@ -91,12 +91,12 @@ func (d *daemonServer) handleControlReviewShow(w http.ResponseWriter, r *http.Re
 		return
 	}
 	stored, _ := d.reviews.snapshot(document.ID, document.Path)
-	writeJSON(w, http.StatusOK, buildReviewShowResponse(stored, document, rendered, request.IncludeResolved))
+	writeJSON(w, http.StatusOK, buildReviewShowResponse(stored, document, rendered, daemonBaseURL(d.config.Port), request.IncludeResolved))
 }
 
 func (d *daemonServer) handleControlReviewCommentAdd(w http.ResponseWriter, r *http.Request) {
 	var request addReviewCommentRequest
-	if !decodeControl(w, r, &request) {
+	if !d.decodeControl(w, r, &request) {
 		return
 	}
 	document, rendered, context, ok := d.reviewerMutationContext(w, request.Path)
@@ -132,7 +132,7 @@ func (d *daemonServer) handleControlReviewCommentAdd(w http.ResponseWriter, r *h
 
 func (d *daemonServer) handleControlReviewCommentReply(w http.ResponseWriter, r *http.Request) {
 	var request replyReviewCommentRequest
-	if !decodeControl(w, r, &request) {
+	if !d.decodeControl(w, r, &request) {
 		return
 	}
 	document, rendered, context, ok := d.reviewerMutationContext(w, request.Path)
@@ -168,7 +168,7 @@ func (d *daemonServer) handleControlReviewCommentReply(w http.ResponseWriter, r 
 
 func (d *daemonServer) handleControlReviewCommentAddress(w http.ResponseWriter, r *http.Request) {
 	var request addressReviewCommentRequest
-	if !decodeControl(w, r, &request) {
+	if !d.decodeControl(w, r, &request) {
 		return
 	}
 	documents := d.updater.documentSnapshot()
@@ -232,7 +232,7 @@ func (d *daemonServer) handleControlReviewCommentReopen(w http.ResponseWriter, r
 
 func (d *daemonServer) handleReviewerCommentState(w http.ResponseWriter, r *http.Request, target commentStatus) {
 	var request commentReviewerRequest
-	if !decodeControl(w, r, &request) {
+	if !d.decodeControl(w, r, &request) {
 		return
 	}
 	document, rendered, context, ok := d.reviewerMutationContext(w, request.Path)
@@ -316,7 +316,7 @@ func (d *daemonServer) renderReviewDocument(document *daemonDocument) (renderedM
 }
 
 func (d *daemonServer) writeReviewMutation(w http.ResponseWriter, stored documentReview, document *daemonDocument, rendered renderedMarkdown, comment *reviewComment) {
-	response := reviewMutationResponse{Review: buildBrowserReviewResponse(stored, document, rendered, true)}
+	response := reviewMutationResponse{Review: buildBrowserReviewResponse(stored, document, rendered, daemonBaseURL(d.config.Port), true)}
 	if comment != nil {
 		comments := reviewCommentResponses([]reviewComment{*comment}, rendered.sourceHash, rendered.blocks, true)
 		if len(comments) == 1 {

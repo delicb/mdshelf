@@ -26,6 +26,7 @@ import (
 const daemonProtocol = 1
 
 type daemonServer struct {
+	config    daemonConfig
 	updater   *daemonUpdater
 	reviews   *reviewStore
 	markdown  goldmark.Markdown
@@ -55,6 +56,10 @@ func newDaemonServerWithUpdaterOptions(stateDir string, updaterOptions daemonUpd
 			return nil, err
 		}
 	}
+	config, err := loadDaemonConfig(stateDir)
+	if err != nil {
+		return nil, err
+	}
 	registryPath := filepath.Join(stateDir, "registry.json")
 	registry, err := loadRegistry(registryPath)
 	if err != nil {
@@ -69,6 +74,7 @@ func newDaemonServerWithUpdaterOptions(stateDir string, updaterOptions daemonUpd
 		return nil, fmt.Errorf("load embedded web files: %w", err)
 	}
 	d := &daemonServer{
+		config:    config,
 		updater:   newDaemonUpdaterWithOptions(registryPath, registry, updaterOptions),
 		reviews:   reviews,
 		markdown:  newMarkdownRenderer(),
@@ -112,16 +118,42 @@ func (d *daemonServer) routes(static http.Handler) http.Handler {
 
 func (d *daemonServer) requestPolicy(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		host := r.Host
-		validHost := host == "localhost:"+strconv.Itoa(defaultDaemonPort) || host == "127.0.0.1:"+strconv.Itoa(defaultDaemonPort)
 		remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
 		remoteIP := net.ParseIP(remoteHost)
-		if !validHost || err != nil || remoteIP == nil || !remoteIP.IsLoopback() {
-			writeJSONError(w, http.StatusForbidden, "daemon accepts local requests only")
+		validRemote := err == nil && remoteIP != nil
+		if !d.config.ListenOnAllInterfaces {
+			validRemote = validRemote && remoteIP.IsLoopback()
+		}
+		if !validRemote || !validDaemonHost(r.Host, d.config) {
+			writeJSONError(w, http.StatusForbidden, "daemon request is not allowed")
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func validDaemonHost(host string, config daemonConfig) bool {
+	hostname, port, err := net.SplitHostPort(host)
+	if err != nil || port != strconv.Itoa(config.Port) {
+		return false
+	}
+	normalized := strings.ToLower(strings.TrimSuffix(hostname, "."))
+	if normalized == "localhost" {
+		return true
+	}
+	ipHostname := normalized
+	if zone := strings.LastIndexByte(ipHostname, '%'); zone >= 0 {
+		ipHostname = ipHostname[:zone]
+	}
+	if ip := net.ParseIP(ipHostname); ip != nil {
+		return config.ListenOnAllInterfaces || ip.IsLoopback()
+	}
+	for _, allowed := range config.AllowedHostnames {
+		if normalized == allowed {
+			return true
+		}
+	}
+	return false
 }
 
 func serveDaemon(stateDir string) error {
@@ -130,7 +162,7 @@ func serveDaemon(stateDir string) error {
 		return err
 	}
 	defer d.close()
-	listener, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(defaultDaemonPort)))
+	listener, err := net.Listen("tcp", daemonListenAddress(d.config))
 	if err != nil {
 		return err
 	}
@@ -143,7 +175,15 @@ func serveDaemon(stateDir string) error {
 	}
 	serveDone := make(chan error, 1)
 	go func() { serveDone <- server.Serve(listener) }()
-	log.Printf("MDShelf daemon listens on http://localhost:%d", defaultDaemonPort)
+	if d.config.ListenOnAllInterfaces {
+		log.Printf("MDShelf daemon listens on all interfaces on port %d", d.config.Port)
+		log.Printf("Local:   %s", daemonBaseURL(d.config.Port))
+		for _, address := range networkURLs(strconv.Itoa(d.config.Port)) {
+			log.Printf("Network: %s", address)
+		}
+	} else {
+		log.Printf("MDShelf daemon listens on %s", daemonBaseURL(d.config.Port))
+	}
 	<-d.stop
 	_ = listener.Close()
 	d.close()
@@ -352,7 +392,7 @@ func (d *daemonServer) handleControlAdd(w http.ResponseWriter, r *http.Request) 
 	var request struct {
 		Path string `json:"path"`
 	}
-	if !decodeControl(w, r, &request) {
+	if !d.decodeControl(w, r, &request) {
 		return
 	}
 	document, added, err := d.updater.add(request.Path)
@@ -367,17 +407,17 @@ func (d *daemonServer) handleControlAdd(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, status, struct {
 		Document daemonDocumentResponse `json:"document"`
 		Added    bool                   `json:"added"`
-	}{Document: controlDocument(document), Added: added})
+	}{Document: d.controlDocument(document), Added: added})
 }
 
 func (d *daemonServer) handleControlList(w http.ResponseWriter, r *http.Request) {
 	var request struct{}
-	if !decodeControl(w, r, &request) {
+	if !d.decodeControl(w, r, &request) {
 		return
 	}
 	rows := make([]daemonDocumentResponse, 0)
 	for _, document := range d.updater.sortedDocuments() {
-		rows = append(rows, controlDocument(document))
+		rows = append(rows, d.controlDocument(document))
 	}
 	writeJSON(w, http.StatusOK, struct {
 		Documents []daemonDocumentResponse `json:"documents"`
@@ -389,7 +429,7 @@ func (d *daemonServer) handleControlRemove(w http.ResponseWriter, r *http.Reques
 		Path string `json:"path"`
 		ID   string `json:"id"`
 	}
-	if !decodeControl(w, r, &request) {
+	if !d.decodeControl(w, r, &request) {
 		return
 	}
 	if (request.Path == "") == (request.ID == "") {
@@ -413,12 +453,12 @@ func (d *daemonServer) handleControlRemove(w http.ResponseWriter, r *http.Reques
 	}
 	writeJSON(w, http.StatusOK, struct {
 		Document daemonDocumentResponse `json:"document"`
-	}{Document: controlDocument(document)})
+	}{Document: d.controlDocument(document)})
 }
 
 func (d *daemonServer) handleControlStatus(w http.ResponseWriter, r *http.Request) {
 	var request struct{}
-	if !decodeControl(w, r, &request) {
+	if !d.decodeControl(w, r, &request) {
 		return
 	}
 	documents := d.updater.documentSnapshot()
@@ -436,12 +476,12 @@ func (d *daemonServer) handleControlStatus(w http.ResponseWriter, r *http.Reques
 		StartedAt        time.Time `json:"startedAt"`
 		Documents        int       `json:"documents"`
 		RemovedDocuments int       `json:"removedDocuments"`
-	}{"mdshelf-daemon", daemonProtocol, os.Getpid(), daemonBaseURL(), d.startedAt, len(documents), removed})
+	}{"mdshelf-daemon", daemonProtocol, os.Getpid(), daemonBaseURL(d.config.Port), d.startedAt, len(documents), removed})
 }
 
 func (d *daemonServer) handleControlStop(w http.ResponseWriter, r *http.Request) {
 	var request struct{}
-	if !decodeControl(w, r, &request) {
+	if !d.decodeControl(w, r, &request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, struct {
@@ -450,7 +490,7 @@ func (d *daemonServer) handleControlStop(w http.ResponseWriter, r *http.Request)
 	d.stopOnce.Do(func() { close(d.stop) })
 }
 
-func decodeControl(w http.ResponseWriter, r *http.Request, target any) bool {
+func (d *daemonServer) decodeControl(w http.ResponseWriter, r *http.Request, target any) bool {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -461,8 +501,7 @@ func decodeControl(w http.ResponseWriter, r *http.Request, target any) bool {
 		writeJSONError(w, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
 		return false
 	}
-	origin := r.Header.Get("Origin")
-	if origin != "" && origin != daemonBaseURL() && origin != "http://127.0.0.1:"+strconv.Itoa(defaultDaemonPort) {
+	if !validControlOrigin(r, d.config) {
 		writeJSONError(w, http.StatusForbidden, "origin is not allowed")
 		return false
 	}
@@ -484,10 +523,26 @@ func decodeControl(w http.ResponseWriter, r *http.Request, target any) bool {
 	return true
 }
 
-func controlDocument(document *daemonDocument) daemonDocumentResponse {
+func validControlOrigin(r *http.Request, config daemonConfig) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Scheme != "http" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return false
+	}
+	if strings.EqualFold(parsed.Host, r.Host) {
+		return true
+	}
+	localConfig := daemonConfig{Port: config.Port}
+	return validDaemonHost(parsed.Host, localConfig) && validDaemonHost(r.Host, localConfig)
+}
+
+func (d *daemonServer) controlDocument(document *daemonDocument) daemonDocumentResponse {
 	return daemonDocumentResponse{
 		ID: document.ID, Path: document.Path, Title: document.title, Removed: document.removed,
-		URL: daemonBaseURL() + "/#/" + document.ID,
+		URL: daemonBaseURL(d.config.Port) + "/#/" + document.ID,
 	}
 }
 
@@ -503,8 +558,6 @@ func writeControlError(w http.ResponseWriter, err error) {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 	}
 }
-
-func daemonBaseURL() string { return "http://localhost:" + strconv.Itoa(defaultDaemonPort) }
 
 func cleanDaemonAssetPath(rawPath string) (string, error) {
 	if rawPath == "" || strings.ContainsRune(rawPath, '\x00') || strings.Contains(rawPath, "\\") || strings.HasPrefix(rawPath, "/") {

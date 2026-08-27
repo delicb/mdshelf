@@ -35,7 +35,7 @@ Options:
   -port int
         port to listen on in ad-hoc mode (default 7331)
 
-Daemon mode uses http://localhost:7332.
+Daemon mode uses http://localhost:7332 by default.
 `
 
 type options struct {

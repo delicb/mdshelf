@@ -6,14 +6,14 @@ import (
 	"strings"
 )
 
-func buildReviewShowResponse(stored documentReview, document *daemonDocument, rendered renderedMarkdown, includeResolved bool) reviewShowResponse {
+func buildReviewShowResponse(stored documentReview, document *daemonDocument, rendered renderedMarkdown, baseURL string, includeResolved bool) reviewShowResponse {
 	return reviewShowResponse{
 		SchemaVersion: reviewAPISchemaVersion,
 		Document: reviewDocumentResponse{
 			ID:           document.ID,
 			Path:         displayDocumentPath(document.Path),
 			Title:        document.title,
-			URL:          daemonBaseURL() + "/#/" + document.ID,
+			URL:          baseURL + "/#/" + document.ID,
 			SourceHash:   rendered.sourceHash,
 			ReviewStatus: reviewStatusForDocument(stored, rendered.sourceHash, document.removed),
 		},
@@ -21,14 +21,14 @@ func buildReviewShowResponse(stored documentReview, document *daemonDocument, re
 	}
 }
 
-func buildBrowserReviewResponse(stored documentReview, document *daemonDocument, rendered renderedMarkdown, includeResolved bool) browserReviewResponse {
+func buildBrowserReviewResponse(stored documentReview, document *daemonDocument, rendered renderedMarkdown, baseURL string, includeResolved bool) browserReviewResponse {
 	return browserReviewResponse{
 		SchemaVersion: reviewAPISchemaVersion,
 		Document: reviewDocumentResponse{
 			ID:           document.ID,
 			Path:         document.ID,
 			Title:        document.title,
-			URL:          daemonBaseURL() + "/#/" + document.ID,
+			URL:          baseURL + "/#/" + document.ID,
 			SourceHash:   rendered.sourceHash,
 			ReviewStatus: reviewStatusForDocument(stored, rendered.sourceHash, document.removed),
 		},
