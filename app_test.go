@@ -491,8 +491,8 @@ func TestEmbeddedWebShell(t *testing.T) {
 		contentTypePrefixes []string
 		contains            []string
 	}{
-		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./vendor/katex/katex.min.css?v=0.18.4"`, `href="./app.css?v=13"`, `href="./chroma.css?v=2"`, `src="./vendor/katex/katex.min.js?v=0.18.4"`, `src="./vendor/mermaid.min.js?v=11.17.2"`, `src="./app.js?v=13"`, `id="settings-popup"`, `id="demo-link"`, `id="document-path"`, `id="update-notice"`}},
-		{path: "/app.css", contentTypePrefixes: []string{"text/css"}, contains: []string{":root", "data-color-theme", "@keyframes content-updated"}},
+		{path: "/", contentTypePrefixes: []string{"text/html"}, contains: []string{`<meta name="viewport"`, `href="./vendor/katex/katex.min.css?v=0.18.4"`, `href="./app.css?v=20"`, `href="./chroma.css?v=2"`, `src="./vendor/katex/katex.min.js?v=0.18.4"`, `src="./vendor/mermaid.min.js?v=11.17.2"`, `src="./app.js?v=20"`, `id="settings-popup"`, `id="demo-link"`, `id="document-path"`, `id="review-button"`, `id="review-panel"`, `id="review-comments"`, `id="comment-composer"`, `id="review-live-status"`, `id="update-notice"`}},
+		{path: "/app.css", contentTypePrefixes: []string{"text/css"}, contains: []string{":root", "data-color-theme", ".review-panel", ".md-block-review-controls", "@keyframes content-updated"}},
 		{path: "/chroma.css", contentTypePrefixes: []string{"text/css"}, contains: []string{".chroma .kd", `data-syntax-theme="dracula"`}},
 		{path: "/app.js", contentTypePrefixes: []string{"text/javascript", "application/javascript"}, contains: []string{`"use strict"`, "/api/watch?since=", "window.mermaid"}},
 		{path: "/vendor/mermaid.min.js", contentTypePrefixes: []string{"text/javascript", "application/javascript"}, contains: []string{"mermaid"}},

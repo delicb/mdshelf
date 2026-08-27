@@ -86,7 +86,7 @@ func TestParseOptionsHelp(t *testing.T) {
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("parseOptions(-help) error = %v, want flag.ErrHelp", err)
 	}
-	for _, want := range []string{"mdshelf [options] [root]", "mdshelf add <markdown-file>", "-port int", "(default 7331)"} {
+	for _, want := range []string{"mdshelf [options] [root]", "mdshelf add [--json] <markdown-file>", "mdshelf review show", "mdshelf skill install", "-port int", "(default 7331)"} {
 		if !strings.Contains(output.String(), want) {
 			t.Errorf("help output does not contain %q:\n%s", want, output.String())
 		}

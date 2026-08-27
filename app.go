@@ -171,10 +171,15 @@ func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusOK, struct {
-			Path  string `json:"path"`
-			Title string `json:"title"`
-			HTML  string `json:"html"`
-		}{Path: demoDocumentPath, Title: rendered.title, HTML: rendered.html})
+			Path       string                  `json:"path"`
+			Title      string                  `json:"title"`
+			HTML       string                  `json:"html"`
+			SourceHash string                  `json:"sourceHash"`
+			Blocks     []markdownBlockResponse `json:"blocks"`
+		}{
+			Path: demoDocumentPath, Title: rendered.title, HTML: rendered.html,
+			SourceHash: rendered.sourceHash, Blocks: markdownBlockResponses(rendered.blocks),
+		})
 		return
 	}
 
@@ -222,15 +227,19 @@ func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, struct {
-		Path         string `json:"path"`
-		AbsolutePath string `json:"absolutePath"`
-		Title        string `json:"title"`
-		HTML         string `json:"html"`
+		Path         string                  `json:"path"`
+		AbsolutePath string                  `json:"absolutePath"`
+		Title        string                  `json:"title"`
+		HTML         string                  `json:"html"`
+		SourceHash   string                  `json:"sourceHash"`
+		Blocks       []markdownBlockResponse `json:"blocks"`
 	}{
 		Path:         cleanPath,
 		AbsolutePath: displayDocumentPath(filepath.Join(a.root, filepath.FromSlash(cleanPath))),
 		Title:        rendered.title,
 		HTML:         rendered.html,
+		SourceHash:   rendered.sourceHash,
+		Blocks:       markdownBlockResponses(rendered.blocks),
 	})
 }
 
@@ -568,6 +577,13 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, struct {
 		Error string `json:"error"`
 	}{Error: message})
+}
+
+func writeJSONErrorCode(w http.ResponseWriter, status int, message, code string) {
+	writeJSON(w, status, struct {
+		Error string `json:"error"`
+		Code  string `json:"code,omitempty"`
+	}{Error: message, Code: code})
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

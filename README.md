@@ -75,6 +75,54 @@ The daemon stores its registry and log in the `mdshelf` folder under the user co
 
 The daemon watches only each registered file. If a file or its parent folder is removed, the daemon keeps the registry row. The reader marks the document as removed. If the file returns, the reader makes it available again.
 
+### Agent review flow
+
+Daemon mode lets a reviewer comment on rendered document sections. Saving a comment publishes it at once.
+
+An agent can publish a file and get a JSON response:
+
+```sh
+mdshelf add --json /path/to/notes/implementation-plan.md
+```
+
+The response includes the document ID, absolute path, title, stable URL, and current file state. The normal `mdshelf add` command still prints only the URL.
+
+Use this complete reviewer and agent loop:
+
+```sh
+mdshelf add --json /path/to/notes/implementation-plan.md
+# Give the returned URL to the reviewer. Wait until they finish commenting.
+mdshelf review show --json /path/to/notes/implementation-plan.md
+# Update the file or answer the reviewer question.
+mdshelf review address --message "Updated the storage section." comment_8f31c2
+mdshelf review show --json /path/to/notes/implementation-plan.md
+```
+
+Select a document section and use its `+` button to add a comment. The form uses the same rail as existing comments. Select a comment to highlight its section. Use Reply, Resolve, or Reopen beside the section or in the Comments panel. Replies stay one level deep. Opening the panel does not change the document text width.
+
+Document status uses these values:
+
+- `needs_review`: The document has no comments.
+- `comments`: The document has comments on its current content.
+- `updated`: The document changed after the last comment.
+- `removed`: The registered file is not available.
+
+`mdshelf review show` prints unresolved comment threads as Markdown. Add `--json` for agent input. Add `--include-resolved` to include resolved comments. Each `review address` call appends an agent reply.
+
+Comment data stays in `reviews.json` in the MDShelf state folder. MDShelf does not write comment files beside the Markdown file. Running `mdshelf remove` keeps comment data. If you add the same canonical path again, MDShelf restores its comments.
+
+Comment writes work only in daemon mode on `127.0.0.1:7332`. Ad hoc mode stays read-only. If a running daemon does not support comments, run `mdshelf stop` and retry the command to start the new binary.
+
+### Install the agent skill
+
+Install the embedded skill into a skills root that your agent supports:
+
+```sh
+mdshelf skill install "$HOME/.agents/skills"
+```
+
+Use `mdshelf skill print` if your agent uses a different directory layout. MDShelf does not select a default skills directory.
+
 Each document has a separate asset root. MDShelf serves local raster images only from that document's folder. It does not serve another Markdown file from the same folder unless you register that file.
 
 The names `add`, `list`, `remove`, `status`, and `stop` are reserved as the first command value. Use `./add` to serve a folder named `add` in ad hoc mode.
@@ -150,6 +198,7 @@ Daemon mode accepts only local requests. It checks the request host and origin. 
 go test -race ./...
 go vet ./...
 node --check web/app.js
+node --test web/app.test.cjs
 ```
 
 ## Publishing a release

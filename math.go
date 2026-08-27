@@ -30,10 +30,14 @@ func (n *mathInline) Dump(source []byte, level int) {
 
 type mathBlock struct {
 	ast.BaseBlock
-	expression []byte
+	expression  []byte
+	sourceStart int
+	sourceStop  int
 }
 
 func (n *mathBlock) Kind() ast.NodeKind { return kindMathBlock }
+
+func (n *mathBlock) reviewSourceRange() (int, int) { return n.sourceStart, n.sourceStop }
 
 func (n *mathBlock) Dump(source []byte, level int) {
 	ast.DumpHelper(n, source, level, map[string]string{"Expression": string(n.expression)}, nil)
@@ -64,7 +68,8 @@ func transformMathBlocks(document *ast.Document, source []byte) {
 		if !ok {
 			continue
 		}
-		block := &mathBlock{expression: expression}
+		start, stop, _ := blockSourceBounds(paragraph, source)
+		block := &mathBlock{expression: expression, sourceStart: start, sourceStop: stop}
 		paragraph.Parent().ReplaceChild(paragraph.Parent(), paragraph, block)
 	}
 }

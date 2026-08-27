@@ -13,6 +13,7 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
@@ -46,6 +47,7 @@ func newMarkdownRenderer() goldmark.Markdown {
 			),
 		),
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
+		goldmark.WithRendererOptions(renderer.WithNodeRenderers(util.Prioritized(reviewBlockRenderer{}, 200))),
 	}
 	options = append(options, mermaidOptions()...)
 	options = append(options, mathOptions()...)
@@ -75,9 +77,11 @@ func renderDemo(markdown goldmark.Markdown) (renderedMarkdown, error) {
 }
 
 type renderedMarkdown struct {
-	title    string
-	html     string
-	metadata map[string]any
+	title      string
+	html       string
+	metadata   map[string]any
+	sourceHash string
+	blocks     []markdownBlock
 }
 
 type markdownRenderOptions struct {
@@ -90,11 +94,13 @@ func renderMarkdown(markdown goldmark.Markdown, source []byte, documentPath stri
 }
 
 func renderMarkdownWithOptions(markdown goldmark.Markdown, source []byte, documentPath string, options markdownRenderOptions) (renderedMarkdown, error) {
+	originalSource := source
 	frontMatter, err := extractFrontMatter(source)
 	if err != nil {
 		return renderedMarkdown{}, err
 	}
 	source = frontMatter.body
+	sourceLineOffset := bytes.Count(originalSource[:len(originalSource)-len(source)], []byte{'\n'})
 	bibliography, err := loadCitationBibliography(frontMatter.values, options.loadBibliography)
 	if err != nil {
 		return renderedMarkdown{}, err
@@ -104,6 +110,7 @@ func renderMarkdownWithOptions(markdown goldmark.Markdown, source []byte, docume
 		options.rewrite(document)
 	}
 	applyCitationBibliography(document.OwnerDocument(), bibliography)
+	blocks := wrapReviewBlocks(document.OwnerDocument(), source, sourceLineOffset)
 	var output bytes.Buffer
 	if err := markdown.Renderer().Render(&output, source, document); err != nil {
 		return renderedMarkdown{}, err
@@ -113,8 +120,10 @@ func renderMarkdownWithOptions(markdown goldmark.Markdown, source []byte, docume
 		title = documentTitle(document, source, documentPath)
 	}
 	return renderedMarkdown{
-		title:    title,
-		html:     injectMetadata(output.String(), frontMatter.fields),
-		metadata: frontMatter.values,
+		title:      title,
+		html:       injectMetadata(output.String(), frontMatter.fields),
+		metadata:   frontMatter.values,
+		sourceHash: sourceHash(originalSource),
+		blocks:     blocks,
 	}, nil
 }

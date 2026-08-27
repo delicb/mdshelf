@@ -243,3 +243,167 @@ test("Navigation tokens reject aborted and replaced loads", () => {
   assert.equal(second.signal.aborted, true);
   assert.equal(api.isCurrentLoad(second), false);
 });
+
+test("Block comment controls use hover or a two-step touch action", () => {
+  const api = loadApp(null);
+  assert.equal(api.blockCommentTapAction({ block: true }), "none");
+  assert.equal(api.blockCommentTapAction({ touch: true, block: true }), "arm");
+  assert.equal(api.blockCommentTapAction({ touch: true, block: true, interactive: true }), "none");
+  assert.equal(api.blockCommentTapAction({ touch: true, block: true, commentButton: true, interactive: true }), "open");
+  assert.equal(api.blockCommentTapAction({ commentButton: true }), "open");
+});
+
+test("Comment state actions resolve and reopen", () => {
+  const api = loadApp(null);
+  assert.equal(api.commentStateAction("open"), "resolve");
+  assert.equal(api.commentStateAction("addressed"), "resolve");
+  assert.equal(api.commentStateAction("resolved"), "reopen");
+});
+
+test("Comment replies accept one level and known authors", () => {
+  const api = loadApp(null);
+  const path = "00112233445566778899aabb";
+  const payload = {
+    schemaVersion: 1,
+    revision: 2,
+    document: {
+      id: path,
+      path,
+      title: "Plan",
+      sourceHash: "a".repeat(64),
+      reviewStatus: "comments",
+    },
+    comments: [{
+      id: "comment_00112233445566778899aabb",
+      body: "Root",
+      status: "open",
+      baseHash: "a".repeat(64),
+      outdated: false,
+      anchor: null,
+      currentLocation: null,
+      currentBlockKey: null,
+      replies: [{
+        id: "reply_00112233445566778899aabb",
+        body: "Reply",
+        author: "reviewer",
+        createdAt: "2026-08-27T12:00:00Z",
+      }],
+    }],
+  };
+  assert.equal(api.validateReviewView(payload, path).comments[0].replies[0].body, "Reply");
+  payload.comments[0].replies[0].author = "nested";
+  assert.throws(() => api.validateReviewView(payload, path), /invalid comment reply/);
+});
+
+test("A delayed comment save cannot update a new document", () => {
+  const api = loadApp(null);
+  const mutation = { token: 4, path: "document-a" };
+  assert.equal(api.reviewMutationIsCurrent(mutation, { token: 4, path: "document-a", enabled: true }), true);
+  assert.equal(api.reviewMutationIsCurrent(mutation, { token: 5, path: "document-a", enabled: true }), false);
+  assert.equal(api.reviewMutationIsCurrent(mutation, { token: 4, path: "document-b", enabled: true }), false);
+  assert.equal(api.reviewMutationIsCurrent(mutation, { token: 4, path: "document-a", enabled: false }), false);
+});
+
+test("A pending Save keeps one focusable comment field", () => {
+  const api = loadApp(null);
+  assert.equal(api.commentComposerEscapeAction(), "none");
+  assert.equal(api.commentComposerEscapeAction({ open: true }), "close");
+  assert.equal(api.commentComposerEscapeAction({ open: true, pending: true }), "wait");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(api.commentComposerControlState({ pending: true }))),
+    { bodyDisabled: false, bodyReadOnly: true, saveDisabled: true, actionsDisabled: true },
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(api.commentComposerControlState({ blocked: true, invalid: true }))),
+    { bodyDisabled: false, bodyReadOnly: true, saveDisabled: true, actionsDisabled: false },
+  );
+});
+
+test("A comment submits with Command-Enter or Control-Enter", () => {
+  const api = loadApp(null);
+  assert.equal(api.commentSubmitShortcut({ key: "Enter", metaKey: true }), true);
+  assert.equal(api.commentSubmitShortcut({ key: "Enter", ctrlKey: true }), true);
+  assert.equal(api.commentSubmitShortcut({ key: "Enter", metaKey: true, isComposing: true }), false);
+  assert.equal(api.commentSubmitShortcut({ key: "Enter" }), false);
+  assert.equal(api.commentSubmitShortcut({ key: "Escape", metaKey: true }), false);
+});
+
+test("Review status labels are stable", () => {
+  const api = loadApp(null);
+  const labels = {
+    needs_review: "No comments",
+    comments: "Comments",
+    updated: "Document updated",
+    removed: "Removed",
+  };
+  for (const [status, label] of Object.entries(labels)) assert.equal(api.reviewStatusLabel(status), label);
+  assert.equal(api.reviewStatusLabel("new_status"), "Review status unavailable");
+});
+
+test("Comment counts use current block keys and unresolved states", () => {
+  const api = loadApp(null);
+  const counts = api.commentCountsByBlockKey([
+    { currentBlockKey: "moved", status: "open", outdated: false },
+    { currentBlockKey: "moved", status: "open", outdated: false },
+    { currentBlockKey: "moved", status: "addressed", outdated: false },
+    { currentBlockKey: "moved", status: "resolved", outdated: false },
+    { currentBlockKey: "old", status: "open", outdated: true },
+    { currentBlockKey: "", status: "open", outdated: false },
+    { currentBlockKey: null, status: "open", outdated: false },
+  ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(counts)), {
+    moved: { unresolved: 3, total: 4 },
+  });
+  assert.equal(api.commentBlockKey({ currentBlockKey: "moved", outdated: false }), "moved");
+  assert.equal(api.commentBlockKey({ anchor: { blockKey: "original" }, outdated: false }), "original");
+  assert.equal(api.commentBlockKey({ currentBlockKey: "old", outdated: true }), "");
+});
+
+test("Live review events do not render the document", () => {
+  const api = loadApp(null);
+  const path = "0123456789abcdef01234567";
+  const plan = (changes, reset = false, daemon = true) => JSON.parse(JSON.stringify(
+    api.planLiveChanges({ changes, reset }, path, daemon),
+  ));
+
+  assert.deepEqual(plan([{ path, kind: "review" }]), {
+    refreshFiles: true,
+    renderCurrent: false,
+    refreshCurrentReview: true,
+    reviewAfterRender: false,
+    currentRemoved: false,
+  });
+  assert.equal(plan([{ path: "other", kind: "review" }]).refreshCurrentReview, false);
+  assert.equal(plan([{ path, kind: "updated" }]).renderCurrent, true);
+  assert.deepEqual(plan([{ path, kind: "updated" }, { path, kind: "review" }]), {
+    refreshFiles: true,
+    renderCurrent: true,
+    refreshCurrentReview: false,
+    reviewAfterRender: true,
+    currentRemoved: false,
+  });
+  assert.equal(plan([{ path, kind: "removed" }]).currentRemoved, true);
+  assert.equal(plan([], true).reviewAfterRender, true);
+  assert.equal(plan([{ path, kind: "review" }], false, false).refreshCurrentReview, false);
+  assert.equal(plan([{ path, kind: "invalid" }]).refreshFiles, false);
+});
+
+test("Adding a comment follows load and mutation state", () => {
+  const api = loadApp(null);
+  assert.equal(api.commentAddAvailable({ loaded: true }), true);
+  assert.equal(api.commentAddAvailable({ loading: true }), false);
+  assert.equal(api.commentAddAvailable({ pending: true }), false);
+  assert.equal(api.commentAddAvailable({ error: "failed" }), false);
+  assert.equal(api.commentAddAvailable({ loaded: false }), false);
+});
+
+test("The review panel is available only for daemon documents", () => {
+  const api = loadApp(null);
+  const daemon = { daemonMode: true, currentPath: "document", removed: false };
+  assert.equal(api.reviewPanelAvailable(daemon), true);
+  assert.equal(api.reviewPanelAvailable({ ...daemon, loadError: true }), true);
+  assert.equal(api.reviewPanelAvailable({ ...daemon, daemonMode: false }), false);
+  assert.equal(api.reviewPanelAvailable({ ...daemon, currentPath: "__mdshelf_demo__" }), false);
+  assert.equal(api.reviewPanelAvailable({ ...daemon, removed: true }), false);
+  assert.equal(api.reviewPanelAvailable({ ...daemon, currentPath: "" }), false);
+});

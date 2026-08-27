@@ -27,6 +27,7 @@ const daemonProtocol = 1
 
 type daemonServer struct {
 	updater   *daemonUpdater
+	reviews   *reviewStore
 	markdown  goldmark.Markdown
 	handler   http.Handler
 	startedAt time.Time
@@ -59,12 +60,17 @@ func newDaemonServerWithUpdaterOptions(stateDir string, updaterOptions daemonUpd
 	if err != nil {
 		return nil, err
 	}
+	reviews, err := newReviewStore(filepath.Join(stateDir, "reviews.json"))
+	if err != nil {
+		return nil, err
+	}
 	web, err := fs.Sub(embeddedWeb, "web")
 	if err != nil {
 		return nil, fmt.Errorf("load embedded web files: %w", err)
 	}
 	d := &daemonServer{
 		updater:   newDaemonUpdaterWithOptions(registryPath, registry, updaterOptions),
+		reviews:   reviews,
 		markdown:  newMarkdownRenderer(),
 		startedAt: time.Now().UTC(),
 		stop:      make(chan struct{}),
@@ -82,11 +88,18 @@ func (d *daemonServer) routes(static http.Handler) http.Handler {
 	mux.HandleFunc("/api/asset", d.handleAsset)
 	mux.HandleFunc("/api/watch", d.handleWatch)
 	mux.HandleFunc("/api/health", d.handleHealth)
+	mux.HandleFunc("/api/review", d.handleReview)
 	mux.HandleFunc("/api/control/add", d.handleControlAdd)
 	mux.HandleFunc("/api/control/list", d.handleControlList)
 	mux.HandleFunc("/api/control/remove", d.handleControlRemove)
 	mux.HandleFunc("/api/control/status", d.handleControlStatus)
 	mux.HandleFunc("/api/control/stop", d.handleControlStop)
+	mux.HandleFunc("/api/control/review/comments/add", d.handleControlReviewCommentAdd)
+	mux.HandleFunc("/api/control/review/comments/reply", d.handleControlReviewCommentReply)
+	mux.HandleFunc("/api/control/review/comments/address", d.handleControlReviewCommentAddress)
+	mux.HandleFunc("/api/control/review/comments/resolve", d.handleControlReviewCommentResolve)
+	mux.HandleFunc("/api/control/review/comments/reopen", d.handleControlReviewCommentReopen)
+	mux.HandleFunc("/api/control/review/show", d.handleControlReviewShow)
 	mux.HandleFunc("/api", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "API endpoint not found")
 	})
@@ -155,13 +168,19 @@ func (d *daemonServer) handleFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type fileRow struct {
-		Path    string `json:"path"`
-		Title   string `json:"title"`
-		Removed bool   `json:"removed"`
+		Path         string               `json:"path"`
+		Title        string               `json:"title"`
+		Removed      bool                 `json:"removed"`
+		ReviewStatus documentReviewStatus `json:"reviewStatus"`
+		OpenComments int                  `json:"openComments"`
 	}
 	rows := make([]fileRow, 0)
 	for _, document := range d.updater.sortedDocuments() {
-		rows = append(rows, fileRow{Path: document.ID, Title: document.title, Removed: document.removed})
+		status, openComments := d.reviews.summary(document.ID, document.Path, sourceHash(document.source), document.removed)
+		rows = append(rows, fileRow{
+			Path: document.ID, Title: document.title, Removed: document.removed,
+			ReviewStatus: status, OpenComments: openComments,
+		})
 	}
 	writeJSON(w, http.StatusOK, struct {
 		Mode  string    `json:"mode"`
@@ -182,10 +201,15 @@ func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusOK, struct {
-			Path  string `json:"path"`
-			Title string `json:"title"`
-			HTML  string `json:"html"`
-		}{Path: demoDocumentPath, Title: rendered.title, HTML: rendered.html})
+			Path       string                  `json:"path"`
+			Title      string                  `json:"title"`
+			HTML       string                  `json:"html"`
+			SourceHash string                  `json:"sourceHash"`
+			Blocks     []markdownBlockResponse `json:"blocks"`
+		}{
+			Path: demoDocumentPath, Title: rendered.title, HTML: rendered.html,
+			SourceHash: rendered.sourceHash, Blocks: markdownBlockResponses(rendered.blocks),
+		})
 		return
 	}
 	d.updater.mu.Lock()
@@ -218,15 +242,19 @@ func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, struct {
-		Path         string `json:"path"`
-		AbsolutePath string `json:"absolutePath"`
-		Title        string `json:"title"`
-		HTML         string `json:"html"`
+		Path         string                  `json:"path"`
+		AbsolutePath string                  `json:"absolutePath"`
+		Title        string                  `json:"title"`
+		HTML         string                  `json:"html"`
+		SourceHash   string                  `json:"sourceHash"`
+		Blocks       []markdownBlockResponse `json:"blocks"`
 	}{
 		Path:         document.ID,
 		AbsolutePath: displayDocumentPath(document.Path),
 		Title:        rendered.title,
 		HTML:         rendered.html,
+		SourceHash:   rendered.sourceHash,
+		Blocks:       markdownBlockResponses(rendered.blocks),
 	})
 }
 
@@ -313,10 +341,11 @@ func (d *daemonServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, struct {
-		Service  string `json:"service"`
-		Protocol int    `json:"protocol"`
-		PID      int    `json:"pid"`
-	}{Service: "mdshelf-daemon", Protocol: daemonProtocol, PID: os.Getpid()})
+		Service  string   `json:"service"`
+		Protocol int      `json:"protocol"`
+		PID      int      `json:"pid"`
+		Features []string `json:"features"`
+	}{Service: "mdshelf-daemon", Protocol: daemonProtocol, PID: os.Getpid(), Features: []string{reviewFeature}})
 }
 
 func (d *daemonServer) handleControlAdd(w http.ResponseWriter, r *http.Request) {
@@ -437,9 +466,14 @@ func decodeControl(w http.ResponseWriter, r *http.Request, target any) bool {
 		writeJSONError(w, http.StatusForbidden, "origin is not allowed")
 		return false
 	}
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxReviewWriteRequest))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			writeJSONErrorCode(w, http.StatusRequestEntityTooLarge, "JSON request is too large.", reviewCodeLimit)
+			return false
+		}
 		writeJSONError(w, http.StatusBadRequest, "invalid JSON request")
 		return false
 	}

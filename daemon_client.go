@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -17,9 +18,17 @@ import (
 )
 
 var (
-	errDaemonNotRunning  = errors.New("MDShelf daemon is not running")
-	errForeignDaemonPort = errors.New("another service uses the MDShelf daemon port")
+	errDaemonNotRunning     = errors.New("MDShelf daemon is not running")
+	errForeignDaemonPort    = errors.New("another service uses the MDShelf daemon port")
+	errDaemonReviewsMissing = errors.New("The running MDShelf daemon does not support reviews. Run `mdshelf stop`, then retry.")
 )
+
+type daemonHealthResponse struct {
+	Service  string   `json:"service"`
+	Protocol int      `json:"protocol"`
+	PID      int      `json:"pid"`
+	Features []string `json:"features"`
+}
 
 var daemonHTTPClient = &http.Client{
 	Timeout: 2 * time.Second,
@@ -36,15 +45,19 @@ type daemonCommandDeps struct {
 	now     func() time.Time
 }
 
-func runDaemonCommand(command string, args []string, stdout, _ io.Writer) error {
-	return runDaemonCommandWithDeps(command, args, stdout, daemonCommandDeps{
+func runDaemonCommand(command string, args []string, stdout, stderr io.Writer) error {
+	return runDaemonCommandWithOutputs(command, args, stdout, stderr, daemonCommandDeps{
 		health: checkDaemonHealth, start: startDaemon, control: daemonControl, sleep: time.Sleep, now: time.Now,
 	})
 }
 
 func runDaemonCommandWithDeps(command string, args []string, stdout io.Writer, deps daemonCommandDeps) error {
+	return runDaemonCommandWithOutputs(command, args, stdout, io.Discard, deps)
+}
+
+func runDaemonCommandWithOutputs(command string, args []string, stdout, stderr io.Writer, deps daemonCommandDeps) error {
 	usage := map[string]string{
-		"add":    "Usage: mdshelf add <markdown-file>\nRegister one Markdown file and start the daemon if needed.\n",
+		"add":    "Usage: mdshelf add [--json] <markdown-file>\nRegister one Markdown file and start the daemon if needed.\n",
 		"list":   "Usage: mdshelf list\nList registered Markdown files.\n",
 		"remove": "Usage: mdshelf remove <markdown-file>\nRemove one Markdown file from the daemon.\n",
 		"status": "Usage: mdshelf status\nShow daemon status.\n",
@@ -53,6 +66,17 @@ func runDaemonCommandWithDeps(command string, args []string, stdout io.Writer, d
 	if len(args) == 1 && (args[0] == "-h" || args[0] == "--help") {
 		_, _ = io.WriteString(stdout, usage[command])
 		return nil
+	}
+	jsonOutput := false
+	if command == "add" {
+		flags := flag.NewFlagSet("mdshelf add", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		flags.BoolVar(&jsonOutput, "json", false, "write one JSON object")
+		flags.Usage = func() { _, _ = io.WriteString(stdout, usage[command]) }
+		if err := flags.Parse(args); err != nil {
+			return err
+		}
+		args = flags.Args()
 	}
 	requiresPath := command == "add" || command == "remove"
 	if (requiresPath && len(args) != 1) || (!requiresPath && len(args) != 0) {
@@ -72,12 +96,27 @@ func runDaemonCommandWithDeps(command string, args []string, stdout io.Writer, d
 		} else if err != nil {
 			return err
 		}
+		request := struct {
+			Path string `json:"path"`
+		}{Path: canonical}
+		if jsonOutput {
+			var response struct {
+				Document daemonDocumentResponse `json:"document"`
+				Added    bool                   `json:"added"`
+			}
+			if err := deps.control("add", request, &response); err != nil {
+				return err
+			}
+			return json.NewEncoder(stdout).Encode(struct {
+				SchemaVersion int                    `json:"schemaVersion"`
+				Added         bool                   `json:"added"`
+				Document      daemonDocumentResponse `json:"document"`
+			}{SchemaVersion: reviewAPISchemaVersion, Added: response.Added, Document: response.Document})
+		}
 		var response struct {
 			Document daemonDocumentResponse `json:"document"`
 		}
-		if err := deps.control("add", struct {
-			Path string `json:"path"`
-		}{canonical}, &response); err != nil {
+		if err := deps.control("add", request, &response); err != nil {
 			return err
 		}
 		fmt.Fprintln(stdout, response.Document.URL)
@@ -144,23 +183,38 @@ func runDaemonCommandWithDeps(command string, args []string, stdout io.Writer, d
 }
 
 func checkDaemonHealth() error {
+	_, err := readDaemonHealth()
+	return err
+}
+
+func checkDaemonReviewHealth() error {
+	health, err := readDaemonHealth()
+	if err != nil {
+		return err
+	}
+	for _, feature := range health.Features {
+		if feature == reviewFeature {
+			return nil
+		}
+	}
+	return errDaemonReviewsMissing
+}
+
+func readDaemonHealth() (daemonHealthResponse, error) {
 	response, err := daemonHTTPClient.Get(daemonBaseURL() + "/api/health")
 	if err != nil {
 		var networkError net.Error
 		if errors.As(err, &networkError) {
-			return errDaemonNotRunning
+			return daemonHealthResponse{}, errDaemonNotRunning
 		}
-		return err
+		return daemonHealthResponse{}, err
 	}
 	defer response.Body.Close()
-	var health struct {
-		Service  string `json:"service"`
-		Protocol int    `json:"protocol"`
-	}
+	var health daemonHealthResponse
 	if response.StatusCode != http.StatusOK || json.NewDecoder(response.Body).Decode(&health) != nil || health.Service != "mdshelf-daemon" || health.Protocol != daemonProtocol {
-		return errForeignDaemonPort
+		return daemonHealthResponse{}, errForeignDaemonPort
 	}
-	return nil
+	return health, nil
 }
 
 func daemonControl(endpoint string, request, response any) error {

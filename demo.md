@@ -23,6 +23,7 @@ Use the table of contents to inspect each feature:
 - [Definition lists](#definition-lists)
 - [Quotes and rules](#quotes-and-rules)
 - [Alerts and callouts](#alerts-and-callouts)
+- [Document reviews](#document-reviews)
 - [Tables](#tables)
 - [Footnotes](#footnotes)
 - [Citations and bibliography](#citations-and-bibliography)
@@ -189,6 +190,20 @@ Use a supported marker on the first line of a block quote.
 > Cautions identify a condition that can cause data loss or another serious result.
 
 Normal block quotes keep their standard appearance.
+
+## Document reviews
+
+MDShelf daemon mode lets reviewers add comments to rendered sections. Comments publish when saved and stay outside the source tree.
+
+> [!NOTE]
+> The embedded demo cannot accept review comments. Add a Markdown file to daemon mode to use the review controls.
+
+```sh
+mdshelf add --json /path/to/document.md
+mdshelf review show --json /path/to/document.md
+```
+
+The document list shows comment status and unresolved comment counts. Agents can append replies with `mdshelf review address`. Reviewers can reply, resolve, or reopen beside the section or in the Comments panel.
 
 ## Tables
 

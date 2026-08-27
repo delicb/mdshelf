@@ -63,6 +63,7 @@ jobs:
           go vet ./...
           go test -race -count=1 ./...
           node --check web/app.js
+          node --test web/app.test.cjs
           go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
 
   build:
@@ -129,6 +130,7 @@ jobs:
               go build -trimpath -ldflags="-s -w" -o "$binary" .
 
             cp LICENSE README.md THIRD_PARTY_NOTICES "$stage/"
+            cp -R skills "$stage/"
 
             if [[ "$target_os" == "windows" ]]; then
               (

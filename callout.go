@@ -25,9 +25,13 @@ var calloutTitles = map[string]string{
 type callout struct {
 	ast.BaseBlock
 	calloutType string
+	sourceStart int
+	sourceStop  int
 }
 
 func (n *callout) Kind() ast.NodeKind { return kindCallout }
+
+func (n *callout) reviewSourceRange() (int, int) { return n.sourceStart, n.sourceStop }
 
 func (n *callout) Dump(source []byte, level int) {
 	ast.DumpHelper(n, source, level, map[string]string{"Type": n.calloutType}, nil)
@@ -73,7 +77,8 @@ func (calloutTransformer) Transform(document *ast.Document, reader text.Reader, 
 			quote.RemoveChild(quote, paragraph)
 		}
 
-		node := &callout{calloutType: strings.ToLower(calloutType)}
+		start, stop, _ := blockSourceBounds(quote, source)
+		node := &callout{calloutType: strings.ToLower(calloutType), sourceStart: start, sourceStop: stop}
 		for child := quote.FirstChild(); child != nil; {
 			next := child.NextSibling()
 			quote.RemoveChild(quote, child)

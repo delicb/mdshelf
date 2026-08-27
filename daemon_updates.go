@@ -259,11 +259,31 @@ func (u *daemonUpdater) documentSnapshot() []*daemonDocument {
 	defer u.mu.Unlock()
 	result := make([]*daemonDocument, 0, len(u.documents))
 	for _, document := range u.documents {
-		copyDocument := *document
-		copyDocument.source = bytes.Clone(document.source)
-		result = append(result, &copyDocument)
+		result = append(result, cloneDaemonDocument(document))
 	}
 	return result
+}
+
+func (u *daemonUpdater) cloneDocument(identifier string) *daemonDocument {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if id := u.paths[identifier]; id != "" {
+		identifier = id
+	}
+	return cloneDaemonDocument(u.documents[identifier])
+}
+
+func (u *daemonUpdater) withCurrentDocument(snapshot *daemonDocument, action func() error) (current, removed bool, err error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	live := u.documents[snapshot.ID]
+	if live == nil || live.removed {
+		return false, true, nil
+	}
+	if live.generation != snapshot.generation {
+		return false, false, nil
+	}
+	return true, false, action()
 }
 
 func (u *daemonUpdater) add(input string) (*daemonDocument, bool, error) {

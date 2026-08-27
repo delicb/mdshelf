@@ -16,10 +16,14 @@ var kindMermaidBlock = ast.NewNodeKind("MermaidBlock")
 
 type mermaidBlock struct {
 	ast.BaseBlock
-	source []byte
+	source      []byte
+	sourceStart int
+	sourceStop  int
 }
 
 func (n *mermaidBlock) Kind() ast.NodeKind { return kindMermaidBlock }
+
+func (n *mermaidBlock) reviewSourceRange() (int, int) { return n.sourceStart, n.sourceStop }
 
 func (n *mermaidBlock) Dump(source []byte, level int) {
 	ast.DumpHelper(n, source, level, nil, nil)
@@ -47,7 +51,8 @@ func (mermaidTransformer) Transform(document *ast.Document, reader text.Reader, 
 			line := block.Lines().At(i)
 			value = append(value, line.Value(source)...)
 		}
-		node := &mermaidBlock{source: value}
+		start, stop, _ := blockSourceBounds(block, source)
+		node := &mermaidBlock{source: value, sourceStart: start, sourceStop: stop}
 		block.Parent().ReplaceChild(block.Parent(), block, node)
 	}
 }

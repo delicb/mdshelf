@@ -21,7 +21,11 @@ const (
 
 const topLevelHelp = `Usage:
   mdshelf [options] [root]
-  mdshelf add <markdown-file>
+  mdshelf add [--json] <markdown-file>
+  mdshelf review show [--json] [--include-resolved] <markdown-file>
+  mdshelf review address [--json] --message <text> <comment-id>
+  mdshelf skill print
+  mdshelf skill install [--force] <skills-directory>
   mdshelf list
   mdshelf remove <markdown-file>
   mdshelf status
@@ -50,6 +54,10 @@ func run(args []string, stdout, stderr io.Writer) error {
 		switch args[0] {
 		case "add", "list", "remove", "status", "stop":
 			return runDaemonCommand(args[0], args[1:], stdout, stderr)
+		case "review":
+			return runReviewCommand(args[1:], stdout, stderr)
+		case "skill":
+			return runSkillCommand(args[1:], stdout, stderr)
 		case "__daemon":
 			if len(args) != 1 {
 				return errors.New("Usage: mdshelf __daemon")
