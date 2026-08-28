@@ -435,8 +435,14 @@
     let active = [];
     let fallback = false;
     for (const comment of comments || []) {
-      if (!comment?.textRange || comment.rangeUnavailable || comment.outdated || !Array.isArray(comment.ranges)) continue;
-      if (available && (comment.status === "open" || comment.status === "addressed")) current.push(...comment.ranges);
+      if (
+        !comment?.textRange
+        || comment.status === "resolved"
+        || comment.rangeUnavailable
+        || comment.outdated
+        || !Array.isArray(comment.ranges)
+      ) continue;
+      if (available) current.push(...comment.ranges);
       if (comment.id !== activeID) continue;
       if (available) active = [...comment.ranges];
       else fallback = comment.ranges.length > 0;

@@ -463,7 +463,7 @@ test("Highlight groups separate current and active ranges with a fallback", () =
   ];
   assert.deepEqual(textSelection.planHighlightGroups(comments, "two", true), {
     current: [openRange],
-    active: [resolvedRange],
+    active: [],
     fallback: false,
   });
   assert.deepEqual(textSelection.planHighlightGroups(comments, "one", false), {

@@ -95,6 +95,59 @@ test("The embedded demo is always available", () => {
   assert.equal(api.shouldReloadDocument("guide.md", true, null), true);
 });
 
+test("Horizontal rules are not navigation blocks", () => {
+  const api = loadApp(null);
+  assert.equal(api.isNavigationBlock({ dataset: { mdBlockKind: "horizontal_rule" } }), false);
+  assert.equal(api.isNavigationBlock({ dataset: {}, firstElementChild: { tagName: "HR" } }), false);
+  assert.equal(api.isNavigationBlock({ dataset: { mdBlockKind: "table" } }), true);
+});
+
+test("Demo review mutations support comments, replies, and state changes", () => {
+  const api = loadApp(null);
+  const blockKey = "00112233445566778899aabb";
+  const blocks = new Map([[blockKey, {
+    key: blockKey,
+    kind: "paragraph",
+    startLine: 4,
+    endLine: 5,
+  }]]);
+  const sourceHash = "a".repeat(64);
+  const createdAt = "2026-08-27T12:00:00Z";
+  const ids = {
+    comment: "comment_00112233445566778899aabb",
+    reply: "reply_00112233445566778899aabb",
+  };
+  let result = api.applyDemoReviewMutation([], {
+    action: "add",
+    body: "Demo comment",
+    blockKey,
+    selection: { version: 1, blockKeys: [blockKey], startOffset: 0, endOffset: 4, quote: "Demo" },
+  }, blocks, sourceHash, createdAt, ids);
+  assert.equal(result.comment.body, "Demo comment");
+  assert.equal(result.comment.textRange.quote, "Demo");
+  assert.equal(result.comment.currentBlockKey, blockKey);
+
+  result = api.applyDemoReviewMutation(result.comments, {
+    action: "reply",
+    body: "Demo reply",
+    commentID: ids.comment,
+  }, blocks, sourceHash, createdAt, ids);
+  assert.equal(result.comment.replies[0].body, "Demo reply");
+  assert.equal(result.comment.status, "open");
+
+  result = api.applyDemoReviewMutation(result.comments, {
+    action: "resolve",
+    commentID: ids.comment,
+  }, blocks, sourceHash, createdAt, ids);
+  assert.equal(result.comment.status, "resolved");
+
+  result = api.applyDemoReviewMutation(result.comments, {
+    action: "reopen",
+    commentID: ids.comment,
+  }, blocks, sourceHash, createdAt, ids);
+  assert.equal(result.comment.status, "open");
+});
+
 test("Daemon document removal uses the opaque document ID", () => {
   const api = loadApp(null);
   const request = api.daemonRemoveRequest("6391cb20c5940d2f477c6589");
@@ -467,6 +520,37 @@ test("A pending Save keeps one focusable comment field", () => {
   );
 });
 
+test("The selection comment balloon points at the selected text", () => {
+  const api = loadApp(null);
+  const button = { height: 44, width: 44 };
+  const bounds = { bottom: 592, left: 8, right: 392, top: 8 };
+
+  assert.deepEqual(
+    { ...api.selectionCommentActionPosition(
+      { bottom: 220, left: 100, right: 200, top: 200, width: 100 },
+      button,
+      bounds,
+    ) },
+    { left: 192, placement: "above", pointerX: 8, top: 144 },
+  );
+  assert.deepEqual(
+    { ...api.selectionCommentActionPosition(
+      { bottom: 30, left: 100, right: 200, top: 10, width: 100 },
+      button,
+      bounds,
+    ) },
+    { left: 192, placement: "below", pointerX: 8, top: 42 },
+  );
+  assert.equal(
+    api.selectionCommentActionPosition(
+      { bottom: 220, left: 380, right: 400, top: 200, width: 20 },
+      button,
+      bounds,
+    ).pointerX,
+    36,
+  );
+});
+
 test("Enter and Space floating Comment activation use the live selection without pointerdown", () => {
   const api = loadApp(null);
   const live = { quote: "selected text" };
@@ -487,6 +571,15 @@ test("A comment submits with Command-Enter or Control-Enter", () => {
   assert.equal(api.commentSubmitShortcut({ key: "Enter", metaKey: true, isComposing: true }), false);
   assert.equal(api.commentSubmitShortcut({ key: "Enter" }), false);
   assert.equal(api.commentSubmitShortcut({ key: "Escape", metaKey: true }), false);
+});
+
+test("A direct reply submits with Enter and keeps Shift-Enter for new lines", () => {
+  const api = loadApp(null);
+  assert.equal(api.directReplySubmitShortcut({ key: "Enter" }), true);
+  assert.equal(api.directReplySubmitShortcut({ key: "Enter", ctrlKey: true }), true);
+  assert.equal(api.directReplySubmitShortcut({ key: "Enter", shiftKey: true }), false);
+  assert.equal(api.directReplySubmitShortcut({ key: "Enter", isComposing: true }), false);
+  assert.equal(api.directReplySubmitShortcut({ key: "Escape" }), false);
 });
 
 test("Review status labels are stable", () => {
@@ -513,11 +606,12 @@ test("Comment counts use current block keys and unresolved states", () => {
     { currentBlockKey: null, status: "open", outdated: false },
   ]);
   assert.deepEqual(JSON.parse(JSON.stringify(counts)), {
-    moved: { unresolved: 3, total: 4 },
+    moved: { unresolved: 3, total: 3 },
   });
   assert.equal(api.commentBlockKey({ currentBlockKey: "moved", outdated: false }), "moved");
   assert.equal(api.commentBlockKey({ anchor: { blockKey: "original" }, outdated: false }), "original");
   assert.equal(api.commentBlockKey({ currentBlockKey: "old", outdated: true }), "");
+  assert.equal(api.commentBlockKey({ currentBlockKey: "resolved", status: "resolved", outdated: false }), "");
 });
 
 test("Live review events do not render the document", () => {
@@ -558,13 +652,13 @@ test("Adding a comment follows load and mutation state", () => {
   assert.equal(api.commentAddAvailable({ loaded: false }), false);
 });
 
-test("The review panel is available only for daemon documents", () => {
+test("The review panel is available for daemon documents and the demo", () => {
   const api = loadApp(null);
   const daemon = { daemonMode: true, currentPath: "document", removed: false };
   assert.equal(api.reviewPanelAvailable(daemon), true);
   assert.equal(api.reviewPanelAvailable({ ...daemon, loadError: true }), true);
   assert.equal(api.reviewPanelAvailable({ ...daemon, daemonMode: false }), false);
-  assert.equal(api.reviewPanelAvailable({ ...daemon, currentPath: "__mdshelf_demo__" }), false);
+  assert.equal(api.reviewPanelAvailable({ ...daemon, daemonMode: false, currentPath: "__mdshelf_demo__" }), true);
   assert.equal(api.reviewPanelAvailable({ ...daemon, removed: true }), false);
   assert.equal(api.reviewPanelAvailable({ ...daemon, currentPath: "" }), false);
 });

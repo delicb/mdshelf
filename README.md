@@ -128,7 +128,7 @@ mdshelf review address --message "Updated the storage section." comment_8f31c2
 mdshelf review show --json /path/to/notes/implementation-plan.md
 ```
 
-Select rendered text to show the **Comment** button. Select the button or press `c` to comment on that text. If no valid text selection exists, `c` comments on the active block. The `+` button still adds a whole-block comment. Select a comment to activate its text or block. Use Reply, Resolve, or Reopen beside the section or in the Comments panel. Replies stay one level deep.
+Select rendered text to show the comment balloon. Select the balloon or press `c` to comment on that text. If no valid text selection exists, `c` comments on the active block. The `+` button still adds a whole-block comment. Select a comment to activate its text or block. Type in the reply field, then press Enter or select the arrow to send the reply. Select the checkmark to resolve the thread. Resolved threads disappear from the document but remain in the Comments panel. Replies stay one level deep.
 
 Document status uses these values:
 
@@ -210,7 +210,7 @@ MDShelf bundles Mermaid 11.17.2 in the executable. Diagram rendering works witho
 
 ## Embedded demo
 
-Select **Demo** at the bottom of the document list to open the feature guide. The build embeds the tracked `demo.md` source file in the executable.
+Select **Demo** at the bottom of the document list to open the feature guide. The build embeds the tracked `demo.md` source file in the executable. You can add, reply to, resolve, and reopen demo comments. MDShelf keeps them only until you reload the page.
 
 ## Reading settings
 

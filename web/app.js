@@ -106,6 +106,10 @@
     reviewStatus: "needs_review",
     reviewSourceHash: "",
     reviewComments: [],
+    demoReviewComments: [],
+    demoReviewRevision: 0,
+    demoReviewSequence: 0,
+    demoReviewSourceHash: "",
     reviewPanelOpen: false,
     activeBlockKey: "",
     activeCommentID: "",
@@ -118,6 +122,7 @@
     reviewBlockError: "",
     reviewErrorNeedsRender: false,
     reviewComposer: null,
+    reviewReplyDrafts: new Map(),
     reviewTextIndex: null,
     reviewRenderGeneration: 0,
     liveSelection: null,
@@ -175,6 +180,10 @@
 
   function commentSubmitShortcut(event = {}) {
     return event.key === "Enter" && !event.isComposing && Boolean(event.metaKey || event.ctrlKey);
+  }
+
+  function directReplySubmitShortcut(event = {}) {
+    return event.key === "Enter" && !event.isComposing && !event.shiftKey;
   }
 
   function readingShortcutAction(event = {}) {
@@ -239,13 +248,13 @@
         || typeof comment.currentBlockKey !== "string"
         || !comment.currentBlockKey
         || comment.outdated === true
-        || !["open", "addressed", "resolved"].includes(comment.status)
+        || !["open", "addressed"].includes(comment.status)
       ) continue;
       if (!counts[comment.currentBlockKey]) {
         counts[comment.currentBlockKey] = { unresolved: 0, total: 0 };
       }
       const count = counts[comment.currentBlockKey];
-      if (comment.status !== "resolved") count.unresolved += 1;
+      count.unresolved += 1;
       count.total += 1;
     }
     return counts;
@@ -290,10 +299,9 @@
 
   function reviewPanelAvailable(input = {}) {
     return Boolean(
-      input.daemonMode
-      && input.currentPath
-      && input.currentPath !== demoDocumentPath
-      && !input.removed,
+      input.currentPath
+      && !input.removed
+      && (input.daemonMode || input.currentPath === demoDocumentPath),
     );
   }
 
@@ -1391,7 +1399,9 @@
         || !elementsByKey.has(block.key)
         || elementsByKey.get(block.key) !== wrappers[index]
       ) throw new Error("The server returned invalid document block metadata.");
-      blocks.set(block.key, { ...block, element: elementsByKey.get(block.key) });
+      const element = elementsByKey.get(block.key);
+      element.dataset.mdBlockKind = block.kind;
+      blocks.set(block.key, { ...block, element });
     }
     if (blocks.size !== elementsByKey.size) throw new Error("Document block metadata does not match the document.");
     return blocks;
@@ -1399,6 +1409,7 @@
 
   function appendReviewBlockControls(blocks) {
     for (const block of blocks.values()) {
+      if (block.kind === "horizontal_rule") continue;
       const controls = document.createElement("div");
       controls.className = "md-block-review-controls";
       const button = document.createElement("button");
@@ -1520,9 +1531,15 @@
     });
   }
 
+  function isNavigationBlock(block) {
+    return block?.dataset?.mdBlockKind !== "horizontal_rule"
+      && block?.firstElementChild?.tagName !== "HR";
+  }
+
   function navigationBlocks() {
     if (elements.document.hidden) return [];
-    return [...elements.document.querySelectorAll(".md-block[data-md-block]")];
+    return [...elements.document.querySelectorAll(".md-block[data-md-block]")]
+      .filter(isNavigationBlock);
   }
 
   function setActiveNavigationBlock(block, announce = false) {
@@ -1687,7 +1704,13 @@
     for (const comment of comments) {
       comment.ranges = [];
       comment.rangeUnavailable = false;
-      if (!comment.textRange || comment.outdated || !state.reviewTextIndex || !textSelection) continue;
+      if (
+        comment.status === "resolved"
+        || !comment.textRange
+        || comment.outdated
+        || !state.reviewTextIndex
+        || !textSelection
+      ) continue;
       const result = textSelection.reconstructTextRange(comment.textRange, state.reviewTextIndex);
       comment.ranges = result.ranges;
       comment.rangeUnavailable = !result.available;
@@ -1715,6 +1738,25 @@
     }
   }
 
+  function selectionCommentActionPosition(rect, buttonRect, bounds) {
+    const gap = 12;
+    const width = buttonRect.width;
+    const height = buttonRect.height;
+    const targetX = rect.right ?? rect.left + rect.width;
+    const maxLeft = Math.max(bounds.left, bounds.right - width);
+    const left = Math.min(Math.max(targetX - 8, bounds.left), maxLeft);
+    const above = rect.top - height - gap;
+    const below = rect.bottom + gap;
+    const aboveFits = above >= bounds.top;
+    const belowFits = below + height <= bounds.bottom;
+    const placement = aboveFits || !belowFits ? "above" : "below";
+    const rawTop = placement === "above" ? above : below;
+    const maxTop = Math.max(bounds.top, bounds.bottom - height);
+    const top = Math.min(Math.max(rawTop, bounds.top), maxTop);
+    const pointerX = Math.min(Math.max(targetX - left, 8), Math.max(8, width - 8));
+    return { left, placement, pointerX, top };
+  }
+
   function positionSelectionCommentAction(descriptor) {
     const button = elements.selectionCommentAction;
     const rect = textSelection?.descriptorRect(descriptor);
@@ -1724,13 +1766,16 @@
     const topEdge = (viewport?.offsetTop || 0) + 8;
     const rightEdge = leftEdge + (viewport?.width || window.innerWidth) - 16;
     const bottomEdge = topEdge + (viewport?.height || window.innerHeight) - 16;
-    const buttonRect = button.getBoundingClientRect();
-    const left = Math.min(Math.max(rect.left, leftEdge), Math.max(leftEdge, rightEdge - buttonRect.width));
-    let top = rect.bottom + 8;
-    if (top + buttonRect.height > bottomEdge) top = rect.top - buttonRect.height - 8;
-    top = Math.min(Math.max(top, topEdge), Math.max(topEdge, bottomEdge - buttonRect.height));
-    button.style.left = `${left}px`;
-    button.style.top = `${top}px`;
+    const position = selectionCommentActionPosition(rect, button.getBoundingClientRect(), {
+      bottom: bottomEdge,
+      left: leftEdge,
+      right: rightEdge,
+      top: topEdge,
+    });
+    button.dataset.placement = position.placement;
+    button.style.setProperty("--selection-pointer-x", `${position.pointerX}px`);
+    button.style.left = `${position.left}px`;
+    button.style.top = `${position.top}px`;
   }
 
   function captureLiveSelection() {
@@ -1785,6 +1830,7 @@
     state.reviewBlockError = "";
     state.reviewErrorNeedsRender = false;
     state.reviewComposer = null;
+    state.reviewReplyDrafts.clear();
     renderCommentComposer();
     state.activeBlockKey = "";
     state.activeCommentID = "";
@@ -1799,6 +1845,10 @@
       removed: state.removed.get(state.currentPath) === true,
       loadError: Boolean(state.reviewError),
     });
+  }
+
+  function isDemoReview() {
+    return state.currentPath === demoDocumentPath;
   }
 
   function unresolvedComments() {
@@ -1894,36 +1944,69 @@
     return replies;
   }
 
+  function growReplyInput(field) {
+    if (!field?.style || typeof field.scrollHeight !== "number") return;
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
+  }
+
+  function growReplyInputs(root) {
+    for (const field of root.querySelectorAll(".comment-reply-input")) growReplyInput(field);
+  }
+
   function makeCommentActions(comment, location) {
-    const actions = document.createElement("div");
-    actions.className = "comment-thread-actions";
-    const reply = document.createElement("button");
-    reply.type = "button";
-    reply.textContent = "Reply";
-    reply.dataset.commentAction = "reply";
-    reply.dataset.actionCommentId = comment.id;
-    reply.dataset.actionLocation = location;
+    if (comment.status === "resolved") return { replyActions: null, stateAction: null };
+    const replyActions = document.createElement("div");
+    replyActions.className = "comment-thread-actions";
+    const reply = document.createElement("textarea");
+    reply.className = "comment-reply-input";
+    reply.rows = 1;
+    reply.placeholder = "Reply";
+    reply.enterKeyHint = "send";
+    reply.value = state.reviewReplyDrafts.get(comment.id) || "";
+    reply.dataset.replyCommentId = comment.id;
+    reply.dataset.replyLocation = location;
     reply.dataset.focusKey = `${location}:${comment.id}:reply`;
-    reply.disabled = comment.status === "resolved" || state.reviewMutationPending;
-    if (comment.status === "resolved") reply.title = "Reopen the comment before you reply.";
+    reply.setAttribute("aria-label", "Reply to comment. Press Enter to send. Press Shift+Enter for a new line.");
+    reply.disabled = !canAddComment();
+    const replyShell = document.createElement("div");
+    replyShell.className = "comment-reply-shell";
+    const submitReply = document.createElement("button");
+    submitReply.className = "comment-submit-icon comment-reply-submit";
+    submitReply.type = "button";
+    submitReply.disabled = reply.disabled || Boolean(reviewTextError(reply.value));
+    submitReply.title = "Send reply";
+    submitReply.setAttribute("aria-label", "Send reply");
+    const submitIcon = document.createElement("span");
+    submitIcon.setAttribute("aria-hidden", "true");
+    submitIcon.textContent = "↑";
+    submitReply.append(submitIcon);
+    replyShell.append(reply, submitReply);
+    replyActions.append(replyShell);
 
     const stateAction = document.createElement("button");
+    stateAction.className = "comment-state-action";
     stateAction.type = "button";
-    const action = commentStateAction(comment.status);
-    stateAction.textContent = action === "reopen" ? "Reopen" : "Resolve";
-    stateAction.dataset.commentAction = action;
+    const label = "Resolve comment";
+    stateAction.dataset.commentAction = "resolve";
     stateAction.dataset.actionCommentId = comment.id;
     stateAction.dataset.actionLocation = location;
     stateAction.dataset.focusKey = `${location}:${comment.id}:state`;
     stateAction.disabled = state.reviewMutationPending;
-    actions.append(reply, stateAction);
-    return actions;
+    stateAction.title = label;
+    stateAction.setAttribute("aria-label", label);
+    const checkmark = document.createElement("span");
+    checkmark.setAttribute("aria-hidden", "true");
+    checkmark.textContent = "✓";
+    stateAction.append(checkmark);
+    return { replyActions, stateAction };
   }
 
   function makeReviewThread(comment) {
     const item = document.createElement("li");
     const thread = document.createElement("article");
     thread.className = "review-thread";
+    thread.classList.toggle("is-resolved", comment.status === "resolved");
     thread.dataset.commentId = comment.id;
 
     const select = document.createElement("button");
@@ -1957,10 +2040,11 @@
         : "Selected text mark is not available";
       select.append(unavailable);
     }
-    const host = document.createElement("div");
-    host.className = "comment-composer-host";
     thread.classList.toggle("is-active", comment.id === state.activeCommentID);
-    thread.append(select, makeCommentActions(comment, "panel"), host);
+    const { replyActions, stateAction } = makeCommentActions(comment, "panel");
+    thread.append(select);
+    if (replyActions) thread.append(replyActions);
+    if (stateAction) thread.append(stateAction);
     item.append(thread);
     return item;
   }
@@ -1987,7 +2071,9 @@
       elements.reviewLiveStatus.textContent = "Comment closed because the document changed";
     }
     updateReviewButton();
-    elements.reviewLoadState.textContent = state.reviewLoading ? "Loading review" : "";
+    elements.reviewLoadState.textContent = state.reviewLoading
+      ? "Loading review"
+      : (isDemoReview() ? "Demo comments reset when you reload the page." : "");
     elements.reviewPanelScroll.setAttribute("aria-busy", String(state.reviewLoading));
     renderReviewError();
 
@@ -2003,6 +2089,7 @@
 
     updateBlockCommentControls();
     renderCommentComposer();
+    growReplyInputs(elements.reviewComments);
     if (!state.reviewComposer) scheduleSelectionCommentAction();
     if (options.preserveFocus) {
       if (focusKey) focusByKey(focusKey);
@@ -2032,13 +2119,7 @@
   }
 
   function commentComposerHost(composer) {
-    if (composer.kind === "comment") {
-      return state.reviewBlocks.get(composer.blockKey)?.element.querySelector(".md-block-comment-bubbles") || null;
-    }
-    const root = composer.location === "panel" ? elements.reviewComments : elements.document;
-    const threads = root.querySelectorAll(composer.location === "panel" ? ".review-thread" : ".md-comment-bubble");
-    const thread = [...threads].find((candidate) => candidate.dataset.commentId === composer.commentID);
-    return thread?.querySelector(".comment-composer-host") || null;
+    return state.reviewBlocks.get(composer.blockKey)?.element.querySelector(".md-block-comment-bubbles") || null;
   }
 
   function mountCommentComposer(composer) {
@@ -2063,15 +2144,13 @@
       return;
     }
     const block = composer.blockKey ? state.reviewBlocks.get(composer.blockKey) : null;
-    const replying = composer.kind === "reply";
-    elements.commentComposerTitle.textContent = replying ? "Reply" : "Add comment";
-    elements.commentTarget.textContent = replying
-      ? "Add a reply to this comment."
-      : (composer.selection ? composer.targetLabel : (block ? `Comment on ${lineRangeLabel(block.startLine, block.endLine)}` : composer.targetLabel));
+    elements.commentComposerTitle.textContent = "Add comment";
+    elements.commentTarget.textContent = composer.selection
+      ? composer.targetLabel
+      : (block ? `Comment on ${lineRangeLabel(block.startLine, block.endLine)}` : composer.targetLabel);
     const selectedQuote = composer.selection ? textSelection.shortQuote(composer.selection.quote) : "";
     elements.commentSelectedQuote.hidden = !selectedQuote;
     elements.commentSelectedQuote.textContent = selectedQuote ? `“${selectedQuote}”` : "";
-    elements.commentSave.textContent = replying ? "Save reply" : "Save comment";
     elements.commentBody.value = composer.body;
     const detail = state.reviewError || state.reviewBlockError;
     const blocked = Boolean(detail);
@@ -2086,8 +2165,7 @@
     elements.commentComposer.setAttribute("aria-busy", String(state.reviewMutationPending));
     elements.commentBody.readOnly = controls.bodyReadOnly;
     elements.commentBody.disabled = controls.bodyDisabled;
-    const action = replying ? "reply" : "comment";
-    elements.commentBodyHelp.textContent = state.reviewMutationPending ? `Saving ${action}` : (error || "16 KiB maximum.");
+    elements.commentBodyHelp.textContent = state.reviewMutationPending ? "Saving comment" : (error || "16 KiB maximum.");
     elements.commentSave.disabled = controls.saveDisabled;
     elements.commentCancel.disabled = controls.actionsDisabled;
     mountCommentComposer(composer);
@@ -2095,7 +2173,7 @@
   }
 
   function commentBlockKey(comment) {
-    if (!comment || comment.outdated) return "";
+    if (!comment || comment.outdated || comment.status === "resolved") return "";
     return comment.currentBlockKey || comment.anchor?.blockKey || "";
   }
 
@@ -2175,9 +2253,10 @@
     if (quote) select.append(quote);
     select.append(body);
     if (comment.replies.length) select.append(makeCommentReplies(comment, true));
-    const host = document.createElement("div");
-    host.className = "comment-composer-host";
-    bubble.append(select, makeCommentActions(comment, "block"), host);
+    const { replyActions, stateAction } = makeCommentActions(comment, "block");
+    bubble.append(select);
+    if (replyActions) bubble.append(replyActions);
+    if (stateAction) bubble.append(stateAction);
     return bubble;
   }
 
@@ -2214,6 +2293,7 @@
         : "";
     }
     syncBlockReviewVisibility();
+    growReplyInputs(elements.document);
     updateOutline();
     if (state.activeCommentID && !state.reviewComments.some((comment) => comment.id === state.activeCommentID)) {
       state.activeCommentID = "";
@@ -2229,12 +2309,53 @@
     state.reviewSourceHash = view.sourceHash;
     resolveCommentTextRanges(view.comments);
     state.reviewComments = view.comments;
+    const activeComment = view.comments.find((comment) => comment.id === state.activeCommentID);
+    if (activeComment) state.activeBlockKey = commentBlockKey(activeComment);
+    const replyable = new Set(
+      view.comments.filter((comment) => comment.status !== "resolved").map((comment) => comment.id),
+    );
+    for (const commentID of state.reviewReplyDrafts.keys()) {
+      if (!replyable.has(commentID)) state.reviewReplyDrafts.delete(commentID);
+    }
     state.reviewError = "";
     state.reviewErrorNeedsRender = false;
   }
 
+  function demoReviewPayload() {
+    const reviewStatus = state.demoReviewComments.length ? "comments" : "needs_review";
+    return {
+      schemaVersion: 1,
+      revision: state.demoReviewRevision,
+      document: {
+        id: demoDocumentPath,
+        path: demoDocumentPath,
+        title: displayName(demoDocumentPath),
+        sourceHash: state.reviewSourceHash,
+        reviewStatus,
+      },
+      comments: state.demoReviewComments,
+    };
+  }
+
+  function applyDemoReviewView() {
+    applyReviewView(validateReviewView(demoReviewPayload(), demoDocumentPath));
+  }
+
   async function loadReview(options = {}) {
     if (!state.reviewEnabled || !reviewAvailable()) return;
+    if (isDemoReview()) {
+      if (state.demoReviewSourceHash !== state.reviewSourceHash) {
+        state.demoReviewComments = [];
+        state.demoReviewRevision = 0;
+        state.demoReviewSourceHash = state.reviewSourceHash;
+      }
+      state.reviewLoading = false;
+      state.reviewError = "";
+      state.reviewErrorNeedsRender = false;
+      applyDemoReviewView();
+      renderReviewInterface({ preserveFocus: options.automatic === true });
+      return;
+    }
     const token = ++state.reviewLoadToken;
     const path = state.currentPath;
     state.reviewLoading = true;
@@ -2298,6 +2419,7 @@
     }
     syncReviewPanelMode();
     updateBlockCommentControls();
+    if (open) growReplyInputs(elements.reviewComments);
     if (open) {
       window.requestAnimationFrame(() => elements.reviewPanelTitle.focus());
     } else if (restoreFocus && !elements.reviewButton.hidden) {
@@ -2360,24 +2482,6 @@
     return true;
   }
 
-  function openReplyComposer(commentID, location, returnFocusKey) {
-    const comment = state.reviewComments.find((candidate) => candidate.id === commentID);
-    if (!comment || comment.status === "resolved" || !canAddComment()) return;
-    state.activeCommentID = commentID;
-    state.activeBlockKey = commentBlockKey(comment);
-    state.reviewComposer = {
-      kind: "reply",
-      commentID,
-      location,
-      body: "",
-      baseHash: state.reviewSourceHash,
-      returnFocusKey,
-    };
-    syncActiveComment();
-    renderCommentComposer();
-    window.requestAnimationFrame(() => elements.commentBody.focus());
-  }
-
   function composerReturnKey(composer) {
     return composer?.returnFocusKey || "";
   }
@@ -2411,6 +2515,101 @@
     else if (!elements.reviewButton.hidden) elements.reviewButton.focus();
   }
 
+  function copyDemoComment(comment) {
+    const copy = {
+      id: comment.id,
+      body: comment.body,
+      status: comment.status,
+      baseHash: comment.baseHash,
+      outdated: comment.outdated,
+      anchor: comment.anchor ? { ...comment.anchor, headingPath: [...comment.anchor.headingPath] } : null,
+      currentLocation: comment.currentLocation ? { ...comment.currentLocation } : null,
+      currentBlockKey: comment.currentBlockKey,
+      replies: comment.replies.map((reply) => ({ ...reply })),
+    };
+    if (comment.textRange) {
+      copy.textRange = {
+        ...comment.textRange,
+        anchors: comment.textRange.anchors.map((anchor) => ({ ...anchor, headingPath: [...anchor.headingPath] })),
+        currentBlockKeys: comment.textRange.currentBlockKeys
+          ? [...comment.textRange.currentBlockKeys]
+          : null,
+      };
+    }
+    return copy;
+  }
+
+  function demoAnchorForBlock(block) {
+    return {
+      blockKey: block.key,
+      kind: block.kind,
+      startLine: block.startLine,
+      endLine: block.endLine,
+      headingPath: [],
+      quote: "",
+    };
+  }
+
+  function applyDemoReviewMutation(comments, mutation, blocks, sourceHash, createdAt, ids) {
+    const next = comments.map(copyDemoComment);
+    if (mutation.action === "add") {
+      const blockKeys = mutation.selection?.blockKeys || [mutation.blockKey];
+      const selectedBlocks = blockKeys.map((key) => blocks.get(key));
+      if (!blockKeys.length || selectedBlocks.some((block) => !block)) return null;
+      const anchors = selectedBlocks.map(demoAnchorForBlock);
+      const first = selectedBlocks[0];
+      const last = selectedBlocks.at(-1);
+      const comment = {
+        id: ids.comment,
+        body: mutation.body,
+        status: "open",
+        baseHash: sourceHash,
+        outdated: false,
+        anchor: anchors[0],
+        currentLocation: { startLine: first.startLine, endLine: last.endLine },
+        currentBlockKey: first.key,
+        replies: [],
+      };
+      if (mutation.selection) {
+        comment.textRange = {
+          version: mutation.selection.version,
+          anchors,
+          startOffset: mutation.selection.startOffset,
+          endOffset: mutation.selection.endOffset,
+          quote: mutation.selection.quote,
+          currentBlockKeys: [...blockKeys],
+        };
+      }
+      next.push(comment);
+      return { comment, comments: next };
+    }
+
+    const comment = next.find((candidate) => candidate.id === mutation.commentID);
+    if (!comment) return null;
+    if (mutation.action === "reply") {
+      if (comment.status === "resolved") return null;
+      comment.replies.push({ id: ids.reply, body: mutation.body, author: "reviewer", createdAt });
+      comment.status = "open";
+    } else if (mutation.action === "resolve") {
+      if (!["open", "addressed"].includes(comment.status)) return null;
+      comment.status = "resolved";
+    } else if (mutation.action === "reopen") {
+      if (!["addressed", "resolved"].includes(comment.status)) return null;
+      comment.status = "open";
+    } else {
+      return null;
+    }
+    return { comment, comments: next };
+  }
+
+  function nextDemoReviewID(prefix) {
+    state.demoReviewSequence += 1;
+    const value = `${Date.now().toString(16)}${state.demoReviewSequence.toString(16).padStart(8, "0")}`
+      .slice(-24)
+      .padStart(24, "0");
+    return `${prefix}_${value}`;
+  }
+
   function reviewMutationBody(extra = {}) {
     return {
       path: state.currentPath,
@@ -2440,6 +2639,36 @@
     state.reviewError = "";
     renderReviewInterface();
     try {
+      if (isDemoReview()) {
+        const result = applyDemoReviewMutation(
+          state.demoReviewComments,
+          options.demoMutation,
+          state.reviewBlocks,
+          state.reviewSourceHash,
+          new Date().toISOString(),
+          {
+            comment: nextDemoReviewID("comment"),
+            reply: nextDemoReviewID("reply"),
+          },
+        );
+        if (!result) throw new Error("This demo comment action is not available.");
+        if (!isCurrent()) return false;
+        state.demoReviewComments = result.comments;
+        state.demoReviewRevision += 1;
+        options.beforeRefresh?.({ comment: result.comment });
+        applyDemoReviewView();
+        if (options.demoMessage || options.message) {
+          elements.reviewLiveStatus.textContent = options.demoMessage || options.message;
+        }
+        if (options.focusKey) {
+          window.requestAnimationFrame(() => {
+            if (!isCurrent()) return;
+            if (!focusByKey(options.focusKey)) elements.reviewPanelTitle.focus();
+          });
+        }
+        return true;
+      }
+
       const response = await fetchJSON(endpoint, reviewPOST(body));
       if (!isCurrent()) return false;
       options.beforeRefresh?.(response);
@@ -2500,22 +2729,93 @@
       return;
     }
     const returnKey = composerReturnKey(composer);
-    const replying = composer.kind === "reply";
-    const endpoint = replying ? "/api/control/review/comments/reply" : "/api/control/review/comments/add";
-    const extra = replying
-      ? { body, commentId: composer.commentID }
-      : (composer.selection ? { body, selection: composer.selection } : { body, blockKey: composer.blockKey });
-    await mutateReview(endpoint, reviewMutationBody(extra), {
-      message: replying ? "Reply published" : "Comment published",
+    const extra = composer.selection ? { body, selection: composer.selection } : { body, blockKey: composer.blockKey };
+    await mutateReview("/api/control/review/comments/add", reviewMutationBody(extra), {
+      message: "Comment published",
+      demoMessage: "Demo comment added",
+      demoMutation: {
+        action: "add",
+        body,
+        blockKey: composer.blockKey,
+        selection: composer.selection,
+      },
       focusKey: returnKey,
       beforeRefresh(response) {
         state.reviewComposer = null;
-        state.activeCommentID = response.comment?.id || composer.commentID || "";
-        state.activeBlockKey = replying
-          ? commentBlockKey(state.reviewComments.find((comment) => comment.id === composer.commentID))
-          : composer.blockKey;
+        state.activeCommentID = response.comment?.id || "";
+        state.activeBlockKey = composer.blockKey;
       },
     });
+  }
+
+  async function saveDirectReply(field) {
+    const commentID = field?.dataset.replyCommentId || "";
+    const location = field?.dataset.replyLocation || "";
+    const comment = state.reviewComments.find((candidate) => candidate.id === commentID);
+    if (!comment || comment.status === "resolved" || !location || !canAddComment()) return;
+    const body = state.reviewReplyDrafts.get(commentID) ?? field.value;
+    const error = reviewTextError(body);
+    if (error) {
+      const message = error === "Enter a comment." ? "Enter a reply." : error;
+      field.setCustomValidity(message);
+      field.reportValidity();
+      return;
+    }
+    field.setCustomValidity("");
+    activateComment(commentID);
+    const focusKey = field.dataset.focusKey || "";
+    const success = await mutateReview(
+      "/api/control/review/comments/reply",
+      reviewMutationBody({ body, commentId: commentID }),
+      {
+        message: "Reply published",
+        demoMessage: "Demo reply added",
+        demoMutation: { action: "reply", body, commentID },
+        focusKey,
+        beforeRefresh() {
+          state.reviewReplyDrafts.delete(commentID);
+          state.activeCommentID = commentID;
+          state.activeBlockKey = commentBlockKey(comment);
+        },
+      },
+    );
+    if (!success) window.requestAnimationFrame(() => focusByKey(focusKey));
+  }
+
+  function handleDirectReplyInput(event) {
+    const field = event.target.closest(".comment-reply-input");
+    if (!field) return;
+    const commentID = field.dataset.replyCommentId || "";
+    state.reviewReplyDrafts.set(commentID, field.value);
+    const error = reviewTextError(field.value, true);
+    const submitError = reviewTextError(field.value);
+    for (const peer of document.querySelectorAll(".comment-reply-input")) {
+      if (peer.dataset.replyCommentId !== commentID) continue;
+      if (peer !== field) peer.value = field.value;
+      peer.setCustomValidity(error);
+      peer.setAttribute("aria-invalid", String(Boolean(error)));
+      const submit = peer.closest(".comment-reply-shell")?.querySelector(".comment-reply-submit");
+      if (submit) submit.disabled = !canAddComment() || Boolean(submitError);
+      growReplyInput(peer);
+    }
+  }
+
+  function handleDirectReplyKeydown(event) {
+    const field = event.target.closest(".comment-reply-input");
+    if (!field || !directReplySubmitShortcut(event)) return;
+    event.preventDefault();
+    void saveDirectReply(field);
+  }
+
+  function handleDirectReplyClick(event) {
+    const button = event.target.closest(".comment-reply-submit");
+    const field = button?.closest(".comment-reply-shell")?.querySelector(".comment-reply-input");
+    if (field) void saveDirectReply(field);
+  }
+
+  function handleDirectReplyFocus(event) {
+    const field = event.target.closest(".comment-reply-input");
+    if (field) activateComment(field.dataset.replyCommentId || "");
   }
 
   async function changeCommentState(commentID, action, focusKey) {
@@ -2526,6 +2826,8 @@
     state.activeBlockKey = commentBlockKey(comment);
     await mutateReview(`/api/control/review/comments/${action}`, reviewMutationBody({ commentId: commentID }), {
       message: action === "resolve" ? "Comment resolved" : "Comment reopened",
+      demoMessage: action === "resolve" ? "Demo comment resolved" : "Demo comment reopened",
+      demoMutation: { action, commentID },
       focusKey,
     });
   }
@@ -2536,11 +2838,7 @@
     const location = button?.dataset.actionLocation || "";
     if (!commentID || !action || !location) return false;
     activateComment(commentID);
-    if (action === "reply") {
-      openReplyComposer(commentID, location, button.dataset.focusKey || "");
-    } else {
-      void changeCommentState(commentID, action, button.dataset.focusKey || "");
-    }
+    void changeCommentState(commentID, action, button.dataset.focusKey || "");
     return true;
   }
 
@@ -2967,6 +3265,7 @@
     window.__MDSHELF_TEST_API__ = {
       addCodeBlockTools,
       addHeadingPermalinks,
+      applyDemoReviewMutation,
       buildRoute,
       codeBlockText,
       blockCommentTapAction,
@@ -2978,6 +3277,7 @@
       commentComposerEscapeAction,
       commentCountsByBlockKey,
       commentSubmitShortcut,
+      directReplySubmitShortcut,
       cancelDocumentLoad,
       appearanceElement: elements.appearance,
       designElement: elements.design,
@@ -2986,6 +3286,7 @@
       initializeMermaid,
       isCurrentLoad,
       isDocumentAvailable,
+      isNavigationBlock,
       listNavigationIndex,
       planLiveChanges,
       readingShortcutAction,
@@ -2996,6 +3297,7 @@
       reviewStatusLabel,
       rootElement: document.documentElement,
       selectionCommentActionDescriptor,
+      selectionCommentActionPosition,
       selectionCommentLiveDescriptor,
       setAppearance,
       setDesign,
@@ -3165,13 +3467,21 @@
     void saveComment();
   });
   elements.commentCancel.addEventListener("click", () => closeCommentComposer());
+  for (const root of [elements.document, elements.reviewComments]) {
+    root.addEventListener("click", handleDirectReplyClick);
+    root.addEventListener("input", handleDirectReplyInput);
+    root.addEventListener("keydown", handleDirectReplyKeydown);
+    root.addEventListener("focusin", handleDirectReplyFocus);
+  }
   elements.reviewComments.addEventListener("click", (event) => {
     const commentAction = event.target.closest("[data-comment-action]");
     if (handleCommentAction(commentAction)) return;
     const button = event.target.closest("[data-select-comment-id]");
     if (!button) return;
     const commentID = button.dataset.selectCommentId;
-    activateComment(commentID, true);
+    const comment = state.reviewComments.find((candidate) => candidate.id === commentID);
+    activateComment(commentID, comment?.status !== "resolved");
+    if (comment?.status === "resolved") return;
     if (!reviewWide.matches) {
       setReviewPanel(false, false);
       window.requestAnimationFrame(() => {

@@ -9,12 +9,12 @@
     <title>MDShelf</title>
     <link rel="stylesheet" href="./vendor/fonts/fonts.css?v=1">
     <link rel="stylesheet" href="./vendor/katex/katex.min.css?v=0.18.4">
-    <link rel="stylesheet" href="./app.css?v=31">
+    <link rel="stylesheet" href="./app.css?v=42">
     <link rel="stylesheet" href="./chroma.css?v=2">
     <script defer src="./vendor/katex/katex.min.js?v=0.18.4"></script>
     <script defer src="./vendor/mermaid.min.js?v=11.17.2"></script>
-    <script defer src="./text-selection.js?v=2"></script>
-    <script defer src="./app.js?v=32"></script>
+    <script defer src="./text-selection.js?v=3"></script>
+    <script defer src="./app.js?v=41"></script>
   </head>
   <body>
     <a class="skip-link" href="#reader">Skip to document</a>
@@ -159,9 +159,16 @@
       class="selection-comment-action"
       id="selection-comment-action"
       type="button"
+      aria-label="Comment on selected text"
       aria-keyshortcuts="c"
       hidden
-    >Comment</button>
+    >
+      <svg class="selection-comment-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="7.5" cy="12" r="1.35"></circle>
+        <circle cx="12" cy="12" r="1.35"></circle>
+        <circle cx="16.5" cy="12" r="1.35"></circle>
+      </svg>
+    </button>
 
     <aside class="outline-rail" id="outline-rail" aria-label="Document outline" hidden>
       <p class="rail-label" id="outline-label">Outline</p>
@@ -214,11 +221,20 @@
       <p id="comment-target"></p>
       <blockquote class="comment-selected-quote" id="comment-selected-quote" hidden></blockquote>
       <label class="sr-only" for="comment-body">Comment</label>
-      <textarea id="comment-body" rows="2" aria-describedby="comment-body-help comment-error"></textarea>
+      <div class="comment-input-shell">
+        <textarea id="comment-body" rows="2" aria-describedby="comment-body-help comment-error"></textarea>
+        <button
+          class="comment-submit-icon"
+          id="comment-save"
+          type="submit"
+          aria-label="Save comment"
+          aria-describedby="comment-error"
+          title="Save comment"
+        ><span aria-hidden="true">↑</span></button>
+      </div>
       <p class="comment-error" id="comment-error" role="alert" hidden></p>
       <p class="review-help" id="comment-body-help">16 KiB maximum.</p>
       <div class="review-actions">
-        <button id="comment-save" type="submit" aria-describedby="comment-error">Save comment</button>
         <button id="comment-cancel" type="button">Cancel</button>
       </div>
     </form>
