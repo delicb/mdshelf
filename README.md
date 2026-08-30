@@ -230,6 +230,8 @@ Appearance is System, Light, or Dark. Each design has a light and a dark palette
 
 Press `?` to show all keyboard shortcuts.
 
+Single-key shortcuts can be turned off in Settings; `Escape`, `Tab`, and Command/Ctrl-K always stay active.
+
 | Keys | Action |
 | :--- | :--- |
 | Arrow keys or `h`, `j`, `k`, `l` | Move between Markdown blocks |

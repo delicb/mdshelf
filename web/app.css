@@ -3167,3 +3167,167 @@ body.review-overlay {
     margin-right: 0;
   }
 }
+
+/* =====================================================================
+   Appended: frontend fixes & UX
+   Keyboard-shortcut toggle, live-update status, persistent action
+   errors, reopen buttons, and unsent-comment drafts. Kept in one block
+   so parallel palette work stays untouched.
+   ===================================================================== */
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.settings-toggle input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  accent-color: var(--accent-strong);
+}
+
+.settings-hint kbd,
+.shortcut-dialog-note kbd {
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+.shortcut-dialog-note {
+  margin: 1rem 0 0;
+  color: var(--text-faint);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.connection-notice {
+  position: fixed;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 40;
+  max-width: min(24rem, calc(100vw - 1.5rem));
+  padding: 0.55rem 0.85rem;
+  margin: 0;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--warn);
+  border-radius: 0.55rem;
+  box-shadow: var(--shadow);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.action-error {
+  position: fixed;
+  top: calc(var(--header-height) + 0.75rem);
+  left: 50%;
+  z-index: 45;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  max-width: min(28rem, calc(100vw - 1.5rem));
+  padding: 0.6rem 0.5rem 0.6rem 0.85rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--stop);
+  border-radius: 0.55rem;
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+}
+
+.action-error-message {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.action-error-dismiss {
+  display: grid;
+  width: 1.75rem;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0;
+  place-items: center;
+  color: var(--text-soft);
+  background: none;
+  border: 0;
+  border-radius: 0.45rem;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.action-error-dismiss:hover,
+.action-error-dismiss:focus-visible {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+/* Resolved threads carry a reopen button now, so restore the room the
+   base .review-thread padding reserves for the state action. */
+.review-thread.is-resolved {
+  padding-right: 3rem;
+}
+
+.comment-state-action.comment-state-reopen {
+  font-size: 0.95rem;
+}
+
+.review-draft-notice {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.7rem 0.8rem;
+  margin: 0 0 0.9rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 0.65rem;
+}
+
+.review-draft-title {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.review-draft-body {
+  max-height: 8rem;
+  margin: 0;
+  color: var(--text);
+  font-size: 0.85rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.review-draft-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.review-draft-actions button {
+  min-height: 2rem;
+  padding: 0.25rem 0.7rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.review-draft-actions button:hover,
+.review-draft-actions button:focus-visible {
+  border-color: var(--accent);
+}
+
+.review-draft-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

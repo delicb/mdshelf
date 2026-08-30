@@ -433,7 +433,7 @@
   function planHighlightGroups(comments, activeID, available) {
     const current = [];
     let active = [];
-    let fallback = false;
+    if (!available) return { current, active };
     for (const comment of comments || []) {
       if (
         !comment?.textRange
@@ -442,12 +442,10 @@
         || comment.outdated
         || !Array.isArray(comment.ranges)
       ) continue;
-      if (available) current.push(...comment.ranges);
-      if (comment.id !== activeID) continue;
-      if (available) active = [...comment.ranges];
-      else fallback = comment.ranges.length > 0;
+      current.push(...comment.ranges);
+      if (comment.id === activeID) active = [...comment.ranges];
     }
-    return { current, active, fallback };
+    return { current, active };
   }
 
   function pointInRange(range, x, y) {
@@ -520,10 +518,6 @@
     return ((target.top + target.bottom) / 2) - ((top + bottom) / 2);
   }
 
-  function shortcutCommentTarget(selectionDescriptor, activeBlockKey) {
-    return selectionDescriptor ? "selection" : (activeBlockKey ? "block" : "none");
-  }
-
   const api = {
     buildIndex,
     canonicalBlock,
@@ -550,7 +544,6 @@
     requestSelection,
     selectionForGeneration,
     shortQuote,
-    shortcutCommentTarget,
     slicesForRange,
     splitsSurrogate,
     supportsHighlights,

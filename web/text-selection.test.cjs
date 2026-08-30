@@ -383,10 +383,7 @@ test("Text range reconstruction keeps line-break offsets without marking break n
   assert.deepEqual(rebuilt.ranges.map((range) => range.startContainer), [first, second]);
 });
 
-test("Selection state prefers a live selection and keeps captured request data", () => {
-  assert.equal(textSelection.shortcutCommentTarget({ quote: "selected" }, "block"), "selection");
-  assert.equal(textSelection.shortcutCommentTarget(null, "block"), "block");
-  assert.equal(textSelection.shortcutCommentTarget(null, ""), "none");
+test("Selection state keeps captured request data immutable", () => {
   const descriptor = {
     version: 1,
     blockKeys: ["first"],
@@ -454,7 +451,7 @@ test("Text comment hit testing follows visible marks and cycles overlapping comm
   assert.equal(textSelection.pointInRange(marked, Number.NaN, 15), false);
 });
 
-test("Highlight groups separate current and active ranges with a fallback", () => {
+test("Highlight groups separate current and active ranges", () => {
   const openRange = { id: "open" };
   const resolvedRange = { id: "resolved" };
   const comments = [
@@ -464,19 +461,14 @@ test("Highlight groups separate current and active ranges with a fallback", () =
   assert.deepEqual(textSelection.planHighlightGroups(comments, "two", true), {
     current: [openRange],
     active: [],
-    fallback: false,
+  });
+  assert.deepEqual(textSelection.planHighlightGroups(comments, "one", true), {
+    current: [openRange],
+    active: [openRange],
   });
   assert.deepEqual(textSelection.planHighlightGroups(comments, "one", false), {
     current: [],
     active: [],
-    fallback: true,
-  });
-  assert.deepEqual(textSelection.planHighlightGroups([
-    { id: "block", status: "open", textRange: null, ranges: [], outdated: false, rangeUnavailable: false },
-  ], "block", false), {
-    current: [],
-    active: [],
-    fallback: false,
   });
   assert.equal(textSelection.supportsHighlights({
     CSS: { highlights: new Map(), supports: () => true },

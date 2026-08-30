@@ -105,6 +105,11 @@
                 <option value="tokyonight-night">Tokyo Night</option>
               </select>
             </label>
+            <label class="settings-toggle" for="keyboard-shortcuts">
+              <span>Keyboard shortcuts</span>
+              <input id="keyboard-shortcuts" type="checkbox" checked>
+            </label>
+            <p class="settings-hint" id="keyboard-shortcuts-hint">Single-key shortcuts such as <kbd>j</kbd>, <kbd>k</kbd>, <kbd>/</kbd>, <kbd>r</kbd>, <kbd>c</kbd>, <kbd>?</kbd> and arrow-key block navigation. <kbd>Esc</kbd>, <kbd>Tab</kbd>, and <kbd>&#8984;K</kbd>/<kbd>Ctrl K</kbd> always stay active.</p>
           </section>
         </div>
       </div>
@@ -295,9 +300,17 @@
           </dl>
         </section>
       </div>
+      <p class="shortcut-dialog-note">Single-key shortcuts can be turned off in Settings. <kbd>Esc</kbd>, <kbd>Tab</kbd>, and <kbd>&#8984;K</kbd>/<kbd>Ctrl K</kbd> always stay active.</p>
     </section>
 
     <p class="update-notice" id="update-notice" role="status" aria-live="polite" aria-atomic="true"></p>
+    <p class="connection-notice" id="connection-notice" role="status" aria-live="polite" aria-atomic="true" hidden></p>
+    <div class="action-error" id="action-error" role="alert" hidden>
+      <p class="action-error-message" id="action-error-message"></p>
+      <button class="action-error-dismiss" id="action-error-dismiss" type="button" aria-label="Dismiss error">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
     <p class="sr-only" id="review-live-status" role="status" aria-live="polite" aria-atomic="true"></p>
     <p class="sr-only" id="route-status" aria-live="polite" aria-atomic="true"></p>
     <noscript>
