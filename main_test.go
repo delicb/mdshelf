@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"net"
+	"net/http"
 	"strings"
 	"testing"
 )
@@ -77,6 +79,32 @@ func TestParseOptions(t *testing.T) {
 				t.Fatalf("parseOptions() = %#v, want %#v", got, test.want)
 			}
 		})
+	}
+}
+
+func TestShutdownAdHocServer(t *testing.T) {
+	a, err := newAppWithWatcher(t.TempDir(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := &http.Server{Handler: a.Handler()}
+	serveDone := make(chan error, 1)
+	go func() { serveDone <- server.Serve(listener) }()
+
+	shutdownAdHocServer(server, a)
+
+	if err := <-serveDone; !errors.Is(err, http.ErrServerClosed) {
+		t.Fatalf("Serve() error = %v, want http.ErrServerClosed", err)
+	}
+	a.updates.mu.Lock()
+	closed := a.updates.closed
+	a.updates.mu.Unlock()
+	if !closed {
+		t.Fatal("live updates are not closed after shutdown")
 	}
 }
 

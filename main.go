@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -9,8 +10,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"sort"
 	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -97,10 +100,34 @@ func serveAdHoc(options options) error {
 	for _, address := range networkURLs(port) {
 		log.Printf("Network: %s", address)
 	}
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return err
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	serveDone := make(chan error, 1)
+	go func() { serveDone <- server.ListenAndServe() }()
+	select {
+	case err := <-serveDone:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
+	case <-ctx.Done():
 	}
+	stop()
+	log.Printf("mdshelf is shutting down")
+	shutdownAdHocServer(server, a)
+	<-serveDone
 	return nil
+}
+
+// shutdownAdHocServer drains open requests, then closes the app's file watcher.
+func shutdownAdHocServer(server *http.Server, a *app) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		_ = server.Close()
+	}
+	a.Close()
 }
 
 func parseOptions(args []string, output io.Writer) (options, error) {

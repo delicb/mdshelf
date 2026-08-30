@@ -12,11 +12,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/yuin/goldmark"
@@ -86,6 +88,8 @@ func newDaemonServerWithUpdaterOptions(stateDir string, updaterOptions daemonUpd
 }
 
 func (d *daemonServer) close() { d.updater.close() }
+
+func (d *daemonServer) requestStop() { d.stopOnce.Do(func() { close(d.stop) }) }
 
 func (d *daemonServer) routes(static http.Handler) http.Handler {
 	mux := http.NewServeMux()
@@ -184,7 +188,15 @@ func serveDaemon(stateDir string) error {
 	} else {
 		log.Printf("MDShelf daemon listens on %s", daemonBaseURL(d.config.Port))
 	}
-	<-d.stop
+	signalCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
+	select {
+	case <-d.stop:
+	case <-signalCtx.Done():
+		stopSignals()
+		log.Printf("MDShelf daemon is shutting down")
+		d.requestStop()
+	}
 	_ = listener.Close()
 	d.close()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -487,7 +499,7 @@ func (d *daemonServer) handleControlStop(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, struct {
 		Stopping bool `json:"stopping"`
 	}{Stopping: true})
-	d.stopOnce.Do(func() { close(d.stop) })
+	d.requestStop()
 }
 
 func (d *daemonServer) decodeControl(w http.ResponseWriter, r *http.Request, target any) bool {
