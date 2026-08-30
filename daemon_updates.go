@@ -78,10 +78,6 @@ type daemonUpdaterOptions struct {
 	sameDirectory  func(string, os.FileInfo) bool
 }
 
-func newDaemonUpdater(registryPath string, registry registryFile) *daemonUpdater {
-	return newDaemonUpdaterWithOptions(registryPath, registry, daemonUpdaterOptions{})
-}
-
 func newDaemonUpdaterWithOptions(registryPath string, registry registryFile, options daemonUpdaterOptions) *daemonUpdater {
 	if options.readDocument == nil {
 		options.readDocument = readDaemonDocument

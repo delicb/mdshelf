@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -359,7 +360,7 @@ func matchBlockAnchor(baseHash, currentHash string, anchor *blockAnchor, blocks 
 
 	matchingHeading := make([]markdownBlock, 0, 1)
 	for _, block := range blocks {
-		if block.BlockHash == anchor.BlockHash && slicesEqual(block.HeadingPath, anchor.HeadingPath) {
+		if block.BlockHash == anchor.BlockHash && slices.Equal(block.HeadingPath, anchor.HeadingPath) {
 			matchingHeading = append(matchingHeading, block)
 		}
 	}
@@ -412,15 +413,3 @@ func matchTextRangeAnchors(baseHash, currentHash string, anchors []blockAnchor, 
 }
 
 func stringPointer(value string) *string { return &value }
-
-func slicesEqual(left, right []string) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for index := range left {
-		if left[index] != right[index] {
-			return false
-		}
-	}
-	return true
-}

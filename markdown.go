@@ -79,7 +79,6 @@ func renderDemo(markdown goldmark.Markdown) (renderedMarkdown, error) {
 type renderedMarkdown struct {
 	title      string
 	html       string
-	metadata   map[string]any
 	sourceHash string
 	blocks     []markdownBlock
 }
@@ -122,7 +121,6 @@ func renderMarkdownWithOptions(markdown goldmark.Markdown, source []byte, docume
 	return renderedMarkdown{
 		title:      title,
 		html:       injectMetadata(output.String(), frontMatter.fields),
-		metadata:   frontMatter.values,
 		sourceHash: sourceHash(originalSource),
 		blocks:     blocks,
 	}, nil

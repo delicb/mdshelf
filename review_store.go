@@ -211,10 +211,6 @@ func reviewStatusForDocument(stored documentReview, currentHash string, removed 
 	return documentReviewComments
 }
 
-func (s *reviewStore) addComment(document reviewDocumentContext, expectedRevision uint64, expectedSourceHash, body, blockKey string) (documentReview, reviewComment, error) {
-	return s.addCommentWithSelection(document, expectedRevision, expectedSourceHash, body, blockKey, nil)
-}
-
 func (s *reviewStore) addCommentWithSelection(document reviewDocumentContext, expectedRevision uint64, expectedSourceHash, body, blockKey string, selection *reviewSelectionRequest) (documentReview, reviewComment, error) {
 	if err := validateReviewText(body, maxReviewTextBytes, false, "comment body"); err != nil {
 		return documentReview{}, reviewComment{}, reviewInputTextError(body, maxReviewTextBytes, err)

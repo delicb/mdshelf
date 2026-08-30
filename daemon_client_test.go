@@ -3,10 +3,17 @@ package main
 import (
 	"bytes"
 	"errors"
+	"io"
 	"reflect"
 	"testing"
 	"time"
 )
+
+// runDaemonCommandWithDeps is a test shorthand for runDaemonCommandWithOutputs
+// that discards stderr.
+func runDaemonCommandWithDeps(command string, args []string, stdout io.Writer, deps daemonCommandDeps) error {
+	return runDaemonCommandWithOutputs(command, args, stdout, io.Discard, deps)
+}
 
 func TestDaemonAddStartsOnlyWhenNotRunning(t *testing.T) {
 	path := mustWriteFile(t, t.TempDir(), "note.md", "# Note\n")
