@@ -1,0 +1,14 @@
+{
+  "name": "mdshelf-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Browser smoke tests for the MDShelf web frontend",
+  "scripts": {
+    "test": "playwright test",
+    "lint": "cd .. && eslint --config web/eslint.config.mjs \"web/*.js\""
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "eslint": "9.39.5"
+  }
+}
