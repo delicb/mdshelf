@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"net"
@@ -240,16 +239,7 @@ func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusInternalServerError, "could not render demo")
 			return
 		}
-		writeJSON(w, http.StatusOK, struct {
-			Path       string                  `json:"path"`
-			Title      string                  `json:"title"`
-			HTML       string                  `json:"html"`
-			SourceHash string                  `json:"sourceHash"`
-			Blocks     []markdownBlockResponse `json:"blocks"`
-		}{
-			Path: demoDocumentPath, Title: rendered.title, HTML: rendered.html,
-			SourceHash: rendered.sourceHash, Blocks: markdownBlockResponses(rendered.blocks),
-		})
+		writeJSON(w, http.StatusOK, newRenderResponse(demoDocumentPath, "", rendered))
 		return
 	}
 	d.updater.mu.Lock()
@@ -281,21 +271,7 @@ func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, "could not render Markdown file")
 		return
 	}
-	writeJSON(w, http.StatusOK, struct {
-		Path         string                  `json:"path"`
-		AbsolutePath string                  `json:"absolutePath"`
-		Title        string                  `json:"title"`
-		HTML         string                  `json:"html"`
-		SourceHash   string                  `json:"sourceHash"`
-		Blocks       []markdownBlockResponse `json:"blocks"`
-	}{
-		Path:         document.ID,
-		AbsolutePath: displayDocumentPath(document.Path),
-		Title:        rendered.title,
-		HTML:         rendered.html,
-		SourceHash:   rendered.sourceHash,
-		Blocks:       markdownBlockResponses(rendered.blocks),
-	})
+	writeJSON(w, http.StatusOK, newRenderResponse(document.ID, displayDocumentPath(document.Path), rendered))
 }
 
 func (d *daemonServer) handleAsset(w http.ResponseWriter, r *http.Request) {
@@ -340,25 +316,7 @@ func (d *daemonServer) handleAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-	var header [512]byte
-	n, err := io.ReadFull(file, header[:])
-	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
-		writeJSONError(w, http.StatusInternalServerError, "could not read image")
-		return
-	}
-	detectedType := http.DetectContentType(header[:n])
-	if detectedType != expectedType {
-		writeJSONError(w, http.StatusUnsupportedMediaType, "file content is not a supported image")
-		return
-	}
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "could not read image")
-		return
-	}
-	w.Header().Set("Cache-Control", "private, no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
-	w.Header().Set("Content-Type", detectedType)
-	http.ServeContent(w, r, path.Base(cleanPath), info.ModTime(), file)
+	serveRasterImage(w, r, file, info, cleanPath, expectedType)
 }
 
 func (d *daemonServer) handleWatch(w http.ResponseWriter, r *http.Request) {
@@ -560,45 +518,7 @@ func writeControlError(w http.ResponseWriter, err error) {
 }
 
 func cleanDaemonAssetPath(rawPath string) (string, error) {
-	if rawPath == "" || strings.ContainsRune(rawPath, '\x00') || strings.Contains(rawPath, "\\") || strings.HasPrefix(rawPath, "/") {
-		return "", errInvalidPath
-	}
-	for _, part := range strings.Split(rawPath, "/") {
-		if part == "" || part == "." || part == ".." {
-			return "", errInvalidPath
-		}
-	}
-	clean := path.Clean(rawPath)
-	local := filepath.FromSlash(clean)
-	if clean == "." || filepath.IsAbs(local) || filepath.VolumeName(local) != "" {
-		return "", errInvalidPath
-	}
-	return clean, nil
-}
-
-func checkPathSegments(root, cleanPath string) error {
-	current := root
-	parts := strings.Split(cleanPath, "/")
-	for index, part := range parts {
-		current = filepath.Join(current, filepath.FromSlash(part))
-		info, err := os.Lstat(current)
-		if err != nil {
-			return err
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return errSymlink
-		}
-		if index < len(parts)-1 && !info.IsDir() {
-			return fs.ErrNotExist
-		}
-		if index == len(parts)-1 && !info.Mode().IsRegular() {
-			return errNotRegular
-		}
-	}
-	if !isWithinRoot(root, current) {
-		return errInvalidPath
-	}
-	return nil
+	return cleanRelativeFilePath(rawPath, true)
 }
 
 func writeDaemonOpenError(w http.ResponseWriter, err error, noun string) {
@@ -615,30 +535,16 @@ func writeDaemonOpenError(w http.ResponseWriter, err error, noun string) {
 }
 
 func rewriteDaemonImages(document ast.Node, registered *daemonDocument) {
-	_ = ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			return ast.WalkContinue, nil
-		}
-		image, ok := node.(*ast.Image)
-		if !ok {
-			return ast.WalkContinue, nil
-		}
-		destination, err := url.Parse(string(image.Destination))
-		if err != nil || destination.Scheme != "" || destination.Host != "" || destination.Path == "" {
-			return ast.WalkContinue, nil
-		}
-		imagePath, err := url.PathUnescape(destination.Path)
-		if err != nil || strings.Contains(imagePath, "\\") {
-			return ast.WalkContinue, nil
-		}
+	rewriteImages(document, func(imagePath string) *url.URL {
 		imagePath = path.Clean(strings.TrimPrefix(imagePath, "/"))
-		imagePath, err = cleanDaemonAssetPath(imagePath)
+		imagePath, err := cleanDaemonAssetPath(imagePath)
 		if err != nil {
-			return ast.WalkContinue, nil
+			return nil
 		}
-		asset := url.URL{Path: "/api/asset", RawQuery: url.Values{"doc": {registered.ID}, "path": {imagePath}}.Encode(), Fragment: destination.Fragment}
-		image.Destination = []byte(asset.String())
-		return ast.WalkContinue, nil
+		return &url.URL{
+			Path:     "/api/asset",
+			RawQuery: url.Values{"doc": {registered.ID}, "path": {imagePath}}.Encode(),
+		}
 	})
 }
 
