@@ -249,6 +249,8 @@ MDShelf has no sign-in screen. Anyone who can reach its port can read its Markdo
 
 Ad hoc mode listens on all network interfaces. Run it only on a network you trust, and stop it when you finish.
 
+Ad hoc mode accepts requests addressed to localhost or an IP address. Pass `-allow-hostname` for each other name you browse from, such as `mymachine.local`.
+
 Daemon mode accepts only local requests by default. Set `listenOnAllInterfaces` to accept network requests.
 
 MDShelf checks each request host and origin. Add each network hostname to `allowedHostnames`, or use an interface IP address.

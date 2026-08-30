@@ -35,6 +35,8 @@ const topLevelHelp = `Usage:
   mdshelf stop
 
 Options:
+  -allow-hostname value
+        allow ad-hoc requests addressed to this hostname (repeatable)
   -port int
         port to listen on in ad-hoc mode (default 7331)
 
@@ -42,8 +44,9 @@ Daemon mode uses http://localhost:7332 by default.
 `
 
 type options struct {
-	port int
-	root string
+	port             int
+	root             string
+	allowedHostnames []string
 }
 
 func main() {
@@ -88,7 +91,7 @@ func serveAdHoc(options options) error {
 	port := strconv.Itoa(options.port)
 	server := &http.Server{
 		Addr:              net.JoinHostPort("", port),
-		Handler:           a.Handler(),
+		Handler:           adHocHostPolicy(a.Handler(), options.allowedHostnames),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -135,6 +138,19 @@ func parseOptions(args []string, output io.Writer) (options, error) {
 	flags := flag.NewFlagSet("mdshelf", flag.ContinueOnError)
 	flags.SetOutput(output)
 	flags.IntVar(&parsed.port, "port", defaultPort, "port to listen on in ad-hoc mode")
+	flags.Func("allow-hostname", "allow ad-hoc requests addressed to this hostname (repeatable)", func(value string) error {
+		hostname, err := normalizeAllowedHostname(value)
+		if err != nil {
+			return err
+		}
+		for _, existing := range parsed.allowedHostnames {
+			if existing == hostname {
+				return nil
+			}
+		}
+		parsed.allowedHostnames = append(parsed.allowedHostnames, hostname)
+		return nil
+	})
 	flags.Usage = func() { fmt.Fprint(output, topLevelHelp) }
 
 	if err := flags.Parse(args); err != nil {
