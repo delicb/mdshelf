@@ -264,6 +264,26 @@ func (u *daemonUpdater) documentSnapshot() []*daemonDocument {
 	return result
 }
 
+// document returns a deep copy of the registered document with this ID, or
+// nil when the ID is unknown.
+func (u *daemonUpdater) document(id string) *daemonDocument {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return cloneDaemonDocument(u.documents[id])
+}
+
+// documentAndPaths returns a deep copy of the registered document with this
+// ID plus a snapshot of the path-to-ID table for link rewriting.
+func (u *daemonUpdater) documentAndPaths(id string) (*daemonDocument, map[string]string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	paths := make(map[string]string, len(u.paths))
+	for path, registeredID := range u.paths {
+		paths[path] = registeredID
+	}
+	return cloneDaemonDocument(u.documents[id]), paths
+}
+
 func (u *daemonUpdater) cloneDocument(identifier string) *daemonDocument {
 	u.mu.Lock()
 	defer u.mu.Unlock()

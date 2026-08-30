@@ -242,13 +242,7 @@ func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, newRenderResponse(demoDocumentPath, "", rendered))
 		return
 	}
-	d.updater.mu.Lock()
-	document := cloneDaemonDocument(d.updater.documents[id])
-	paths := make(map[string]string, len(d.updater.paths))
-	for filePath, registeredID := range d.updater.paths {
-		paths[filePath] = registeredID
-	}
-	d.updater.mu.Unlock()
+	document, paths := d.updater.documentAndPaths(id)
 	if document == nil {
 		writeJSONError(w, http.StatusNotFound, "Document not registered")
 		return
@@ -284,9 +278,7 @@ func (d *daemonServer) handleAsset(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "doc and path are required")
 		return
 	}
-	d.updater.mu.Lock()
-	document := cloneDaemonDocument(d.updater.documents[id])
-	d.updater.mu.Unlock()
+	document := d.updater.document(id)
 	if document == nil {
 		writeJSONError(w, http.StatusNotFound, "Document not registered")
 		return
@@ -395,9 +387,7 @@ func (d *daemonServer) handleControlRemove(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if request.ID != "" {
-		d.updater.mu.Lock()
-		document := cloneDaemonDocument(d.updater.documents[request.ID])
-		d.updater.mu.Unlock()
+		document := d.updater.document(request.ID)
 		if document == nil {
 			writeJSONError(w, http.StatusNotFound, "Document not registered")
 			return
