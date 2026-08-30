@@ -1,0 +1,34 @@
+version: "2"
+
+linters:
+  # The standard set: errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  disable:
+    # Temporary: parallel cleanup PRs are removing dead code. Re-enable
+    # unused once those land, so the linter does not fight the cleanup.
+    - unused
+  settings:
+    errcheck:
+      # Deferred Close calls and best-effort writes to stdout are
+      # accepted style in this codebase.
+      exclude-functions:
+        - (io.Closer).Close
+        - (io.ReadCloser).Close
+        - (*os.File).Close
+        - (*os.Root).Close
+        - (*mdshelf.rootedFile).Close
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    staticcheck:
+      checks:
+        - all
+        # CLI error strings double as usage lines: they start with
+        # "Usage:" and end with a period on purpose.
+        - -ST1005
+  exclusions:
+    rules:
+      # Temporary: one pending conversion cleanup, tracked for the
+      # dead-code cleanup PRs.
+      - path: review_format.go
+        text: "S1016"
