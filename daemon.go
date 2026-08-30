@@ -176,13 +176,13 @@ func serveDaemon(stateDir string) error {
 	serveDone := make(chan error, 1)
 	go func() { serveDone <- server.Serve(listener) }()
 	if d.config.ListenOnAllInterfaces {
-		log.Printf("MDShelf daemon listens on all interfaces on port %d", d.config.Port)
+		log.Printf("MDShelf daemon %s listens on all interfaces on port %d", version, d.config.Port)
 		log.Printf("Local:   %s", daemonBaseURL(d.config.Port))
 		for _, address := range networkURLs(strconv.Itoa(d.config.Port)) {
 			log.Printf("Network: %s", address)
 		}
 	} else {
-		log.Printf("MDShelf daemon listens on %s", daemonBaseURL(d.config.Port))
+		log.Printf("MDShelf daemon %s listens on %s", version, daemonBaseURL(d.config.Port))
 	}
 	<-d.stop
 	_ = listener.Close()
@@ -470,13 +470,14 @@ func (d *daemonServer) handleControlStatus(w http.ResponseWriter, r *http.Reques
 	}
 	writeJSON(w, http.StatusOK, struct {
 		Service          string    `json:"service"`
+		Version          string    `json:"version"`
 		Protocol         int       `json:"protocol"`
 		PID              int       `json:"pid"`
 		URL              string    `json:"url"`
 		StartedAt        time.Time `json:"startedAt"`
 		Documents        int       `json:"documents"`
 		RemovedDocuments int       `json:"removedDocuments"`
-	}{"mdshelf-daemon", daemonProtocol, os.Getpid(), daemonBaseURL(d.config.Port), d.startedAt, len(documents), removed})
+	}{"mdshelf-daemon", version, daemonProtocol, os.Getpid(), daemonBaseURL(d.config.Port), d.startedAt, len(documents), removed})
 }
 
 func (d *daemonServer) handleControlStop(w http.ResponseWriter, r *http.Request) {
