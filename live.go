@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -44,24 +43,20 @@ type changeBatch struct {
 type liveUpdates struct {
 	app       *app
 	watcher   fileWatcher
+	feed      *changeFeed
 	done      chan struct{}
 	closeOnce sync.Once
 
-	mu           sync.Mutex
-	snapshots    map[string][]byte
-	revision     uint64
-	history      []markdownChange
-	historyBytes int
-	changed      chan struct{}
-	closed       bool
+	mu        sync.Mutex
+	snapshots map[string][]byte
 }
 
 func newLiveUpdates(a *app, watch bool) (*liveUpdates, error) {
 	u := &liveUpdates{
 		app:       a,
+		feed:      newChangeFeed(),
 		done:      make(chan struct{}),
 		snapshots: make(map[string][]byte),
-		changed:   make(chan struct{}),
 	}
 
 	if watch {
@@ -103,10 +98,7 @@ func (u *liveUpdates) Close() {
 			<-u.done
 		}
 
-		u.mu.Lock()
-		u.closed = true
-		close(u.changed)
-		u.mu.Unlock()
+		u.feed.close()
 	})
 }
 
@@ -272,76 +264,11 @@ func (u *liveUpdates) recordChange(filePath string) {
 	} else if !existed {
 		kind = "added"
 	}
-	u.publish(markdownChange{
+	u.feed.publish(markdownChange{
 		Path: filePath,
 		Kind: kind,
 		Diff: unifiedMarkdownDiff(filePath, before, after),
 	})
-}
-
-func (u *liveUpdates) publish(change markdownChange) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-	if u.closed {
-		return
-	}
-
-	u.revision++
-	change.Revision = u.revision
-	u.history = append(u.history, change)
-	u.historyBytes += len(change.Diff)
-	for len(u.history) > 1 && (len(u.history) > maxChangeHistory || u.historyBytes > maxChangeHistoryBytes) {
-		u.historyBytes -= len(u.history[0].Diff)
-		u.history = u.history[1:]
-	}
-
-	close(u.changed)
-	u.changed = make(chan struct{})
-}
-
-func (u *liveUpdates) waitForChanges(ctx context.Context, since uint64) changeBatch {
-	timer := time.NewTimer(changePollTimeout)
-	defer timer.Stop()
-
-	for {
-		u.mu.Lock()
-		batch, ready := u.batchAfter(since)
-		changed := u.changed
-		closed := u.closed
-		u.mu.Unlock()
-		if ready || closed {
-			return batch
-		}
-
-		select {
-		case <-changed:
-		case <-timer.C:
-			u.mu.Lock()
-			batch = changeBatch{Revision: u.revision, Changes: []markdownChange{}}
-			u.mu.Unlock()
-			return batch
-		case <-ctx.Done():
-			return changeBatch{}
-		}
-	}
-}
-
-func (u *liveUpdates) batchAfter(since uint64) (changeBatch, bool) {
-	batch := changeBatch{Revision: u.revision, Changes: []markdownChange{}}
-	if since == u.revision {
-		return batch, false
-	}
-	if since > u.revision || len(u.history) == 0 || since+1 < u.history[0].Revision {
-		batch.Reset = true
-		return batch, true
-	}
-
-	for _, change := range u.history {
-		if change.Revision > since {
-			batch.Changes = append(batch.Changes, change)
-		}
-	}
-	return batch, true
 }
 
 func (a *app) readMarkdownSource(filePath string) ([]byte, error) {

@@ -154,7 +154,7 @@ func (a *app) handleWatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	batch := a.updates.waitForChanges(r.Context(), since)
+	batch := a.updates.feed.wait(r.Context(), since)
 	if r.Context().Err() != nil {
 		return
 	}
