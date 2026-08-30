@@ -1,4 +1,8 @@
 /mdshelf
+/mdshelf.exe
 /build/
 /dist/
 /.DS_Store
+*.test
+*.out
+coverage.html
