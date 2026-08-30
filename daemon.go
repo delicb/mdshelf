@@ -88,23 +88,23 @@ func (d *daemonServer) close() { d.updater.close() }
 
 func (d *daemonServer) routes(static http.Handler) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/files", d.handleFiles)
-	mux.HandleFunc("/api/render", d.handleRender)
-	mux.HandleFunc("/api/asset", d.handleAsset)
-	mux.HandleFunc("/api/watch", d.handleWatch)
-	mux.HandleFunc("/api/health", d.handleHealth)
-	mux.HandleFunc("/api/review", d.handleReview)
-	mux.HandleFunc("/api/control/add", d.handleControlAdd)
-	mux.HandleFunc("/api/control/list", d.handleControlList)
-	mux.HandleFunc("/api/control/remove", d.handleControlRemove)
-	mux.HandleFunc("/api/control/status", d.handleControlStatus)
-	mux.HandleFunc("/api/control/stop", d.handleControlStop)
-	mux.HandleFunc("/api/control/review/comments/add", d.handleControlReviewCommentAdd)
-	mux.HandleFunc("/api/control/review/comments/reply", d.handleControlReviewCommentReply)
-	mux.HandleFunc("/api/control/review/comments/address", d.handleControlReviewCommentAddress)
-	mux.HandleFunc("/api/control/review/comments/resolve", d.handleControlReviewCommentResolve)
-	mux.HandleFunc("/api/control/review/comments/reopen", d.handleControlReviewCommentReopen)
-	mux.HandleFunc("/api/control/review/show", d.handleControlReviewShow)
+	handleMethod(mux, http.MethodGet, "/api/files", d.handleFiles)
+	handleMethod(mux, http.MethodGet, "/api/render", d.handleRender)
+	handleMethod(mux, http.MethodGet, "/api/asset", d.handleAsset)
+	handleMethod(mux, http.MethodGet, "/api/watch", d.handleWatch)
+	handleMethod(mux, http.MethodGet, "/api/health", d.handleHealth)
+	handleMethod(mux, http.MethodGet, "/api/review", d.handleReview)
+	handleMethod(mux, http.MethodPost, "/api/control/add", d.handleControlAdd)
+	handleMethod(mux, http.MethodPost, "/api/control/list", d.handleControlList)
+	handleMethod(mux, http.MethodPost, "/api/control/remove", d.handleControlRemove)
+	handleMethod(mux, http.MethodPost, "/api/control/status", d.handleControlStatus)
+	handleMethod(mux, http.MethodPost, "/api/control/stop", d.handleControlStop)
+	handleMethod(mux, http.MethodPost, "/api/control/review/comments/add", d.handleControlReviewCommentAdd)
+	handleMethod(mux, http.MethodPost, "/api/control/review/comments/reply", d.handleControlReviewCommentReply)
+	handleMethod(mux, http.MethodPost, "/api/control/review/comments/address", d.handleControlReviewCommentAddress)
+	handleMethod(mux, http.MethodPost, "/api/control/review/comments/resolve", d.handleControlReviewCommentResolve)
+	handleMethod(mux, http.MethodPost, "/api/control/review/comments/reopen", d.handleControlReviewCommentReopen)
+	handleMethod(mux, http.MethodPost, "/api/control/review/show", d.handleControlReviewShow)
 	mux.HandleFunc("/api", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "API endpoint not found")
 	})
@@ -203,9 +203,6 @@ func serveDaemon(stateDir string) error {
 }
 
 func (d *daemonServer) handleFiles(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
 	type fileRow struct {
 		Path         string               `json:"path"`
 		Title        string               `json:"title"`
@@ -228,9 +225,6 @@ func (d *daemonServer) handleFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
 	id := r.URL.Query().Get("path")
 	if id == demoDocumentPath {
 		rendered, err := renderDemo(d.markdown)
@@ -269,9 +263,6 @@ func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *daemonServer) handleAsset(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
 	id := r.URL.Query().Get("doc")
 	rawPath := r.URL.Query().Get("path")
 	if id == "" || rawPath == "" {
@@ -312,9 +303,6 @@ func (d *daemonServer) handleAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *daemonServer) handleWatch(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
 	since, err := parseRevision(r.URL.Query().Get("since"))
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
@@ -327,9 +315,6 @@ func (d *daemonServer) handleWatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *daemonServer) handleHealth(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
 	writeJSON(w, http.StatusOK, struct {
 		Service  string   `json:"service"`
 		Protocol int      `json:"protocol"`
@@ -439,11 +424,6 @@ func (d *daemonServer) handleControlStop(w http.ResponseWriter, r *http.Request)
 }
 
 func (d *daemonServer) decodeControl(w http.ResponseWriter, r *http.Request, target any) bool {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return false
-	}
 	mediaType := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
 	if mediaType != "application/json" {
 		writeJSONError(w, http.StatusUnsupportedMediaType, "Content-Type must be application/json")

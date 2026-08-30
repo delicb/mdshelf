@@ -99,10 +99,10 @@ func (a *app) Close() {
 
 func (a *app) routes(static http.Handler) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/files", a.handleFiles)
-	mux.HandleFunc("/api/render", a.handleRender)
-	mux.HandleFunc("/api/asset", a.handleAsset)
-	mux.HandleFunc("/api/watch", a.handleWatch)
+	handleMethod(mux, http.MethodGet, "/api/files", a.handleFiles)
+	handleMethod(mux, http.MethodGet, "/api/render", a.handleRender)
+	handleMethod(mux, http.MethodGet, "/api/asset", a.handleAsset)
+	handleMethod(mux, http.MethodGet, "/api/watch", a.handleWatch)
 	notFound := func(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "API endpoint not found")
 	}
@@ -110,6 +110,18 @@ func (a *app) routes(static http.Handler) http.Handler {
 	mux.HandleFunc("/api/", notFound)
 	mux.Handle("/", revalidateStatic(static))
 	return securityHeaders(mux)
+}
+
+// handleMethod registers handler for method on path. A method-less fallback
+// pattern keeps the API's JSON 405 response (with an Allow header) for other
+// methods on the same path; without it, the /api/ and / catch-alls would
+// swallow wrong-method requests and answer with misleading 404s.
+func handleMethod(mux *http.ServeMux, method, path string, handler http.HandlerFunc) {
+	mux.HandleFunc(method+" "+path, handler)
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Allow", method)
+		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+	})
 }
 
 func revalidateStatic(next http.Handler) http.Handler {
@@ -129,10 +141,6 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 
 func (a *app) handleFiles(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
-
 	files, err := a.markdownFiles()
 	if err != nil {
 		log.Printf("list Markdown files: %v", err)
@@ -146,10 +154,6 @@ func (a *app) handleFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleWatch(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
-
 	since, err := parseRevision(r.URL.Query().Get("since"))
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
@@ -187,10 +191,6 @@ func newRenderResponse(documentPath, absolutePath string, rendered renderedMarkd
 }
 
 func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
-
 	rawPath := r.URL.Query().Get("path")
 	if rawPath == "" {
 		writeJSONError(w, http.StatusBadRequest, "path is required")
@@ -255,10 +255,6 @@ func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleAsset(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
-
 	rawPath := r.URL.Query().Get("path")
 	if rawPath == "" {
 		writeJSONError(w, http.StatusBadRequest, "path is required")
@@ -611,15 +607,6 @@ func writeOpenError(w http.ResponseWriter, err error, noun string) {
 		log.Printf("open %s: %v", noun, err)
 		writeJSONError(w, http.StatusInternalServerError, "could not open "+noun)
 	}
-}
-
-func requireGET(w http.ResponseWriter, r *http.Request) bool {
-	if r.Method == http.MethodGet {
-		return true
-	}
-	w.Header().Set("Allow", http.MethodGet)
-	writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
-	return false
 }
 
 func writeJSONError(w http.ResponseWriter, status int, message string) {
