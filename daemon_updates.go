@@ -627,14 +627,9 @@ func (u *daemonUpdater) consumeWatcher(parent string, token uint64, watcher file
 	events := watcher.Events()
 	errorsChannel := watcher.Errors()
 	pending := make(map[string]struct{})
-	var timer *time.Timer
-	var timerChannel <-chan time.Time
-	defer func() {
-		if timer != nil {
-			timer.Stop()
-		}
-	}()
-	for events != nil || errorsChannel != nil || timerChannel != nil {
+	debounce := newDebouncer(changeDebounce)
+	defer debounce.stop()
+	for events != nil || errorsChannel != nil || debounce.C != nil {
 		select {
 		case event, ok := <-events:
 			if !ok {
@@ -668,29 +663,12 @@ func (u *daemonUpdater) consumeWatcher(parent string, token uint64, watcher file
 				continue
 			}
 			pending[id] = struct{}{}
-			if timer == nil {
-				timer = time.NewTimer(changeDebounce)
-			} else {
-				if !timer.Stop() {
-					select {
-					case <-timer.C:
-					default:
-					}
-				}
-				timer.Reset(changeDebounce)
-			}
-			timerChannel = timer.C
-		case <-timerChannel:
-			ids := make([]string, 0, len(pending))
-			for id := range pending {
-				ids = append(ids, id)
-			}
-			sort.Strings(ids)
-			for _, id := range ids {
+			debounce.arm()
+		case <-debounce.C:
+			for _, id := range drainPending(pending) {
 				u.scheduleReconcile(id)
 			}
-			clear(pending)
-			timerChannel = nil
+			debounce.fired()
 		case err, ok := <-errorsChannel:
 			if !ok {
 				u.recoverGroup(parent, token, watcher)

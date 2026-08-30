@@ -107,13 +107,8 @@ func (u *liveUpdates) run() {
 
 	pending := make(map[string]struct{})
 	rescan := false
-	var timer *time.Timer
-	var timerC <-chan time.Time
-	defer func() {
-		if timer != nil {
-			timer.Stop()
-		}
-	}()
+	debounce := newDebouncer(changeDebounce)
+	defer debounce.stop()
 
 	events := u.watcher.Events()
 	errors := u.watcher.Errors()
@@ -130,34 +125,18 @@ func (u *liveUpdates) run() {
 			} else {
 				continue
 			}
-			if timer == nil {
-				timer = time.NewTimer(changeDebounce)
-			} else {
-				if !timer.Stop() {
-					select {
-					case <-timer.C:
-					default:
-					}
-				}
-				timer.Reset(changeDebounce)
-			}
-			timerC = timer.C
-		case <-timerC:
+			debounce.arm()
+		case <-debounce.C:
+			paths := drainPending(pending)
 			if rescan {
 				u.recordAllChanges()
 			} else {
-				paths := make([]string, 0, len(pending))
-				for filePath := range pending {
-					paths = append(paths, filePath)
-				}
-				sort.Strings(paths)
 				for _, filePath := range paths {
 					u.recordChange(filePath)
 				}
 			}
-			clear(pending)
 			rescan = false
-			timerC = nil
+			debounce.fired()
 		case err, ok := <-errors:
 			if !ok {
 				errors = nil
