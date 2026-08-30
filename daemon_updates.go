@@ -318,7 +318,7 @@ func (u *daemonUpdater) add(input string) (*daemonDocument, bool, error) {
 	}
 	if existing, ok := u.documents[id]; ok && existing.Path != canonical {
 		u.mu.Unlock()
-		return nil, false, errors.New("document id collision")
+		return nil, false, errDocumentIDCollision
 	}
 	document := &daemonDocument{
 		registryDocument: registryDocument{ID: id, Path: canonical},

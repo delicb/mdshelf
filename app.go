@@ -24,9 +24,11 @@ import (
 const maxMarkdownSize = 8 << 20
 
 var (
-	errInvalidPath = errors.New("invalid path")
-	errNotRegular  = errors.New("not a regular file")
-	errSymlink     = errors.New("symlinks are not allowed")
+	errInvalidPath         = errors.New("invalid path")
+	errNotRegular          = errors.New("not a regular file")
+	errSymlink             = errors.New("symlinks are not allowed")
+	errDocumentIDCollision = errors.New("document id collision")
+	errNotMarkdownDocument = errors.New("path must point to a Markdown file")
 )
 
 //go:embed web/*
@@ -213,7 +215,7 @@ func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
 
 	file, cleanPath, info, err := a.openFile(rawPath)
 	if err != nil {
-		a.writeOpenError(w, err, "Markdown file")
+		writeOpenError(w, err, "Markdown file")
 		return
 	}
 	defer file.Close()
@@ -271,7 +273,7 @@ func (a *app) handleAsset(w http.ResponseWriter, r *http.Request) {
 
 	file, cleanPath, info, err := a.openFile(rawPath)
 	if err != nil {
-		a.writeOpenError(w, err, "image")
+		writeOpenError(w, err, "image")
 		return
 	}
 	defer file.Close()
@@ -592,7 +594,10 @@ func inlineText(node ast.Node, source []byte) string {
 	return strings.Join(strings.Fields(value.String()), " ")
 }
 
-func (a *app) writeOpenError(w http.ResponseWriter, err error, noun string) {
+// writeOpenError maps file-open failures from checkPathSegments and
+// openRootedFile to HTTP responses. Unexpected failures are logged
+// server-side and answered with a generic message.
+func writeOpenError(w http.ResponseWriter, err error, noun string) {
 	switch {
 	case errors.Is(err, errInvalidPath):
 		writeJSONError(w, http.StatusBadRequest, "invalid path")

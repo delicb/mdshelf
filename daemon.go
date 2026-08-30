@@ -307,12 +307,12 @@ func (d *daemonServer) handleAsset(w http.ResponseWriter, r *http.Request) {
 	}
 	root := filepath.Dir(document.Path)
 	if err := checkPathSegments(root, cleanPath); err != nil {
-		writeDaemonOpenError(w, err, "image")
+		writeOpenError(w, err, "image")
 		return
 	}
 	file, info, err := openRootedFile(root, cleanPath)
 	if err != nil {
-		writeDaemonOpenError(w, err, "image")
+		writeOpenError(w, err, "image")
 		return
 	}
 	defer file.Close()
@@ -508,30 +508,19 @@ func writeControlError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, fs.ErrNotExist), errors.Is(err, errNotRegular):
 		writeJSONError(w, http.StatusNotFound, "Markdown file not found")
-	case errors.Is(err, errSymlink), errors.Is(err, errInvalidPath):
+	case errors.Is(err, errSymlink), errors.Is(err, errInvalidPath),
+		errors.Is(err, errNotMarkdownDocument), errors.Is(err, errMarkdownTooLarge):
 		writeJSONError(w, http.StatusBadRequest, err.Error())
-	case strings.Contains(err.Error(), "collision"):
+	case errors.Is(err, errDocumentIDCollision):
 		writeJSONError(w, http.StatusConflict, err.Error())
 	default:
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		log.Printf("daemon control request: %v", err)
+		writeJSONError(w, http.StatusInternalServerError, "could not update the daemon registry")
 	}
 }
 
 func cleanDaemonAssetPath(rawPath string) (string, error) {
 	return cleanRelativeFilePath(rawPath, true)
-}
-
-func writeDaemonOpenError(w http.ResponseWriter, err error, noun string) {
-	switch {
-	case errors.Is(err, errInvalidPath), errors.Is(err, errSymlink):
-		writeJSONError(w, http.StatusBadRequest, err.Error())
-	case errors.Is(err, fs.ErrNotExist), errors.Is(err, errNotRegular):
-		writeJSONError(w, http.StatusNotFound, noun+" not found")
-	case errors.Is(err, fs.ErrPermission):
-		writeJSONError(w, http.StatusForbidden, noun+" cannot be read")
-	default:
-		writeJSONError(w, http.StatusInternalServerError, "could not open "+noun)
-	}
 }
 
 func rewriteDaemonImages(document ast.Node, registered *daemonDocument) {

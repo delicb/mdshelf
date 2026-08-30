@@ -38,7 +38,7 @@ func daemonStateDir() (string, error) {
 
 func canonicalDocumentPath(input string) (string, error) {
 	if input == "" || !isMarkdownPath(input) {
-		return "", errors.New("path must point to a Markdown file")
+		return "", errNotMarkdownDocument
 	}
 	absolute, err := filepath.Abs(input)
 	if err != nil {
