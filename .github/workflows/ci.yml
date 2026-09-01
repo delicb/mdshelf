@@ -83,10 +83,13 @@ jobs:
         with:
           persist-credentials: false
 
+      # golangci-lint v2.8.0 is built with Go 1.25; its type checker panics
+      # on a newer Go standard library, so this job pins the matching Go
+      # minor. Bump the Go version and the linter version together.
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.27.x"
+          go-version: "1.25.x"
           cache-dependency-path: go.sum
 
       - name: Run golangci-lint
