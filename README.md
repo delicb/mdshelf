@@ -1,16 +1,22 @@
 # MDShelf
 
-MDShelf serves the Markdown files in a folder as a small, phone-friendly website.
+[![CI](https://github.com/delicb/mdshelf/actions/workflows/ci.yml/badge.svg)](https://github.com/delicb/mdshelf/actions/workflows/ci.yml)
 
-## Build
+MDShelf serves the Markdown files in a folder as a small, phone-friendly website. It renders GitHub-style Markdown with live updates, syntax highlighting, math, Mermaid diagrams, citations, and three reading designs. All assets are embedded, so documents render without a network connection. A daemon mode adds a review flow: a reviewer comments on the rendered document in the browser, and an agent reads and addresses the comments from the command line.
 
-```sh
-go build -o mdshelf .
-```
+![The MDShelf reader showing a document in the Ink design](.github/assets/hero-ink-light.png)
 
-The executable contains the full web interface. It does not need a separate assets folder. macOS builds need cgo, which Go enables by default, for FSEvents.
+## Contents
 
-Release binaries use Go 1.27. The source needs Go 1.27 or newer.
+- [Install a release](#install-a-release)
+- [Use ad hoc mode](#use-ad-hoc-mode)
+- [Agent review flow](#agent-review-flow)
+- [Use daemon mode](#use-daemon-mode)
+- [Extended Markdown](#extended-markdown)
+- [Reading settings](#reading-settings)
+- [Network access](#network-access)
+- [Development](#development)
+- [Publishing a release](#publishing-a-release)
 
 ## Install a release
 
@@ -49,6 +55,58 @@ MDShelf uses port `7331` by default. Choose another port with `-port`:
 Then open the local or network URL printed at startup. MDShelf listens on all network interfaces so another device can connect.
 
 MDShelf finds `.md` and `.markdown` files in the folder and its subfolders. It ignores hidden files, hidden folders, and symbolic links. It tracks changes only for Markdown files, using inotify on Linux, FSEvents on macOS, and ReadDirectoryChangesW on Windows. An open document refreshes at once and highlights only changed blocks. If the page is not active, MDShelf waits to show the update until it gets focus. Relative links between Markdown files and local images work in the reader. Language-tagged fenced code blocks use server-side syntax highlighting with matching light and dark themes. Three reading designs are available, each with a light and a dark palette.
+
+## Agent review flow
+
+The review flow runs in daemon mode. See [Use daemon mode](#use-daemon-mode) for daemon setup.
+
+Daemon mode lets a reviewer comment on rendered document sections. Saving a comment publishes it at once.
+
+![A review comment thread beside a document block](.github/assets/review-comments.png)
+
+An agent can publish a file and get a JSON response:
+
+```sh
+mdshelf add --json /path/to/notes/implementation-plan.md
+```
+
+The response includes the document ID, absolute path, title, stable URL, and current file state. The normal `mdshelf add` command still prints only the URL.
+
+Use this complete reviewer and agent loop:
+
+```sh
+mdshelf add --json /path/to/notes/implementation-plan.md
+# Give the returned URL to the reviewer. Wait until they finish commenting.
+mdshelf review show --json /path/to/notes/implementation-plan.md
+# Update the file or answer the reviewer question.
+mdshelf review address --message "Updated the storage section." comment_8f31c2
+mdshelf review show --json /path/to/notes/implementation-plan.md
+```
+
+Select rendered text to show the comment balloon. Select the balloon or press `c` to comment on that text. If no valid text selection exists, `c` comments on the active block. The `+` button still adds a whole-block comment. Select a comment to activate its text or block. Type in the reply field, then press Enter or select the arrow to send the reply. Select the checkmark to resolve the thread. Resolved threads disappear from the document but remain in the Comments panel. Replies stay one level deep.
+
+Document status uses these values:
+
+- `needs_review`: The document has no comments.
+- `comments`: The document has comments on its current content.
+- `updated`: The document changed after the last comment.
+- `removed`: The registered file is not available.
+
+`mdshelf review show` prints unresolved comment threads as Markdown. Add `--json` for agent input. Add `--include-resolved` to include resolved comments. Each `review address` call appends an agent reply.
+
+Comment data stays in `reviews.json` in the MDShelf state folder. MDShelf does not write comment files beside the Markdown file. Running `mdshelf remove` keeps comment data. If you add the same canonical path again, MDShelf restores its comments.
+
+Comment writes work only in daemon mode. Ad hoc mode stays read-only. If a daemon does not support comments, stop it and retry the command.
+
+### Install the agent skill
+
+Install the embedded skill into a skills root that your agent supports:
+
+```sh
+mdshelf skill install "$HOME/.agents/skills"
+```
+
+Use `mdshelf skill print` if your agent uses a different directory layout. MDShelf does not select a default skills directory.
 
 ## Use daemon mode
 
@@ -104,54 +162,6 @@ mdshelf add /path/to/notes/guide.md
 Use an allowed hostname or network interface IP from another device. For example, use `http://mentat:7332`.
 
 The daemon watches only each registered file. If a file or its parent folder is removed, the daemon keeps the registry row. The reader marks the document as removed. If the file returns, the reader makes it available again.
-
-### Agent review flow
-
-Daemon mode lets a reviewer comment on rendered document sections. Saving a comment publishes it at once.
-
-An agent can publish a file and get a JSON response:
-
-```sh
-mdshelf add --json /path/to/notes/implementation-plan.md
-```
-
-The response includes the document ID, absolute path, title, stable URL, and current file state. The normal `mdshelf add` command still prints only the URL.
-
-Use this complete reviewer and agent loop:
-
-```sh
-mdshelf add --json /path/to/notes/implementation-plan.md
-# Give the returned URL to the reviewer. Wait until they finish commenting.
-mdshelf review show --json /path/to/notes/implementation-plan.md
-# Update the file or answer the reviewer question.
-mdshelf review address --message "Updated the storage section." comment_8f31c2
-mdshelf review show --json /path/to/notes/implementation-plan.md
-```
-
-Select rendered text to show the comment balloon. Select the balloon or press `c` to comment on that text. If no valid text selection exists, `c` comments on the active block. The `+` button still adds a whole-block comment. Select a comment to activate its text or block. Type in the reply field, then press Enter or select the arrow to send the reply. Select the checkmark to resolve the thread. Resolved threads disappear from the document but remain in the Comments panel. Replies stay one level deep.
-
-Document status uses these values:
-
-- `needs_review`: The document has no comments.
-- `comments`: The document has comments on its current content.
-- `updated`: The document changed after the last comment.
-- `removed`: The registered file is not available.
-
-`mdshelf review show` prints unresolved comment threads as Markdown. Add `--json` for agent input. Add `--include-resolved` to include resolved comments. Each `review address` call appends an agent reply.
-
-Comment data stays in `reviews.json` in the MDShelf state folder. MDShelf does not write comment files beside the Markdown file. Running `mdshelf remove` keeps comment data. If you add the same canonical path again, MDShelf restores its comments.
-
-Comment writes work only in daemon mode. Ad hoc mode stays read-only. If a daemon does not support comments, stop it and retry the command.
-
-### Install the agent skill
-
-Install the embedded skill into a skills root that your agent supports:
-
-```sh
-mdshelf skill install "$HOME/.agents/skills"
-```
-
-Use `mdshelf skill print` if your agent uses a different directory layout. MDShelf does not select a default skills directory.
 
 Each document has a separate asset root. MDShelf serves local raster images only from that document's folder. It does not serve another Markdown file from the same folder unless you register that file.
 
@@ -224,6 +234,12 @@ A design sets the reading type, the text width, where the file list lives, and w
 | Signal | IBM Plex Sans, with monospace labels | A rail that stays on screen | In the outline rail and the comments panel |
 | Column | Instrument Sans, one column, no panels | Opens as a palette, or with Command-K | Marked on the block, thread below it |
 
+The screenshot at the top of this page shows the Ink design with the light palette.
+
+![The Signal design with the dark palette](.github/assets/design-signal-dark.png)
+
+![The Column design with the light palette](.github/assets/design-column-light.png)
+
 Appearance is System, Light, or Dark. Each design has a light and a dark palette, and automatic syntax themes follow the appearance. MDShelf embeds all fonts, so the designs look the same without a network connection.
 
 ## Keyboard navigation
@@ -259,13 +275,29 @@ Use the all-interface option only on a trusted network.
 
 ## Development
 
+Build from source:
+
 ```sh
-go test -race ./...
+go build -o mdshelf .
+```
+
+The executable contains the full web interface. It does not need a separate assets folder. macOS builds need cgo, which Go enables by default, for FSEvents. The `web` folder is embedded with `go:embed`, so there is no separate frontend build step.
+
+Release binaries use Go 1.27. The source needs Go 1.25 or newer.
+
+Run the same checks as CI before you push:
+
+```sh
+gofmt -l .
 go vet ./...
+go test -race -count=1 ./...
+go mod tidy && git diff --exit-code -- go.mod go.sum
 node --check web/text-selection.js
 node --check web/app.js
-node --test web/app.test.cjs
+node --test web/app.test.cjs web/text-selection.test.cjs
 ```
+
+`gofmt -l .` must print nothing. Pass the test files to `node --test` by name. A bare `web/` directory argument does not find the `.cjs` tests on Node 22.
 
 ## Publishing a release
 
