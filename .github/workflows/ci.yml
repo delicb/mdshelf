@@ -33,7 +33,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: "1.27.x"
           cache-dependency-path: go.sum
@@ -87,7 +87,7 @@ jobs:
       # on a newer Go standard library, so this job pins the matching Go
       # minor. Bump the Go version and the linter version together.
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: "1.25.x"
           cache-dependency-path: go.sum
@@ -116,7 +116,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: "1.27.x"
           cache-dependency-path: go.sum
