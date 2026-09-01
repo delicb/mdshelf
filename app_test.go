@@ -534,6 +534,81 @@ func TestEmbeddedWebShell(t *testing.T) {
 	}
 }
 
+func TestValidAdHocHost(t *testing.T) {
+	allowed := []string{"mentat", "notes.example.ts.net"}
+	tests := []struct {
+		host string
+		want bool
+	}{
+		{host: "localhost", want: true},
+		{host: "localhost:7331", want: true},
+		{host: "LOCALHOST:9999", want: true},
+		{host: "localhost.:7331", want: true},
+		{host: "127.0.0.1:7331", want: true},
+		{host: "192.0.2.10", want: true},
+		{host: "192.0.2.10:7331", want: true},
+		{host: "[::1]", want: true},
+		{host: "[::1]:7331", want: true},
+		{host: "[2001:db8::1]:7331", want: true},
+		{host: "[fe80::1%eth0]:7331", want: true},
+		{host: "mentat", want: true},
+		{host: "mentat:7331", want: true},
+		{host: "MENTAT.:9000", want: true},
+		{host: "notes.example.ts.net:443", want: true},
+		{host: "attacker.example", want: false},
+		{host: "attacker.example:7331", want: false},
+		{host: "evil.localhost:7331", want: false},
+		{host: "", want: false},
+	}
+	for _, test := range tests {
+		if got := validAdHocHost(test.host, allowed); got != test.want {
+			t.Errorf("validAdHocHost(%q) = %t, want %t", test.host, got, test.want)
+		}
+	}
+}
+
+func TestAdHocHostPolicy(t *testing.T) {
+	handler := adHocHostPolicy(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), []string{"mentat"})
+
+	tests := []struct {
+		name   string
+		host   string
+		status int
+	}{
+		{name: "localhost", host: "localhost:7331", status: http.StatusNoContent},
+		{name: "IP literal", host: "192.0.2.10:7331", status: http.StatusNoContent},
+		{name: "IPv6 literal", host: "[::1]:7331", status: http.StatusNoContent},
+		{name: "allowed hostname", host: "mentat:7331", status: http.StatusNoContent},
+		{name: "other hostname", host: "attacker.example:7331", status: http.StatusForbidden},
+		{name: "empty host", host: "", status: http.StatusForbidden},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			target := httptest.NewRequest(http.MethodGet, "/api/files", nil)
+			target.Host = test.host
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, target)
+			response := recorder.Result()
+			defer response.Body.Close()
+			body := readBody(t, response)
+			if response.StatusCode != test.status {
+				t.Fatalf("status = %d, want %d, body = %s", response.StatusCode, test.status, body)
+			}
+			if test.status != http.StatusForbidden {
+				return
+			}
+			if contentType := response.Header.Get("Content-Type"); !strings.HasPrefix(contentType, "text/plain") {
+				t.Errorf("Content-Type = %q, want text/plain", contentType)
+			}
+			if !strings.Contains(body, "-allow-hostname") {
+				t.Errorf("403 body does not name -allow-hostname: %q", body)
+			}
+		})
+	}
+}
+
 func mustNewHandler(t *testing.T, root string) http.Handler {
 	t.Helper()
 	app, err := newAppWithWatcher(root, false)

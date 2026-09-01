@@ -188,6 +188,27 @@ func TestDaemonControlRemoveAcceptsDocumentID(t *testing.T) {
 	}
 }
 
+func TestDaemonRequestStop(t *testing.T) {
+	d, err := newDaemonServer(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(d.close)
+
+	select {
+	case <-d.stop:
+		t.Fatal("stop channel is closed before requestStop")
+	default:
+	}
+	d.requestStop()
+	d.requestStop()
+	select {
+	case <-d.stop:
+	default:
+		t.Fatal("stop channel is not closed after requestStop")
+	}
+}
+
 func TestDaemonControlChecksJSONAndLocalHost(t *testing.T) {
 	d, err := newDaemonServer(t.TempDir())
 	if err != nil {

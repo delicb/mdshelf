@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"net"
+	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -59,6 +62,26 @@ func TestParseOptions(t *testing.T) {
 			args:    []string{"one", "two"},
 			wantErr: "accepts at most one root folder",
 		},
+		{
+			name: "allowed hostname",
+			args: []string{"-allow-hostname", "mentat"},
+			want: options{port: defaultPort, root: ".", allowedHostnames: []string{"mentat"}},
+		},
+		{
+			name: "allowed hostnames are normalized and deduplicated",
+			args: []string{"-allow-hostname", "Mentat:7331", "-allow-hostname", "notes.example.ts.net", "-allow-hostname", "mentat"},
+			want: options{port: defaultPort, root: ".", allowedHostnames: []string{"mentat", "notes.example.ts.net"}},
+		},
+		{
+			name:    "invalid allowed hostname",
+			args:    []string{"-allow-hostname", "http://mentat"},
+			wantErr: "hostname is invalid",
+		},
+		{
+			name:    "empty allowed hostname",
+			args:    []string{"-allow-hostname", ""},
+			wantErr: "hostname must not be empty",
+		},
 	}
 
 	for _, test := range tests {
@@ -73,10 +96,36 @@ func TestParseOptions(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parseOptions() error = %v", err)
 			}
-			if got != test.want {
+			if !reflect.DeepEqual(got, test.want) {
 				t.Fatalf("parseOptions() = %#v, want %#v", got, test.want)
 			}
 		})
+	}
+}
+
+func TestShutdownAdHocServer(t *testing.T) {
+	a, err := newAppWithWatcher(t.TempDir(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := &http.Server{Handler: a.Handler()}
+	serveDone := make(chan error, 1)
+	go func() { serveDone <- server.Serve(listener) }()
+
+	shutdownAdHocServer(server, a)
+
+	if err := <-serveDone; !errors.Is(err, http.ErrServerClosed) {
+		t.Fatalf("Serve() error = %v, want http.ErrServerClosed", err)
+	}
+	a.updates.feed.mu.Lock()
+	closed := a.updates.feed.closed
+	a.updates.feed.mu.Unlock()
+	if !closed {
+		t.Fatal("live updates are not closed after shutdown")
 	}
 }
 
@@ -99,7 +148,7 @@ func TestParseOptionsHelp(t *testing.T) {
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("parseOptions(-help) error = %v, want flag.ErrHelp", err)
 	}
-	for _, want := range []string{"mdshelf [options] [root]", "mdshelf add [--json] <markdown-file>", "mdshelf review show", "mdshelf skill install", "-port int", "(default 7331)", "-version"} {
+	for _, want := range []string{"mdshelf [options] [root]", "mdshelf add [--json] <markdown-file>", "mdshelf review show", "mdshelf skill install", "-allow-hostname value", "-port int", "(default 7331)", "-version"} {
 		if !strings.Contains(output.String(), want) {
 			t.Errorf("help output does not contain %q:\n%s", want, output.String())
 		}

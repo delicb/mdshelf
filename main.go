@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -9,8 +10,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"sort"
 	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -35,6 +38,8 @@ const topLevelHelp = `Usage:
   mdshelf stop
 
 Options:
+  -allow-hostname value
+        allow ad-hoc requests addressed to this hostname (repeatable)
   -port int
         port to listen on in ad-hoc mode (default 7331)
   -version
@@ -44,9 +49,10 @@ Daemon mode uses http://localhost:7332 by default.
 `
 
 type options struct {
-	port    int
-	root    string
-	version bool
+	port             int
+	root             string
+	version          bool
+	allowedHostnames []string
 }
 
 func main() {
@@ -95,7 +101,7 @@ func serveAdHoc(options options) error {
 	port := strconv.Itoa(options.port)
 	server := &http.Server{
 		Addr:              net.JoinHostPort("", port),
-		Handler:           a.Handler(),
+		Handler:           adHocHostPolicy(a.Handler(), options.allowedHostnames),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -107,10 +113,34 @@ func serveAdHoc(options options) error {
 	for _, address := range networkURLs(port) {
 		log.Printf("Network: %s", address)
 	}
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return err
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	serveDone := make(chan error, 1)
+	go func() { serveDone <- server.ListenAndServe() }()
+	select {
+	case err := <-serveDone:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
+	case <-ctx.Done():
 	}
+	stop()
+	log.Printf("mdshelf is shutting down")
+	shutdownAdHocServer(server, a)
+	<-serveDone
 	return nil
+}
+
+// shutdownAdHocServer drains open requests, then closes the app's file watcher.
+func shutdownAdHocServer(server *http.Server, a *app) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		_ = server.Close()
+	}
+	a.Close()
 }
 
 func parseOptions(args []string, output io.Writer) (options, error) {
@@ -119,6 +149,19 @@ func parseOptions(args []string, output io.Writer) (options, error) {
 	flags.SetOutput(output)
 	flags.IntVar(&parsed.port, "port", defaultPort, "port to listen on in ad-hoc mode")
 	flags.BoolVar(&parsed.version, "version", false, "print the version and exit")
+	flags.Func("allow-hostname", "allow ad-hoc requests addressed to this hostname (repeatable)", func(value string) error {
+		hostname, err := normalizeAllowedHostname(value)
+		if err != nil {
+			return err
+		}
+		for _, existing := range parsed.allowedHostnames {
+			if existing == hostname {
+				return nil
+			}
+		}
+		parsed.allowedHostnames = append(parsed.allowedHostnames, hostname)
+		return nil
+	})
 	flags.Usage = func() { fmt.Fprint(output, topLevelHelp) }
 
 	if err := flags.Parse(args); err != nil {

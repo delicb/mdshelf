@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"log"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -129,6 +130,48 @@ func revalidateStatic(next http.Handler) http.Handler {
 		w.Header().Set("Cache-Control", "no-cache")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// adHocHostPolicy rejects requests whose Host header names neither this
+// machine nor an allowed hostname, so a malicious web page cannot reach the
+// server through DNS rebinding.
+func adHocHostPolicy(next http.Handler, allowedHostnames []string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !validAdHocHost(r.Host, allowedHostnames) {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.WriteHeader(http.StatusForbidden)
+			fmt.Fprintln(w, "This host name is not allowed. Use localhost or an IP address, or start mdshelf with -allow-hostname.")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func validAdHocHost(host string, allowedHostnames []string) bool {
+	hostname := strings.ToLower(host)
+	if split, _, err := net.SplitHostPort(hostname); err == nil {
+		hostname = split
+	} else if strings.HasPrefix(hostname, "[") && strings.HasSuffix(hostname, "]") {
+		hostname = hostname[1 : len(hostname)-1]
+	}
+	hostname = strings.TrimSuffix(hostname, ".")
+	if hostname == "localhost" {
+		return true
+	}
+	ipHostname := hostname
+	if zone := strings.LastIndexByte(ipHostname, '%'); zone >= 0 {
+		ipHostname = ipHostname[:zone]
+	}
+	if net.ParseIP(ipHostname) != nil {
+		return true
+	}
+	for _, allowed := range allowedHostnames {
+		if hostname == allowed {
+			return true
+		}
+	}
+	return false
 }
 
 func securityHeaders(next http.Handler) http.Handler {
