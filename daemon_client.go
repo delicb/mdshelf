@@ -156,6 +156,7 @@ func runDaemonCommandWithOutputs(command string, args []string, stdout, stderr i
 		fmt.Fprintf(stdout, "Removed %s.\n", canonical)
 	case "status":
 		var response struct {
+			Version          string `json:"version"`
 			URL              string `json:"url"`
 			PID              int    `json:"pid"`
 			Documents        int    `json:"documents"`
@@ -164,7 +165,7 @@ func runDaemonCommandWithOutputs(command string, args []string, stdout, stderr i
 		if err := deps.control("status", struct{}{}, &response); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "URL: %s\nPID: %d\nDocuments: %d\nRemoved: %d\n", response.URL, response.PID, response.Documents, response.RemovedDocuments)
+		fmt.Fprintf(stdout, "Version: %s\nURL: %s\nPID: %d\nDocuments: %d\nRemoved: %d\n", response.Version, response.URL, response.PID, response.Documents, response.RemovedDocuments)
 	case "stop":
 		if err := deps.control("stop", struct{}{}, &struct{}{}); err != nil {
 			return err

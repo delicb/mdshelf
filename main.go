@@ -19,6 +19,9 @@ const (
 	defaultDaemonPort = 7332
 )
 
+// version is overridden at release time with -ldflags="-X main.version=...".
+var version = "dev"
+
 const topLevelHelp = `Usage:
   mdshelf [options] [root]
   mdshelf add [--json] <markdown-file>
@@ -34,13 +37,16 @@ const topLevelHelp = `Usage:
 Options:
   -port int
         port to listen on in ad-hoc mode (default 7331)
+  -version
+        print the version and exit
 
 Daemon mode uses http://localhost:7332 by default.
 `
 
 type options struct {
-	port int
-	root string
+	port    int
+	root    string
+	version bool
 }
 
 func main() {
@@ -72,6 +78,10 @@ func run(args []string, stdout, stderr io.Writer) error {
 	}
 	if err != nil {
 		return err
+	}
+	if parsed.version {
+		fmt.Fprintf(stdout, "mdshelf %s\n", version)
+		return nil
 	}
 	return serveAdHoc(parsed)
 }
@@ -108,6 +118,7 @@ func parseOptions(args []string, output io.Writer) (options, error) {
 	flags := flag.NewFlagSet("mdshelf", flag.ContinueOnError)
 	flags.SetOutput(output)
 	flags.IntVar(&parsed.port, "port", defaultPort, "port to listen on in ad-hoc mode")
+	flags.BoolVar(&parsed.version, "version", false, "print the version and exit")
 	flags.Usage = func() { fmt.Fprint(output, topLevelHelp) }
 
 	if err := flags.Parse(args); err != nil {
