@@ -24,9 +24,11 @@ import (
 const maxMarkdownSize = 8 << 20
 
 var (
-	errInvalidPath = errors.New("invalid path")
-	errNotRegular  = errors.New("not a regular file")
-	errSymlink     = errors.New("symlinks are not allowed")
+	errInvalidPath         = errors.New("invalid path")
+	errNotRegular          = errors.New("not a regular file")
+	errSymlink             = errors.New("symlinks are not allowed")
+	errDocumentIDCollision = errors.New("document id collision")
+	errNotMarkdownDocument = errors.New("path must point to a Markdown file")
 )
 
 //go:embed web/*
@@ -97,10 +99,10 @@ func (a *app) Close() {
 
 func (a *app) routes(static http.Handler) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/files", a.handleFiles)
-	mux.HandleFunc("/api/render", a.handleRender)
-	mux.HandleFunc("/api/asset", a.handleAsset)
-	mux.HandleFunc("/api/watch", a.handleWatch)
+	handleMethod(mux, http.MethodGet, "/api/files", a.handleFiles)
+	handleMethod(mux, http.MethodGet, "/api/render", a.handleRender)
+	handleMethod(mux, http.MethodGet, "/api/asset", a.handleAsset)
+	handleMethod(mux, http.MethodGet, "/api/watch", a.handleWatch)
 	notFound := func(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "API endpoint not found")
 	}
@@ -108,6 +110,18 @@ func (a *app) routes(static http.Handler) http.Handler {
 	mux.HandleFunc("/api/", notFound)
 	mux.Handle("/", revalidateStatic(static))
 	return securityHeaders(mux)
+}
+
+// handleMethod registers handler for method on path. A method-less fallback
+// pattern keeps the API's JSON 405 response (with an Allow header) for other
+// methods on the same path; without it, the /api/ and / catch-alls would
+// swallow wrong-method requests and answer with misleading 404s.
+func handleMethod(mux *http.ServeMux, method, path string, handler http.HandlerFunc) {
+	mux.HandleFunc(method+" "+path, handler)
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Allow", method)
+		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+	})
 }
 
 func revalidateStatic(next http.Handler) http.Handler {
@@ -127,10 +141,6 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 
 func (a *app) handleFiles(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
-
 	files, err := a.markdownFiles()
 	if err != nil {
 		log.Printf("list Markdown files: %v", err)
@@ -144,28 +154,43 @@ func (a *app) handleFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleWatch(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
-
 	since, err := parseRevision(r.URL.Query().Get("since"))
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	batch := a.updates.waitForChanges(r.Context(), since)
+	batch := a.updates.feed.wait(r.Context(), since)
 	if r.Context().Err() != nil {
 		return
 	}
 	writeJSON(w, http.StatusOK, batch)
 }
 
-func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
+// renderResponse is the JSON payload of /api/render in both serving modes.
+// The demo document has no file behind it, so absolutePath stays omitted
+// there; omitempty keeps that wire format unchanged.
+type renderResponse struct {
+	Path         string                  `json:"path"`
+	AbsolutePath string                  `json:"absolutePath,omitempty"`
+	Title        string                  `json:"title"`
+	HTML         string                  `json:"html"`
+	SourceHash   string                  `json:"sourceHash"`
+	Blocks       []markdownBlockResponse `json:"blocks"`
+}
 
+func newRenderResponse(documentPath, absolutePath string, rendered renderedMarkdown) renderResponse {
+	return renderResponse{
+		Path:         documentPath,
+		AbsolutePath: absolutePath,
+		Title:        rendered.title,
+		HTML:         rendered.html,
+		SourceHash:   rendered.sourceHash,
+		Blocks:       markdownBlockResponses(rendered.blocks),
+	}
+}
+
+func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
 	rawPath := r.URL.Query().Get("path")
 	if rawPath == "" {
 		writeJSONError(w, http.StatusBadRequest, "path is required")
@@ -178,16 +203,7 @@ func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusInternalServerError, "could not render demo")
 			return
 		}
-		writeJSON(w, http.StatusOK, struct {
-			Path       string                  `json:"path"`
-			Title      string                  `json:"title"`
-			HTML       string                  `json:"html"`
-			SourceHash string                  `json:"sourceHash"`
-			Blocks     []markdownBlockResponse `json:"blocks"`
-		}{
-			Path: demoDocumentPath, Title: rendered.title, HTML: rendered.html,
-			SourceHash: rendered.sourceHash, Blocks: markdownBlockResponses(rendered.blocks),
-		})
+		writeJSON(w, http.StatusOK, newRenderResponse(demoDocumentPath, "", rendered))
 		return
 	}
 
@@ -199,7 +215,7 @@ func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
 
 	file, cleanPath, info, err := a.openFile(rawPath)
 	if err != nil {
-		a.writeOpenError(w, err, "Markdown file")
+		writeOpenError(w, err, "Markdown file")
 		return
 	}
 	defer file.Close()
@@ -234,28 +250,11 @@ func (a *app) handleRender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, struct {
-		Path         string                  `json:"path"`
-		AbsolutePath string                  `json:"absolutePath"`
-		Title        string                  `json:"title"`
-		HTML         string                  `json:"html"`
-		SourceHash   string                  `json:"sourceHash"`
-		Blocks       []markdownBlockResponse `json:"blocks"`
-	}{
-		Path:         cleanPath,
-		AbsolutePath: displayDocumentPath(filepath.Join(a.root, filepath.FromSlash(cleanPath))),
-		Title:        rendered.title,
-		HTML:         rendered.html,
-		SourceHash:   rendered.sourceHash,
-		Blocks:       markdownBlockResponses(rendered.blocks),
-	})
+	absolutePath := displayDocumentPath(filepath.Join(a.root, filepath.FromSlash(cleanPath)))
+	writeJSON(w, http.StatusOK, newRenderResponse(cleanPath, absolutePath, rendered))
 }
 
 func (a *app) handleAsset(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
-
 	rawPath := r.URL.Query().Get("path")
 	if rawPath == "" {
 		writeJSONError(w, http.StatusBadRequest, "path is required")
@@ -270,11 +269,18 @@ func (a *app) handleAsset(w http.ResponseWriter, r *http.Request) {
 
 	file, cleanPath, info, err := a.openFile(rawPath)
 	if err != nil {
-		a.writeOpenError(w, err, "image")
+		writeOpenError(w, err, "image")
 		return
 	}
 	defer file.Close()
 
+	serveRasterImage(w, r, file, info, cleanPath, expectedType)
+}
+
+// serveRasterImage sniffs the opened file, confirms its content matches the
+// raster type expected for its extension, and serves it without shared
+// caching and with a sandboxing CSP.
+func serveRasterImage(w http.ResponseWriter, r *http.Request, file *rootedFile, info os.FileInfo, cleanPath, expectedType string) {
 	var header [512]byte
 	n, err := io.ReadFull(file, header[:])
 	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
@@ -361,34 +367,41 @@ func (a *app) openFile(rawPath string) (*rootedFile, string, os.FileInfo, error)
 	if err != nil {
 		return nil, "", nil, err
 	}
-
-	current := a.root
-	parts := strings.Split(cleanPath, "/")
-	for index, part := range parts {
-		current = filepath.Join(current, filepath.FromSlash(part))
-		info, err := os.Lstat(current)
-		if err != nil {
-			return nil, "", nil, err
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return nil, "", nil, errSymlink
-		}
-		if index < len(parts)-1 && !info.IsDir() {
-			return nil, "", nil, fs.ErrNotExist
-		}
-		if index == len(parts)-1 && !info.Mode().IsRegular() {
-			return nil, "", nil, errNotRegular
-		}
-	}
-
-	if !isWithinRoot(a.root, current) {
-		return nil, "", nil, errInvalidPath
+	if err := checkPathSegments(a.root, cleanPath); err != nil {
+		return nil, "", nil, err
 	}
 	file, info, err := openRootedFile(a.root, cleanPath)
 	if err != nil {
 		return nil, "", nil, err
 	}
 	return file, cleanPath, info, nil
+}
+
+// checkPathSegments walks cleanPath below root and rejects symlinks, missing
+// intermediate directories, non-regular files, and escapes from root.
+func checkPathSegments(root, cleanPath string) error {
+	current := root
+	parts := strings.Split(cleanPath, "/")
+	for index, part := range parts {
+		current = filepath.Join(current, filepath.FromSlash(part))
+		info, err := os.Lstat(current)
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return errSymlink
+		}
+		if index < len(parts)-1 && !info.IsDir() {
+			return fs.ErrNotExist
+		}
+		if index == len(parts)-1 && !info.Mode().IsRegular() {
+			return errNotRegular
+		}
+	}
+	if !isWithinRoot(root, current) {
+		return errInvalidPath
+	}
+	return nil
 }
 
 type rootedFile struct {
@@ -445,12 +458,22 @@ func openRootedFile(rootPath, cleanPath string) (*rootedFile, os.FileInfo, error
 }
 
 func cleanRelativePath(rawPath string) (string, error) {
+	return cleanRelativeFilePath(rawPath, false)
+}
+
+// cleanRelativeFilePath validates a slash-separated relative path with no
+// empty, ".", or ".." segments. Dot files are rejected unless allowDotFiles
+// is set (the daemon serves assets of explicitly registered documents).
+func cleanRelativeFilePath(rawPath string, allowDotFiles bool) (string, error) {
 	if rawPath == "" || strings.ContainsRune(rawPath, '\x00') || strings.Contains(rawPath, "\\") || strings.HasPrefix(rawPath, "/") {
 		return "", errInvalidPath
 	}
 
 	for _, part := range strings.Split(rawPath, "/") {
-		if part == "" || part == "." || part == ".." || strings.HasPrefix(part, ".") {
+		if part == "" || part == "." || part == ".." {
+			return "", errInvalidPath
+		}
+		if !allowDotFiles && strings.HasPrefix(part, ".") {
 			return "", errInvalidPath
 		}
 	}
@@ -471,7 +494,10 @@ func isWithinRoot(root, candidate string) bool {
 	return relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative)
 }
 
-func rewriteLocalImages(document ast.Node, documentPath string) {
+// rewriteImages rewrites relative image destinations through resolve, which
+// maps the unescaped image path to its /api/asset URL (nil keeps the
+// destination unchanged). The destination's fragment is preserved.
+func rewriteImages(document ast.Node, resolve func(imagePath string) *url.URL) {
 	_ = ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
@@ -492,24 +518,32 @@ func rewriteLocalImages(document ast.Node, documentPath string) {
 			return ast.WalkContinue, nil
 		}
 
+		assetURL := resolve(imagePath)
+		if assetURL == nil {
+			return ast.WalkContinue, nil
+		}
+		assetURL.Fragment = destination.Fragment
+		image.Destination = []byte(assetURL.String())
+		return ast.WalkContinue, nil
+	})
+}
+
+func rewriteLocalImages(document ast.Node, documentPath string) {
+	rewriteImages(document, func(imagePath string) *url.URL {
 		var resolved string
 		if strings.HasPrefix(imagePath, "/") {
 			resolved = path.Clean(strings.TrimPrefix(imagePath, "/"))
 		} else {
 			resolved = path.Clean(path.Join(path.Dir(documentPath), imagePath))
 		}
-		resolved, err = cleanRelativePath(resolved)
+		resolved, err := cleanRelativePath(resolved)
 		if err != nil {
-			return ast.WalkContinue, nil
+			return nil
 		}
-
-		assetURL := url.URL{
+		return &url.URL{
 			Path:     "/api/asset",
 			RawQuery: url.Values{"path": []string{resolved}}.Encode(),
-			Fragment: destination.Fragment,
 		}
-		image.Destination = []byte(assetURL.String())
-		return ast.WalkContinue, nil
 	})
 }
 
@@ -556,7 +590,10 @@ func inlineText(node ast.Node, source []byte) string {
 	return strings.Join(strings.Fields(value.String()), " ")
 }
 
-func (a *app) writeOpenError(w http.ResponseWriter, err error, noun string) {
+// writeOpenError maps file-open failures from checkPathSegments and
+// openRootedFile to HTTP responses. Unexpected failures are logged
+// server-side and answered with a generic message.
+func writeOpenError(w http.ResponseWriter, err error, noun string) {
 	switch {
 	case errors.Is(err, errInvalidPath):
 		writeJSONError(w, http.StatusBadRequest, "invalid path")
@@ -570,15 +607,6 @@ func (a *app) writeOpenError(w http.ResponseWriter, err error, noun string) {
 		log.Printf("open %s: %v", noun, err)
 		writeJSONError(w, http.StatusInternalServerError, "could not open "+noun)
 	}
-}
-
-func requireGET(w http.ResponseWriter, r *http.Request) bool {
-	if r.Method == http.MethodGet {
-		return true
-	}
-	w.Header().Set("Allow", http.MethodGet)
-	writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
-	return false
 }
 
 func writeJSONError(w http.ResponseWriter, status int, message string) {

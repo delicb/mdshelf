@@ -78,10 +78,6 @@ type daemonUpdaterOptions struct {
 	sameDirectory  func(string, os.FileInfo) bool
 }
 
-func newDaemonUpdater(registryPath string, registry registryFile) *daemonUpdater {
-	return newDaemonUpdaterWithOptions(registryPath, registry, daemonUpdaterOptions{})
-}
-
 func newDaemonUpdaterWithOptions(registryPath string, registry registryFile, options daemonUpdaterOptions) *daemonUpdater {
 	if options.readDocument == nil {
 		options.readDocument = readDaemonDocument
@@ -264,6 +260,26 @@ func (u *daemonUpdater) documentSnapshot() []*daemonDocument {
 	return result
 }
 
+// document returns a deep copy of the registered document with this ID, or
+// nil when the ID is unknown.
+func (u *daemonUpdater) document(id string) *daemonDocument {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return cloneDaemonDocument(u.documents[id])
+}
+
+// documentAndPaths returns a deep copy of the registered document with this
+// ID plus a snapshot of the path-to-ID table for link rewriting.
+func (u *daemonUpdater) documentAndPaths(id string) (*daemonDocument, map[string]string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	paths := make(map[string]string, len(u.paths))
+	for path, registeredID := range u.paths {
+		paths[path] = registeredID
+	}
+	return cloneDaemonDocument(u.documents[id]), paths
+}
+
 func (u *daemonUpdater) cloneDocument(identifier string) *daemonDocument {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -318,7 +334,7 @@ func (u *daemonUpdater) add(input string) (*daemonDocument, bool, error) {
 	}
 	if existing, ok := u.documents[id]; ok && existing.Path != canonical {
 		u.mu.Unlock()
-		return nil, false, errors.New("document id collision")
+		return nil, false, errDocumentIDCollision
 	}
 	document := &daemonDocument{
 		registryDocument: registryDocument{ID: id, Path: canonical},
@@ -627,14 +643,9 @@ func (u *daemonUpdater) consumeWatcher(parent string, token uint64, watcher file
 	events := watcher.Events()
 	errorsChannel := watcher.Errors()
 	pending := make(map[string]struct{})
-	var timer *time.Timer
-	var timerChannel <-chan time.Time
-	defer func() {
-		if timer != nil {
-			timer.Stop()
-		}
-	}()
-	for events != nil || errorsChannel != nil || timerChannel != nil {
+	debounce := newDebouncer(changeDebounce)
+	defer debounce.stop()
+	for events != nil || errorsChannel != nil || debounce.C != nil {
 		select {
 		case event, ok := <-events:
 			if !ok {
@@ -668,29 +679,12 @@ func (u *daemonUpdater) consumeWatcher(parent string, token uint64, watcher file
 				continue
 			}
 			pending[id] = struct{}{}
-			if timer == nil {
-				timer = time.NewTimer(changeDebounce)
-			} else {
-				if !timer.Stop() {
-					select {
-					case <-timer.C:
-					default:
-					}
-				}
-				timer.Reset(changeDebounce)
-			}
-			timerChannel = timer.C
-		case <-timerChannel:
-			ids := make([]string, 0, len(pending))
-			for id := range pending {
-				ids = append(ids, id)
-			}
-			sort.Strings(ids)
-			for _, id := range ids {
+			debounce.arm()
+		case <-debounce.C:
+			for _, id := range drainPending(pending) {
 				u.scheduleReconcile(id)
 			}
-			clear(pending)
-			timerChannel = nil
+			debounce.fired()
 		case err, ok := <-errorsChannel:
 			if !ok {
 				u.recoverGroup(parent, token, watcher)

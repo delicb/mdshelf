@@ -51,10 +51,6 @@ func runDaemonCommand(command string, args []string, stdout, stderr io.Writer) e
 	})
 }
 
-func runDaemonCommandWithDeps(command string, args []string, stdout io.Writer, deps daemonCommandDeps) error {
-	return runDaemonCommandWithOutputs(command, args, stdout, io.Discard, deps)
-}
-
 func runDaemonCommandWithOutputs(command string, args []string, stdout, stderr io.Writer, deps daemonCommandDeps) error {
 	usage := map[string]string{
 		"add":    "Usage: mdshelf add [--json] <markdown-file>\nRegister one Markdown file and start the daemon if needed.\n",

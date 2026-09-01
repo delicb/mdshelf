@@ -48,9 +48,6 @@ type reviewMutationResponse struct {
 }
 
 func (d *daemonServer) handleReview(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
 	includeResolved, ok := reviewIncludeResolved(w, r)
 	if !ok {
 		return
