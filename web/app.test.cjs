@@ -396,6 +396,84 @@ test("Comment state actions resolve and reopen", () => {
   assert.equal(api.commentStateAction("resolved"), "reopen");
 });
 
+test("Resolved threads keep a reopen action and drop the reply box", () => {
+  const api = loadApp(null);
+  const plan = (status) => JSON.parse(JSON.stringify(api.commentActionsPlan(status)));
+  assert.deepEqual(plan("open"), { reply: true, state: "resolve" });
+  assert.deepEqual(plan("addressed"), { reply: true, state: "resolve" });
+  assert.deepEqual(plan("resolved"), { reply: false, state: "reopen" });
+});
+
+test("Keyboard shortcuts can be turned off and persist", () => {
+  const api = loadApp(null, false, { "mdshelf.keyboardShortcuts": "off" });
+  assert.equal(api.keyboardShortcutsEnabled(), false);
+  assert.equal(api.readingShortcutAction({ key: "j" }, false), "");
+  assert.equal(api.readingShortcutAction({ key: "ArrowDown" }, false), "");
+  assert.equal(api.readingShortcutAction({ key: "?" }, false), "");
+  assert.equal(api.readingShortcutAction({ key: "j" }, true), "next-block");
+  api.setKeyboardShortcuts(true);
+  assert.equal(api.keyboardShortcutsEnabled(), true);
+  assert.equal(api.storage.get("mdshelf.keyboardShortcuts"), "on");
+  api.setKeyboardShortcuts(false);
+  assert.equal(api.keyboardShortcutsEnabled(), false);
+  assert.equal(api.storage.get("mdshelf.keyboardShortcuts"), "off");
+});
+
+test("Keyboard shortcuts default to on for unknown stored values", () => {
+  const api = loadApp(null, false, { "mdshelf.keyboardShortcuts": "sometimes" });
+  assert.equal(api.keyboardShortcutsEnabled(), true);
+});
+
+test("A document change rescues the open composer draft", () => {
+  const api = loadApp(null);
+  const hash = "a".repeat(64);
+  const changed = "b".repeat(64);
+  assert.equal(api.composerRescuePlan(), "keep");
+  assert.equal(api.composerRescuePlan({
+    composer: { baseHash: hash, body: "draft" },
+    sourceHash: hash,
+  }), "keep");
+  assert.equal(api.composerRescuePlan({
+    composer: { baseHash: hash, body: "  \n" },
+    sourceHash: changed,
+    blockAvailable: true,
+  }), "discard");
+  assert.equal(api.composerRescuePlan({
+    composer: { baseHash: hash, body: "draft" },
+    sourceHash: changed,
+    blockAvailable: true,
+  }), "reanchor");
+  assert.equal(api.composerRescuePlan({
+    composer: { baseHash: hash, body: "draft" },
+    sourceHash: changed,
+    blockAvailable: false,
+  }), "stash");
+  assert.equal(api.composerRescuePlan({
+    composer: { baseHash: hash, body: "draft", selection: { quote: "text" } },
+    sourceHash: changed,
+    blockAvailable: true,
+    selectionValid: true,
+  }), "reanchor");
+  assert.equal(api.composerRescuePlan({
+    composer: { baseHash: hash, body: "draft", selection: { quote: "text" } },
+    sourceHash: changed,
+    blockAvailable: true,
+    selectionValid: false,
+  }), "stash");
+});
+
+test("Live update failures surface only after repeated retries", () => {
+  const api = loadApp(null);
+  assert.equal(api.liveUpdatesStalled(0), false);
+  assert.equal(api.liveUpdatesStalled(1), false);
+  assert.equal(api.liveUpdatesStalled(2), false);
+  assert.equal(api.liveUpdatesStalled(3), true);
+  assert.equal(api.liveUpdatesStalled(4), true);
+  assert.equal(api.watchErrorIsUnexpected(new TypeError("failed to fetch")), false);
+  assert.equal(api.watchErrorIsUnexpected({ name: "APIError", message: "server restarting" }), false);
+  assert.equal(api.watchErrorIsUnexpected(new Error("logic bug")), true);
+});
+
 test("Comment replies accept one level and known authors", () => {
   const api = loadApp(null);
   const path = "00112233445566778899aabb";

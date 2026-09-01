@@ -2,9 +2,13 @@
   "use strict";
 
   const elements = {
+    actionError: document.querySelector("#action-error"),
+    actionErrorDismiss: document.querySelector("#action-error-dismiss"),
+    actionErrorMessage: document.querySelector("#action-error-message"),
     backdrop: document.querySelector("#backdrop"),
     brand: document.querySelector("#brand"),
     closeButton: document.querySelector("#close-button"),
+    connectionNotice: document.querySelector("#connection-notice"),
     appearance: document.querySelector("#appearance"),
     design: document.querySelector("#design"),
     commentBody: document.querySelector("#comment-body"),
@@ -44,6 +48,7 @@
     settings: document.querySelector(".settings"),
     settingsButton: document.querySelector("#settings-button"),
     settingsPopup: document.querySelector("#settings-popup"),
+    shortcutToggle: document.querySelector("#keyboard-shortcuts"),
     selectionCommentAction: document.querySelector("#selection-comment-action"),
     skipLink: document.querySelector(".skip-link"),
     statusMessage: document.querySelector("#status-message"),
@@ -69,10 +74,12 @@
   const syntaxThemes = new Set([
     "github-auto", "catppuccin-auto", "solarized-auto", "dracula", "monokai", "nord", "tokyonight-night",
   ]);
+  const shortcutModes = new Set(["on", "off"]);
   const themeStorage = {
     design: "mdshelf.design",
     appearance: "mdshelf.appearance",
     syntax: "mdshelf.syntaxTheme",
+    shortcuts: "mdshelf.keyboardShortcuts",
   };
   const state = {
     abortController: null,
@@ -101,9 +108,9 @@
     mermaidCounter: 0,
     mermaidQueue: Promise.resolve(),
     syntaxTheme: "github-auto",
+    keyboardShortcuts: true,
     reviewEnabled: false,
     reviewRevision: 0,
-    reviewStatus: "needs_review",
     reviewSourceHash: "",
     reviewComments: [],
     demoReviewComments: [],
@@ -122,6 +129,7 @@
     reviewBlockError: "",
     reviewErrorNeedsRender: false,
     reviewComposer: null,
+    reviewComposerDraft: null,
     reviewReplyDrafts: new Map(),
     reviewTextIndex: null,
     reviewRenderGeneration: 0,
@@ -186,7 +194,8 @@
     return event.key === "Enter" && !event.isComposing && !event.shiftKey;
   }
 
-  function readingShortcutAction(event = {}) {
+  function readingShortcutAction(event = {}, enabled = true) {
+    if (!enabled) return "";
     if (event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return "";
     const key = event.key;
     if (["ArrowUp", "ArrowLeft", "k", "K", "h", "H"].includes(key)) return "previous-block";
@@ -404,6 +413,7 @@
     state.design = storedTheme(themeStorage.design, designs, "ink");
     state.appearance = storedTheme(themeStorage.appearance, appearances, "system");
     state.syntaxTheme = storedTheme(themeStorage.syntax, syntaxThemes, "github-auto");
+    state.keyboardShortcuts = storedTheme(themeStorage.shortcuts, shortcutModes, "on") === "on";
   }
 
   function isDarkColorTheme() {
@@ -422,11 +432,14 @@
     return window.getComputedStyle(controls).position === "absolute";
   }
 
-  function growCommentBody() {
-    const field = elements.commentBody;
+  function growTextarea(field) {
     if (!field?.style || typeof field.scrollHeight !== "number") return;
     field.style.height = "auto";
     field.style.height = `${field.scrollHeight}px`;
+  }
+
+  function growCommentBody() {
+    growTextarea(elements.commentBody);
   }
 
   function resolvedSyntaxTheme() {
@@ -448,6 +461,7 @@
     elements.design.value = state.design;
     elements.appearance.value = state.appearance;
     elements.syntaxTheme.value = state.syntaxTheme;
+    if (elements.shortcutToggle) elements.shortcutToggle.checked = state.keyboardShortcuts;
   }
 
   function saveTheme(key, value) {
@@ -458,11 +472,13 @@
     }
   }
 
+  /* A preference change refetches only for Mermaid re-theming, so it must
+     not flash the skeleton or send the reader back to the top. */
   function refreshDocumentTheme() {
     initializeMermaid();
     if (!state.currentPath || elements.document.hidden || !isDocumentAvailable(state.currentPath)) return;
     const route = readRoute();
-    void loadDocument(state.currentPath, route.fragment, { force: true });
+    void loadDocument(state.currentPath, route.fragment, { force: true, preserveView: true });
   }
 
   function setDesign(value) {
@@ -486,6 +502,18 @@
     state.syntaxTheme = value;
     saveTheme(themeStorage.syntax, value);
     applyThemePreferences();
+  }
+
+  function keyboardShortcutsEnabled() {
+    return state.keyboardShortcuts;
+  }
+
+  /* WCAG 2.1.4: single-key shortcuts must be optional. Escape, Tab, and
+     Command/Control-K are modified or dismissal keys, so they stay on. */
+  function setKeyboardShortcuts(enabled) {
+    state.keyboardShortcuts = enabled === true;
+    saveTheme(themeStorage.shortcuts, state.keyboardShortcuts ? "on" : "off");
+    if (elements.shortcutToggle) elements.shortcutToggle.checked = state.keyboardShortcuts;
   }
 
   function defaultDocument(exclude = "") {
@@ -654,6 +682,29 @@
     }, 2800);
   }
 
+  function liveUpdatesDisconnected() {
+    return Boolean(elements.connectionNotice) && !elements.connectionNotice.hidden;
+  }
+
+  function setLiveUpdateNotice(disconnected) {
+    if (!elements.connectionNotice || liveUpdatesDisconnected() === disconnected) return;
+    elements.connectionNotice.textContent = disconnected ? "Live updates disconnected — retrying" : "";
+    elements.connectionNotice.hidden = !disconnected;
+  }
+
+  /* Failed destructive actions stay on screen until the reader dismisses them. */
+  function showActionError(message) {
+    if (!elements.actionError) return;
+    elements.actionErrorMessage.textContent = message;
+    elements.actionError.hidden = false;
+  }
+
+  function dismissActionError() {
+    if (!elements.actionError) return;
+    elements.actionError.hidden = true;
+    elements.actionErrorMessage.textContent = "";
+  }
+
   function pageIsActive() {
     return document.visibilityState === "visible" && document.hasFocus();
   }
@@ -771,15 +822,6 @@
     });
     if (!response.ok) throw await responseError(response);
     return response.json();
-  }
-
-  async function fetchText(url, options = {}) {
-    const response = await fetch(url, {
-      ...options,
-      headers: { Accept: "text/markdown, text/plain", ...options.headers },
-    });
-    if (!response.ok) throw await responseError(response);
-    return response.text();
   }
 
   function makeTree(files) {
@@ -991,11 +1033,12 @@
         if (!sidebarPinned()) setDrawer(false, false);
         window.location.hash = buildRoute(fallback);
       }
+      dismissActionError();
       announceUpdate(`${name} removed from MDShelf`);
     } catch (error) {
       button.disabled = false;
       const message = error instanceof TypeError ? "MDShelf could not reach the local server." : error.message;
-      announceUpdate(`Could not remove ${name}: ${message}`);
+      showActionError(`Could not remove ${name}: ${message}`);
     }
   }
 
@@ -1100,17 +1143,59 @@
     }
   }
 
+  /* navigator.clipboard is undefined on insecure origins, and reading a
+     phone over plain http on the LAN is an advertised use. Fall back to
+     the legacy hidden-textarea copy before reporting a failure. */
+  function fallbackCopyText(text) {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.setAttribute("aria-hidden", "true");
+    area.className = "sr-only";
+    const focused = document.activeElement;
+    const selection = window.getSelection?.();
+    const previousRange = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+    document.body.append(area);
+    area.select();
+    let copied = false;
+    try {
+      copied = document.execCommand("copy");
+    } catch {
+      copied = false;
+    }
+    area.remove();
+    if (previousRange && selection) {
+      try {
+        selection.removeAllRanges();
+        selection.addRange(previousRange);
+      } catch {
+        /* Restoring the reader's selection is best effort. */
+      }
+    }
+    if (focused && focused !== document.body && typeof focused.focus === "function") {
+      focused.focus({ preventScroll: true });
+    }
+    return copied;
+  }
+
+  async function copyText(text) {
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        /* Permission was denied or the platform failed; try the fallback. */
+      }
+    }
+    return fallbackCopyText(text);
+  }
+
   async function copyCodeBlock(button) {
     const figure = button.closest("figure.code-block");
     if (!figure) return;
     const source = codeBlockText(figure);
     const original = button.textContent;
-    try {
-      await navigator.clipboard.writeText(source);
-      button.textContent = "Copied";
-    } catch {
-      button.textContent = "Copy failed";
-    }
+    button.textContent = (await copyText(source)) ? "Copied" : "Copy failed";
     window.setTimeout(() => { button.textContent = original; }, 1600);
   }
 
@@ -1422,6 +1507,9 @@
       button.title = label;
       button.setAttribute("aria-label", label);
       button.disabled = true;
+      /* One tab stop per block floods the tab order in long documents.
+         Pointer users click it; keyboard users press c on the active block. */
+      button.tabIndex = -1;
       const count = document.createElement("button");
       count.className = "md-block-comment-count";
       count.type = "button";
@@ -1818,7 +1906,6 @@
     clearTextSelectionState();
     state.reviewEnabled = false;
     state.reviewRevision = 0;
-    state.reviewStatus = "needs_review";
     state.reviewSourceHash = "";
     state.reviewComments = [];
     state.reviewBlocks = new Map();
@@ -1830,6 +1917,8 @@
     state.reviewBlockError = "";
     state.reviewErrorNeedsRender = false;
     state.reviewComposer = null;
+    state.reviewComposerDraft = null;
+    renderComposerDraftNotice();
     state.reviewReplyDrafts.clear();
     renderCommentComposer();
     state.activeBlockKey = "";
@@ -1944,61 +2033,63 @@
     return replies;
   }
 
-  function growReplyInput(field) {
-    if (!field?.style || typeof field.scrollHeight !== "number") return;
-    field.style.height = "auto";
-    field.style.height = `${field.scrollHeight}px`;
+  function growReplyInputs(root) {
+    for (const field of root.querySelectorAll(".comment-reply-input")) growTextarea(field);
   }
 
-  function growReplyInputs(root) {
-    for (const field of root.querySelectorAll(".comment-reply-input")) growReplyInput(field);
+  function commentActionsPlan(status) {
+    return { reply: status !== "resolved", state: commentStateAction(status) };
   }
 
   function makeCommentActions(comment, location) {
-    if (comment.status === "resolved") return { replyActions: null, stateAction: null };
-    const replyActions = document.createElement("div");
-    replyActions.className = "comment-thread-actions";
-    const reply = document.createElement("textarea");
-    reply.className = "comment-reply-input";
-    reply.rows = 1;
-    reply.placeholder = "Reply";
-    reply.enterKeyHint = "send";
-    reply.value = state.reviewReplyDrafts.get(comment.id) || "";
-    reply.dataset.replyCommentId = comment.id;
-    reply.dataset.replyLocation = location;
-    reply.dataset.focusKey = `${location}:${comment.id}:reply`;
-    reply.setAttribute("aria-label", "Reply to comment. Press Enter to send. Press Shift+Enter for a new line.");
-    reply.disabled = !canAddComment();
-    const replyShell = document.createElement("div");
-    replyShell.className = "comment-reply-shell";
-    const submitReply = document.createElement("button");
-    submitReply.className = "comment-submit-icon comment-reply-submit";
-    submitReply.type = "button";
-    submitReply.disabled = reply.disabled || Boolean(reviewTextError(reply.value));
-    submitReply.title = "Send reply";
-    submitReply.setAttribute("aria-label", "Send reply");
-    const submitIcon = document.createElement("span");
-    submitIcon.setAttribute("aria-hidden", "true");
-    submitIcon.textContent = "↑";
-    submitReply.append(submitIcon);
-    replyShell.append(reply, submitReply);
-    replyActions.append(replyShell);
+    const plan = commentActionsPlan(comment.status);
+    let replyActions = null;
+    if (plan.reply) {
+      replyActions = document.createElement("div");
+      replyActions.className = "comment-thread-actions";
+      const reply = document.createElement("textarea");
+      reply.className = "comment-reply-input";
+      reply.rows = 1;
+      reply.placeholder = "Reply";
+      reply.enterKeyHint = "send";
+      reply.value = state.reviewReplyDrafts.get(comment.id) || "";
+      reply.dataset.replyCommentId = comment.id;
+      reply.dataset.replyLocation = location;
+      reply.dataset.focusKey = `${location}:${comment.id}:reply`;
+      reply.setAttribute("aria-label", "Reply to comment. Press Enter to send. Press Shift+Enter for a new line.");
+      reply.disabled = !canAddComment();
+      const replyShell = document.createElement("div");
+      replyShell.className = "comment-reply-shell";
+      const submitReply = document.createElement("button");
+      submitReply.className = "comment-submit-icon comment-reply-submit";
+      submitReply.type = "button";
+      submitReply.disabled = reply.disabled || Boolean(reviewTextError(reply.value));
+      submitReply.title = "Send reply";
+      submitReply.setAttribute("aria-label", "Send reply");
+      const submitIcon = document.createElement("span");
+      submitIcon.setAttribute("aria-hidden", "true");
+      submitIcon.textContent = "↑";
+      submitReply.append(submitIcon);
+      replyShell.append(reply, submitReply);
+      replyActions.append(replyShell);
+    }
 
     const stateAction = document.createElement("button");
     stateAction.className = "comment-state-action";
+    stateAction.classList.toggle("comment-state-reopen", plan.state === "reopen");
     stateAction.type = "button";
-    const label = "Resolve comment";
-    stateAction.dataset.commentAction = "resolve";
+    const label = plan.state === "reopen" ? "Reopen comment" : "Resolve comment";
+    stateAction.dataset.commentAction = plan.state;
     stateAction.dataset.actionCommentId = comment.id;
     stateAction.dataset.actionLocation = location;
     stateAction.dataset.focusKey = `${location}:${comment.id}:state`;
     stateAction.disabled = state.reviewMutationPending;
     stateAction.title = label;
     stateAction.setAttribute("aria-label", label);
-    const checkmark = document.createElement("span");
-    checkmark.setAttribute("aria-hidden", "true");
-    checkmark.textContent = "✓";
-    stateAction.append(checkmark);
+    const glyph = document.createElement("span");
+    glyph.setAttribute("aria-hidden", "true");
+    glyph.textContent = plan.state === "reopen" ? "↺" : "✓";
+    stateAction.append(glyph);
     return { replyActions, stateAction };
   }
 
@@ -2061,15 +2152,124 @@
     return document.activeElement === target;
   }
 
+  /* The reviewer types while the agent edits. When a live update changes
+     the document under an open composer, the typed text must survive:
+     re-anchor the composer when its target still exists, otherwise stash
+     the draft behind a restore affordance in the Comments panel. */
+  function composerRescuePlan({ composer = null, sourceHash = "", blockAvailable = false, selectionValid = false } = {}) {
+    if (!composer?.baseHash || composer.baseHash === sourceHash) return "keep";
+    if (!String(composer.body || "").trim()) return "discard";
+    if (composer.selection) return selectionValid ? "reanchor" : "stash";
+    return blockAvailable ? "reanchor" : "stash";
+  }
+
+  function composerSelectionValid(selection) {
+    if (!selection || !textSelection || !state.reviewTextIndex) return false;
+    return textSelection.reconstructTextRange({
+      version: selection.version,
+      currentBlockKeys: selection.blockKeys,
+      startOffset: selection.startOffset,
+      endOffset: selection.endOffset,
+      quote: selection.quote,
+    }, state.reviewTextIndex).available;
+  }
+
+  function rescueCommentComposer() {
+    const composer = state.reviewComposer;
+    if (!composer) return;
+    const plan = composerRescuePlan({
+      composer,
+      sourceHash: state.reviewSourceHash,
+      blockAvailable: state.reviewBlocks.has(composer.blockKey),
+      selectionValid: composerSelectionValid(composer.selection),
+    });
+    if (plan === "keep") return;
+    if (plan === "reanchor") {
+      composer.baseHash = state.reviewSourceHash;
+      composer.savedRange = null;
+      elements.reviewLiveStatus.textContent = "The document changed. Your unsent comment moved to the updated document.";
+      return;
+    }
+    state.reviewComposer = null;
+    if (plan === "stash") {
+      state.reviewComposerDraft = { body: composer.body, blockKey: composer.blockKey };
+      elements.reviewLiveStatus.textContent =
+        "Comment closed because the document changed. Your unsent text is kept in the Comments panel.";
+      return;
+    }
+    elements.reviewLiveStatus.textContent = "Comment closed because the document changed";
+  }
+
+  let composerDraftNotice = null;
+
+  function restoreComposerDraft() {
+    const draft = state.reviewComposerDraft;
+    if (!draft || state.reviewComposer || !canAddComment()) return;
+    const activeKey = activeNavigationBlock()?.dataset.mdBlock || "";
+    let blockKey = "";
+    for (const candidate of [draft.blockKey, activeKey, state.reviewBlocks.keys().next().value]) {
+      if (candidate && state.reviewBlocks.has(candidate)) {
+        blockKey = candidate;
+        break;
+      }
+    }
+    if (!blockKey) return;
+    state.reviewComposerDraft = null;
+    if (state.reviewPanelOpen && !reviewWide.matches) setReviewPanel(false, false);
+    openCommentComposer(blockKey, "reader");
+    if (state.reviewComposer) {
+      state.reviewComposer.body = draft.body;
+      renderCommentComposer();
+    } else {
+      state.reviewComposerDraft = draft;
+    }
+    renderComposerDraftNotice();
+  }
+
+  function renderComposerDraftNotice() {
+    const draft = state.reviewComposerDraft;
+    if (!draft) {
+      composerDraftNotice?.remove();
+      composerDraftNotice = null;
+      return;
+    }
+    if (!composerDraftNotice) {
+      composerDraftNotice = document.createElement("div");
+      composerDraftNotice.className = "review-draft-notice";
+      const heading = document.createElement("p");
+      heading.className = "review-draft-title";
+      heading.textContent = "Unsent comment";
+      const body = document.createElement("p");
+      body.className = "review-draft-body";
+      const actions = document.createElement("div");
+      actions.className = "review-draft-actions";
+      const restore = document.createElement("button");
+      restore.type = "button";
+      restore.className = "review-draft-restore";
+      restore.textContent = "Continue editing";
+      restore.addEventListener("click", restoreComposerDraft);
+      const discard = document.createElement("button");
+      discard.type = "button";
+      discard.className = "review-draft-discard";
+      discard.textContent = "Discard";
+      discard.addEventListener("click", () => {
+        state.reviewComposerDraft = null;
+        renderComposerDraftNotice();
+      });
+      actions.append(restore, discard);
+      composerDraftNotice.append(heading, body, actions);
+    }
+    composerDraftNotice.querySelector(".review-draft-body").textContent = draft.body;
+    composerDraftNotice.querySelector(".review-draft-restore").disabled = !canAddComment();
+    elements.reviewCountSummary.before(composerDraftNotice);
+  }
+
   function renderReviewInterface(options = {}) {
     const focusKey = options.preserveFocus ? currentFocusKey() : "";
     const pageScroll = options.preserveFocus ? window.scrollY : null;
     const panelScroll = options.preserveFocus ? elements.reviewPanelScroll.scrollTop : null;
     detachCommentComposer();
-    if (state.reviewComposer?.baseHash && state.reviewComposer.baseHash !== state.reviewSourceHash) {
-      state.reviewComposer = null;
-      elements.reviewLiveStatus.textContent = "Comment closed because the document changed";
-    }
+    rescueCommentComposer();
     updateReviewButton();
     elements.reviewLoadState.textContent = state.reviewLoading
       ? "Loading review"
@@ -2087,6 +2287,7 @@
       elements.reviewComments.append(empty);
     }
 
+    renderComposerDraftNotice();
     updateBlockCommentControls();
     renderCommentComposer();
     growReplyInputs(elements.reviewComments);
@@ -2305,7 +2506,6 @@
 
   function applyReviewView(view) {
     state.reviewRevision = view.revision;
-    state.reviewStatus = view.reviewStatus;
     state.reviewSourceHash = view.sourceHash;
     resolveCommentTextRanges(view.comments);
     state.reviewComments = view.comments;
@@ -2796,7 +2996,7 @@
       peer.setAttribute("aria-invalid", String(Boolean(error)));
       const submit = peer.closest(".comment-reply-shell")?.querySelector(".comment-reply-submit");
       if (submit) submit.disabled = !canAddComment() || Boolean(submitError);
-      growReplyInput(peer);
+      growTextarea(peer);
     }
   }
 
@@ -2900,6 +3100,9 @@
 
   async function loadDocument(path, fragment = "", options = {}) {
     const live = options.live === true;
+    /* preserveView re-renders in place (theme changes): no skeleton, no
+       scroll reset, no "updated" toast. */
+    const preserveView = options.preserveView === true && path === state.currentPath;
     if (!options.force && path === state.currentPath && !elements.document.hidden) {
       finishNavigation(fragment, elements.currentFile.textContent || titleFromPath(path));
       return;
@@ -2917,7 +3120,7 @@
     state.currentPath = path;
     elements.currentFile.textContent = displayName(path);
     updateActiveFile();
-    if (!live) {
+    if (!live && !preserveView) {
       setDocumentPath("");
       showLoading();
     }
@@ -2996,7 +3199,7 @@
 
       if (reviewEnabled) {
         state.reviewBlockError = blockError;
-        await loadReview({ automatic: live });
+        await loadReview({ automatic: live || preserveView });
       } else {
         clearReviewState(true);
       }
@@ -3012,7 +3215,13 @@
         window.clearTimeout(state.highlightTimer);
         state.highlightBaseline = signatures;
         state.pendingUpdate = null;
-        finishNavigation(fragment, title, () => isCurrentLoad(controller));
+        if (preserveView) {
+          window.requestAnimationFrame(() => {
+            if (isCurrentLoad(controller)) window.scrollTo({ top: previousScroll, behavior: "auto" });
+          });
+        } else {
+          finishNavigation(fragment, title, () => isCurrentLoad(controller));
+        }
       }
     } catch (error) {
       if (error.name === "AbortError" || !isCurrentLoad(controller)) return;
@@ -3139,16 +3348,37 @@
     return new Promise((resolve) => window.setTimeout(resolve, duration));
   }
 
+  /* One dropped poll is routine; several in a row mean the reader is no
+     longer seeing live edits and should know. */
+  function liveUpdatesStalled(failures) {
+    return failures >= 3;
+  }
+
+  /* Network drops (TypeError) and server errors (APIError) are expected
+     while the daemon restarts. Anything else is a bug worth logging. */
+  function watchErrorIsUnexpected(error) {
+    return error?.name !== "TypeError" && error?.name !== "APIError";
+  }
+
   async function watchChanges() {
     let revision = 0;
     let retryDelay = 500;
+    let failures = 0;
     while (true) {
       try {
         const payload = await fetchJSON(`/api/watch?since=${revision}`);
         await applyChanges(payload);
         revision = payload.revision;
         retryDelay = 500;
-      } catch {
+        failures = 0;
+        if (liveUpdatesDisconnected()) {
+          setLiveUpdateNotice(false);
+          announceUpdate("Live updates restored");
+        }
+      } catch (error) {
+        failures += 1;
+        if (watchErrorIsUnexpected(error)) console.error("MDShelf live update failed:", error);
+        if (liveUpdatesStalled(failures)) setLiveUpdateNotice(true);
         await wait(retryDelay);
         retryDelay = Math.min(retryDelay * 2, 8000);
       }
@@ -3271,10 +3501,12 @@
       blockCommentTapAction,
       blockIndexAtViewport,
       navigationScrollDelta,
+      commentActionsPlan,
       commentComposerControlState,
       commentBlockKey,
       commentStateAction,
       commentComposerEscapeAction,
+      composerRescuePlan,
       commentCountsByBlockKey,
       commentSubmitShortcut,
       directReplySubmitShortcut,
@@ -3287,7 +3519,9 @@
       isCurrentLoad,
       isDocumentAvailable,
       isNavigationBlock,
+      keyboardShortcutsEnabled,
       listNavigationIndex,
+      liveUpdatesStalled,
       planLiveChanges,
       readingShortcutAction,
       renderMath,
@@ -3302,9 +3536,11 @@
       setAppearance,
       setDesign,
       setDocumentPath,
+      setKeyboardShortcuts,
       setSyntaxTheme,
       shouldReloadDocument,
       validateReviewView,
+      watchErrorIsUnexpected,
       commentAddAvailable,
       syntaxThemeElement: elements.syntaxTheme,
       setAbortController(controller) { state.abortController = controller; },
@@ -3357,6 +3593,9 @@
   });
   elements.appearance.addEventListener("change", () => setAppearance(elements.appearance.value));
   elements.syntaxTheme.addEventListener("change", () => setSyntaxTheme(elements.syntaxTheme.value));
+  elements.shortcutToggle.addEventListener("change", () => setKeyboardShortcuts(elements.shortcutToggle.checked));
+  elements.actionErrorDismiss.addEventListener("click", dismissActionError);
+  elements.commentBody.dataset.focusKey = "composer:body";
   elements.commentBody.addEventListener("input", growCommentBody);
   elements.fileFilter.addEventListener("input", () => {
     state.filter = elements.fileFilter.value;
@@ -3569,7 +3808,7 @@
   });
 
   document.addEventListener("keydown", (event) => {
-    const action = readingShortcutAction(event);
+    const action = readingShortcutAction(event, state.keyboardShortcuts);
     if (!action || shortcutTargetIsEditable(event.target)) return;
     if (event.repeat && ["comment", "documents", "comments", "shortcuts"].includes(action)) return;
 
