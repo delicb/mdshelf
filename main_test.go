@@ -121,9 +121,9 @@ func TestShutdownAdHocServer(t *testing.T) {
 	if err := <-serveDone; !errors.Is(err, http.ErrServerClosed) {
 		t.Fatalf("Serve() error = %v, want http.ErrServerClosed", err)
 	}
-	a.updates.mu.Lock()
-	closed := a.updates.closed
-	a.updates.mu.Unlock()
+	a.updates.feed.mu.Lock()
+	closed := a.updates.feed.closed
+	a.updates.feed.mu.Unlock()
 	if !closed {
 		t.Fatal("live updates are not closed after shutdown")
 	}
