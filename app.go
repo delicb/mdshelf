@@ -71,9 +71,9 @@ func newAppWithWatcher(root string, watch bool) (*app, error) {
 		}
 	}
 
-	web, err := fs.Sub(embeddedWeb, "web")
+	static, err := embeddedWebHandler()
 	if err != nil {
-		return nil, fmt.Errorf("load embedded web files: %w", err)
+		return nil, err
 	}
 
 	a := &app{
@@ -85,7 +85,7 @@ func newAppWithWatcher(root string, watch bool) (*app, error) {
 		return nil, fmt.Errorf("watch Markdown files: %w", err)
 	}
 	a.updates = updates
-	a.handler = a.routes(http.FileServer(http.FS(web)))
+	a.handler = a.routes(static)
 	return a, nil
 }
 

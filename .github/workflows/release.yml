@@ -64,7 +64,7 @@ jobs:
           go test -race -count=1 ./...
           node --check web/text-selection.js
           node --check web/app.js
-          node --test web/app.test.cjs
+          node --test web/app.test.cjs web/text-selection.test.cjs
           go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
 
   build:
@@ -128,7 +128,7 @@ jobs:
             fi
 
             GOOS="$target_os" GOARCH="$target_arch" \
-              go build -trimpath -ldflags="-s -w" -o "$binary" .
+              go build -trimpath -ldflags="-s -w -X main.version=$version" -o "$binary" .
 
             cp LICENSE README.md THIRD_PARTY_NOTICES "$stage/"
             cp -R skills "$stage/"
@@ -158,7 +158,9 @@ jobs:
     timeout-minutes: 5
     permissions:
       actions: read
+      attestations: write
       contents: write
+      id-token: write
 
     steps:
       - name: Download release archives
@@ -173,6 +175,14 @@ jobs:
         run: |
           cd dist
           sha256sum ./*.tar.gz ./*.zip > SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/SHA256SUMS
 
       - name: Create GitHub release
         env:
