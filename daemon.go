@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"io/fs"
 	"log"
 	"net"
@@ -92,23 +91,23 @@ func (d *daemonServer) requestStop() { d.stopOnce.Do(func() { close(d.stop) }) }
 
 func (d *daemonServer) routes(static http.Handler) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/files", d.handleFiles)
-	mux.HandleFunc("/api/render", d.handleRender)
-	mux.HandleFunc("/api/asset", d.handleAsset)
-	mux.HandleFunc("/api/watch", d.handleWatch)
-	mux.HandleFunc("/api/health", d.handleHealth)
-	mux.HandleFunc("/api/review", d.handleReview)
-	mux.HandleFunc("/api/control/add", d.handleControlAdd)
-	mux.HandleFunc("/api/control/list", d.handleControlList)
-	mux.HandleFunc("/api/control/remove", d.handleControlRemove)
-	mux.HandleFunc("/api/control/status", d.handleControlStatus)
-	mux.HandleFunc("/api/control/stop", d.handleControlStop)
-	mux.HandleFunc("/api/control/review/comments/add", d.handleControlReviewCommentAdd)
-	mux.HandleFunc("/api/control/review/comments/reply", d.handleControlReviewCommentReply)
-	mux.HandleFunc("/api/control/review/comments/address", d.handleControlReviewCommentAddress)
-	mux.HandleFunc("/api/control/review/comments/resolve", d.handleControlReviewCommentResolve)
-	mux.HandleFunc("/api/control/review/comments/reopen", d.handleControlReviewCommentReopen)
-	mux.HandleFunc("/api/control/review/show", d.handleControlReviewShow)
+	handleMethod(mux, http.MethodGet, "/api/files", d.handleFiles)
+	handleMethod(mux, http.MethodGet, "/api/render", d.handleRender)
+	handleMethod(mux, http.MethodGet, "/api/asset", d.handleAsset)
+	handleMethod(mux, http.MethodGet, "/api/watch", d.handleWatch)
+	handleMethod(mux, http.MethodGet, "/api/health", d.handleHealth)
+	handleMethod(mux, http.MethodGet, "/api/review", d.handleReview)
+	handleMethod(mux, http.MethodPost, "/api/control/add", d.handleControlAdd)
+	handleMethod(mux, http.MethodPost, "/api/control/list", d.handleControlList)
+	handleMethod(mux, http.MethodPost, "/api/control/remove", d.handleControlRemove)
+	handleMethod(mux, http.MethodPost, "/api/control/status", d.handleControlStatus)
+	handleMethod(mux, http.MethodPost, "/api/control/stop", d.handleControlStop)
+	handleMethod(mux, http.MethodPost, "/api/control/review/comments/add", d.handleControlReviewCommentAdd)
+	handleMethod(mux, http.MethodPost, "/api/control/review/comments/reply", d.handleControlReviewCommentReply)
+	handleMethod(mux, http.MethodPost, "/api/control/review/comments/address", d.handleControlReviewCommentAddress)
+	handleMethod(mux, http.MethodPost, "/api/control/review/comments/resolve", d.handleControlReviewCommentResolve)
+	handleMethod(mux, http.MethodPost, "/api/control/review/comments/reopen", d.handleControlReviewCommentReopen)
+	handleMethod(mux, http.MethodPost, "/api/control/review/show", d.handleControlReviewShow)
 	mux.HandleFunc("/api", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "API endpoint not found")
 	})
@@ -215,9 +214,6 @@ func serveDaemon(stateDir string) error {
 }
 
 func (d *daemonServer) handleFiles(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
 	type fileRow struct {
 		Path         string               `json:"path"`
 		Title        string               `json:"title"`
@@ -240,9 +236,6 @@ func (d *daemonServer) handleFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
 	id := r.URL.Query().Get("path")
 	if id == demoDocumentPath {
 		rendered, err := renderDemo(d.markdown)
@@ -251,25 +244,10 @@ func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusInternalServerError, "could not render demo")
 			return
 		}
-		writeJSON(w, http.StatusOK, struct {
-			Path       string                  `json:"path"`
-			Title      string                  `json:"title"`
-			HTML       string                  `json:"html"`
-			SourceHash string                  `json:"sourceHash"`
-			Blocks     []markdownBlockResponse `json:"blocks"`
-		}{
-			Path: demoDocumentPath, Title: rendered.title, HTML: rendered.html,
-			SourceHash: rendered.sourceHash, Blocks: markdownBlockResponses(rendered.blocks),
-		})
+		writeJSON(w, http.StatusOK, newRenderResponse(demoDocumentPath, "", rendered))
 		return
 	}
-	d.updater.mu.Lock()
-	document := cloneDaemonDocument(d.updater.documents[id])
-	paths := make(map[string]string, len(d.updater.paths))
-	for filePath, registeredID := range d.updater.paths {
-		paths[filePath] = registeredID
-	}
-	d.updater.mu.Unlock()
+	document, paths := d.updater.documentAndPaths(id)
 	if document == nil {
 		writeJSONError(w, http.StatusNotFound, "Document not registered")
 		return
@@ -292,36 +270,17 @@ func (d *daemonServer) handleRender(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, "could not render Markdown file")
 		return
 	}
-	writeJSON(w, http.StatusOK, struct {
-		Path         string                  `json:"path"`
-		AbsolutePath string                  `json:"absolutePath"`
-		Title        string                  `json:"title"`
-		HTML         string                  `json:"html"`
-		SourceHash   string                  `json:"sourceHash"`
-		Blocks       []markdownBlockResponse `json:"blocks"`
-	}{
-		Path:         document.ID,
-		AbsolutePath: displayDocumentPath(document.Path),
-		Title:        rendered.title,
-		HTML:         rendered.html,
-		SourceHash:   rendered.sourceHash,
-		Blocks:       markdownBlockResponses(rendered.blocks),
-	})
+	writeJSON(w, http.StatusOK, newRenderResponse(document.ID, displayDocumentPath(document.Path), rendered))
 }
 
 func (d *daemonServer) handleAsset(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
 	id := r.URL.Query().Get("doc")
 	rawPath := r.URL.Query().Get("path")
 	if id == "" || rawPath == "" {
 		writeJSONError(w, http.StatusBadRequest, "doc and path are required")
 		return
 	}
-	d.updater.mu.Lock()
-	document := cloneDaemonDocument(d.updater.documents[id])
-	d.updater.mu.Unlock()
+	document := d.updater.document(id)
 	if document == nil {
 		writeJSONError(w, http.StatusNotFound, "Document not registered")
 		return
@@ -342,40 +301,19 @@ func (d *daemonServer) handleAsset(w http.ResponseWriter, r *http.Request) {
 	}
 	root := filepath.Dir(document.Path)
 	if err := checkPathSegments(root, cleanPath); err != nil {
-		writeDaemonOpenError(w, err, "image")
+		writeOpenError(w, err, "image")
 		return
 	}
 	file, info, err := openRootedFile(root, cleanPath)
 	if err != nil {
-		writeDaemonOpenError(w, err, "image")
+		writeOpenError(w, err, "image")
 		return
 	}
 	defer file.Close()
-	var header [512]byte
-	n, err := io.ReadFull(file, header[:])
-	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
-		writeJSONError(w, http.StatusInternalServerError, "could not read image")
-		return
-	}
-	detectedType := http.DetectContentType(header[:n])
-	if detectedType != expectedType {
-		writeJSONError(w, http.StatusUnsupportedMediaType, "file content is not a supported image")
-		return
-	}
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "could not read image")
-		return
-	}
-	w.Header().Set("Cache-Control", "private, no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
-	w.Header().Set("Content-Type", detectedType)
-	http.ServeContent(w, r, path.Base(cleanPath), info.ModTime(), file)
+	serveRasterImage(w, r, file, info, cleanPath, expectedType)
 }
 
 func (d *daemonServer) handleWatch(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
 	since, err := parseRevision(r.URL.Query().Get("since"))
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
@@ -388,9 +326,6 @@ func (d *daemonServer) handleWatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *daemonServer) handleHealth(w http.ResponseWriter, r *http.Request) {
-	if !requireGET(w, r) {
-		return
-	}
 	writeJSON(w, http.StatusOK, struct {
 		Service  string   `json:"service"`
 		Protocol int      `json:"protocol"`
@@ -448,9 +383,7 @@ func (d *daemonServer) handleControlRemove(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if request.ID != "" {
-		d.updater.mu.Lock()
-		document := cloneDaemonDocument(d.updater.documents[request.ID])
-		d.updater.mu.Unlock()
+		document := d.updater.document(request.ID)
 		if document == nil {
 			writeJSONError(w, http.StatusNotFound, "Document not registered")
 			return
@@ -503,11 +436,6 @@ func (d *daemonServer) handleControlStop(w http.ResponseWriter, r *http.Request)
 }
 
 func (d *daemonServer) decodeControl(w http.ResponseWriter, r *http.Request, target any) bool {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return false
-	}
 	mediaType := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
 	if mediaType != "application/json" {
 		writeJSONError(w, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
@@ -562,95 +490,32 @@ func writeControlError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, fs.ErrNotExist), errors.Is(err, errNotRegular):
 		writeJSONError(w, http.StatusNotFound, "Markdown file not found")
-	case errors.Is(err, errSymlink), errors.Is(err, errInvalidPath):
+	case errors.Is(err, errSymlink), errors.Is(err, errInvalidPath),
+		errors.Is(err, errNotMarkdownDocument), errors.Is(err, errMarkdownTooLarge):
 		writeJSONError(w, http.StatusBadRequest, err.Error())
-	case strings.Contains(err.Error(), "collision"):
+	case errors.Is(err, errDocumentIDCollision):
 		writeJSONError(w, http.StatusConflict, err.Error())
 	default:
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		log.Printf("daemon control request: %v", err)
+		writeJSONError(w, http.StatusInternalServerError, "could not update the daemon registry")
 	}
 }
 
 func cleanDaemonAssetPath(rawPath string) (string, error) {
-	if rawPath == "" || strings.ContainsRune(rawPath, '\x00') || strings.Contains(rawPath, "\\") || strings.HasPrefix(rawPath, "/") {
-		return "", errInvalidPath
-	}
-	for _, part := range strings.Split(rawPath, "/") {
-		if part == "" || part == "." || part == ".." {
-			return "", errInvalidPath
-		}
-	}
-	clean := path.Clean(rawPath)
-	local := filepath.FromSlash(clean)
-	if clean == "." || filepath.IsAbs(local) || filepath.VolumeName(local) != "" {
-		return "", errInvalidPath
-	}
-	return clean, nil
-}
-
-func checkPathSegments(root, cleanPath string) error {
-	current := root
-	parts := strings.Split(cleanPath, "/")
-	for index, part := range parts {
-		current = filepath.Join(current, filepath.FromSlash(part))
-		info, err := os.Lstat(current)
-		if err != nil {
-			return err
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return errSymlink
-		}
-		if index < len(parts)-1 && !info.IsDir() {
-			return fs.ErrNotExist
-		}
-		if index == len(parts)-1 && !info.Mode().IsRegular() {
-			return errNotRegular
-		}
-	}
-	if !isWithinRoot(root, current) {
-		return errInvalidPath
-	}
-	return nil
-}
-
-func writeDaemonOpenError(w http.ResponseWriter, err error, noun string) {
-	switch {
-	case errors.Is(err, errInvalidPath), errors.Is(err, errSymlink):
-		writeJSONError(w, http.StatusBadRequest, err.Error())
-	case errors.Is(err, fs.ErrNotExist), errors.Is(err, errNotRegular):
-		writeJSONError(w, http.StatusNotFound, noun+" not found")
-	case errors.Is(err, fs.ErrPermission):
-		writeJSONError(w, http.StatusForbidden, noun+" cannot be read")
-	default:
-		writeJSONError(w, http.StatusInternalServerError, "could not open "+noun)
-	}
+	return cleanRelativeFilePath(rawPath, true)
 }
 
 func rewriteDaemonImages(document ast.Node, registered *daemonDocument) {
-	_ = ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			return ast.WalkContinue, nil
-		}
-		image, ok := node.(*ast.Image)
-		if !ok {
-			return ast.WalkContinue, nil
-		}
-		destination, err := url.Parse(string(image.Destination))
-		if err != nil || destination.Scheme != "" || destination.Host != "" || destination.Path == "" {
-			return ast.WalkContinue, nil
-		}
-		imagePath, err := url.PathUnescape(destination.Path)
-		if err != nil || strings.Contains(imagePath, "\\") {
-			return ast.WalkContinue, nil
-		}
+	rewriteImages(document, func(imagePath string) *url.URL {
 		imagePath = path.Clean(strings.TrimPrefix(imagePath, "/"))
-		imagePath, err = cleanDaemonAssetPath(imagePath)
+		imagePath, err := cleanDaemonAssetPath(imagePath)
 		if err != nil {
-			return ast.WalkContinue, nil
+			return nil
 		}
-		asset := url.URL{Path: "/api/asset", RawQuery: url.Values{"doc": {registered.ID}, "path": {imagePath}}.Encode(), Fragment: destination.Fragment}
-		image.Destination = []byte(asset.String())
-		return ast.WalkContinue, nil
+		return &url.URL{
+			Path:     "/api/asset",
+			RawQuery: url.Values{"doc": {registered.ID}, "path": {imagePath}}.Encode(),
+		}
 	})
 }
 

@@ -75,7 +75,7 @@ func TestLiveUpdatesTrackAddedAndRemovedMarkdown(t *testing.T) {
 func TestWatchEndpointReturnsRememberedChanges(t *testing.T) {
 	root := t.TempDir()
 	app := mustNewTestApp(t, root)
-	app.updates.publish(markdownChange{Path: "note.md", Kind: "updated", Diff: "saved diff"})
+	app.updates.feed.publish(markdownChange{Path: "note.md", Kind: "updated", Diff: "saved diff"})
 
 	response := request(t, app.Handler(), http.MethodGet, "/api/watch?since=0", nil)
 	defer func() { _ = response.Body.Close() }()
@@ -118,7 +118,7 @@ func waitForChange(t *testing.T, updates *liveUpdates, since uint64) changeBatch
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	batch := updates.waitForChanges(ctx, since)
+	batch := updates.feed.wait(ctx, since)
 	if ctx.Err() != nil {
 		t.Fatal("timed out waiting for Markdown change")
 	}

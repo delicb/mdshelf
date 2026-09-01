@@ -15,6 +15,12 @@ import (
 	"time"
 )
 
+// addComment is a test shorthand for addCommentWithSelection without a
+// text-range selection.
+func (s *reviewStore) addComment(document reviewDocumentContext, expectedRevision uint64, expectedSourceHash, body, blockKey string) (documentReview, reviewComment, error) {
+	return s.addCommentWithSelection(document, expectedRevision, expectedSourceHash, body, blockKey, nil)
+}
+
 func TestReviewStoreMissingFileStartsEmpty(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state", "reviews.json")
 	store, err := newReviewStore(path)

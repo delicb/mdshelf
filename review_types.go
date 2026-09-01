@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -413,7 +414,7 @@ func blockAnchorsEqual(left, right blockAnchor) bool {
 		left.StartLine == right.StartLine &&
 		left.EndLine == right.EndLine &&
 		left.Quote == right.Quote &&
-		slicesEqual(left.HeadingPath, right.HeadingPath)
+		slices.Equal(left.HeadingPath, right.HeadingPath)
 }
 
 func validateBlockAnchor(anchor *blockAnchor) error {

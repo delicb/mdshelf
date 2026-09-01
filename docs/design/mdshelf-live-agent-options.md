@@ -1,3 +1,7 @@
+> **Design exploration, August 2026.** This document surveys options for
+> pushing review comments to a live agent. None of these options is
+> implemented. The shipped review flow polls with `mdshelf review show`.
+
 # Live Agent Comments for MDShelf
 
 ## Goal

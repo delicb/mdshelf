@@ -7,6 +7,10 @@ on:
   pull_request:
     branches:
       - main
+  schedule:
+    # Weekly run so govulncheck scans the latest vulnerability data
+    # even when the repository is idle.
+    - cron: "17 4 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -60,13 +64,38 @@ jobs:
         run: |
           node --check web/text-selection.js
           node --check web/app.js
-          node --test web/app.test.cjs
+          node --test web/app.test.cjs web/text-selection.test.cjs
 
       - name: Scan for known vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
 
       - name: Build production binary
         run: go build -trimpath -ldflags="-s -w" -o /tmp/mdshelf .
+
+  lint:
+    name: Lint Go code
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      # golangci-lint v2.8.0 is built with Go 1.25; its type checker panics
+      # on a newer Go standard library, so this job pins the matching Go
+      # minor. Bump the Go version and the linter version together.
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.x"
+          cache-dependency-path: go.sum
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.8.0
 
   test:
     name: Test on ${{ matrix.os }}
@@ -92,5 +121,8 @@ jobs:
           go-version: "1.27.x"
           cache-dependency-path: go.sum
 
+      # The 8 minute test timeout stays below timeout-minutes so a hung
+      # test ends with a goroutine dump that names it, not a silent job
+      # cancellation.
       - name: Run tests with race detector
-        run: go test -race -count=1 ./...
+        run: go test -race -count=1 -timeout 8m ./...
