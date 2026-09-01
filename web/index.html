@@ -7,14 +7,16 @@
     <meta name="theme-color" content="#f4f5f2" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#15181a" media="(prefers-color-scheme: dark)">
     <title>MDShelf</title>
-    <link rel="stylesheet" href="./vendor/fonts/fonts.css?v=1">
+    <!-- First-party asset links carry a "v=dev" placeholder; the Go server
+         swaps it for a content hash at startup (see webassets.go). -->
+    <link rel="stylesheet" href="./vendor/fonts/fonts.css?v=dev">
     <link rel="stylesheet" href="./vendor/katex/katex.min.css?v=0.18.4">
-    <link rel="stylesheet" href="./app.css?v=42">
-    <link rel="stylesheet" href="./chroma.css?v=2">
+    <link rel="stylesheet" href="./app.css?v=dev">
+    <link rel="stylesheet" href="./chroma.css?v=dev">
     <script defer src="./vendor/katex/katex.min.js?v=0.18.4"></script>
     <script defer src="./vendor/mermaid.min.js?v=11.17.2"></script>
-    <script defer src="./text-selection.js?v=3"></script>
-    <script defer src="./app.js?v=41"></script>
+    <script defer src="./text-selection.js?v=dev"></script>
+    <script defer src="./app.js?v=dev"></script>
   </head>
   <body>
     <a class="skip-link" href="#reader">Skip to document</a>

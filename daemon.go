@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -69,9 +68,9 @@ func newDaemonServerWithUpdaterOptions(stateDir string, updaterOptions daemonUpd
 	if err != nil {
 		return nil, err
 	}
-	web, err := fs.Sub(embeddedWeb, "web")
+	static, err := embeddedWebHandler()
 	if err != nil {
-		return nil, fmt.Errorf("load embedded web files: %w", err)
+		return nil, err
 	}
 	d := &daemonServer{
 		config:    config,
@@ -81,7 +80,7 @@ func newDaemonServerWithUpdaterOptions(stateDir string, updaterOptions daemonUpd
 		startedAt: time.Now().UTC(),
 		stop:      make(chan struct{}),
 	}
-	d.handler = d.routes(http.FileServer(http.FS(web)))
+	d.handler = d.routes(static)
 	return d, nil
 }
 
