@@ -121,5 +121,8 @@ jobs:
           go-version: "1.27.x"
           cache-dependency-path: go.sum
 
+      # The 8 minute test timeout stays below timeout-minutes so a hung
+      # test ends with a goroutine dump that names it, not a silent job
+      # cancellation.
       - name: Run tests with race detector
-        run: go test -race -count=1 ./...
+        run: go test -race -count=1 -timeout 8m ./...
