@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/BurntSushi/toml v1.6.0
-	github.com/alecthomas/chroma/v2 v2.24.1
+	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/jschaf/bibtex v0.0.0-20250819063624-2ec82ed44a1e
 	github.com/pmezard/go-difflib v1.0.0
@@ -16,4 +16,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require github.com/dlclark/regexp2 v1.12.0 // indirect
+require github.com/dlclark/regexp2/v2 v2.2.1 // indirect
