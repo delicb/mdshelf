@@ -3,12 +3,14 @@
 
    Two settings drive everything:
      data-design     ink | signal | column   (typography and layout)
-     data-scheme     light | dark            (set by app.js; the media
-                                              query covers the moment
-                                              before the script runs)
+     data-scheme     light | dark            (set by app.js; until the
+                                              script runs, color-scheme
+                                              stays "light dark" and the
+                                              system preference decides)
 
-   Every design defines the same token contract, so component rules below
-   never name a colour or a face directly.
+   Every design defines the same token contract once: each colour is a
+   light-dark() pair resolved through the color-scheme property, so
+   component rules below never name a colour or a face directly.
    --------------------------------------------------------------------- */
 
 :root {
@@ -33,6 +35,48 @@
 :root[data-scheme="light"] { color-scheme: light; }
 :root[data-scheme="dark"] { color-scheme: dark; }
 
+/* Registration makes each token compute to a resolved colour instead of
+   the raw light-dark() expression, so app.js can keep reading palette
+   values with getComputedStyle to theme Mermaid diagrams. */
+@property --page { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --surface { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --surface-soft { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --surface-hover { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --text { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --text-soft { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --text-faint { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --line { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --line-strong { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --accent { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --accent-soft { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --accent-strong { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --code-bg { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --quote { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --mark { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --mark-edge { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --note { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --tip { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --important { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --warn { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --stop { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --shadow-color { syntax: "<color>"; inherits: true; initial-value: transparent; }
+
+/* Shadow geometry follows the colour scheme; each design supplies only
+   the colour, through --shadow-color. */
+:root {
+  --shadow: 0 16px 44px var(--shadow-color);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-scheme="light"]) {
+    --shadow: 0 20px 56px var(--shadow-color);
+  }
+}
+
+:root[data-scheme="dark"] {
+  --shadow: 0 20px 56px var(--shadow-color);
+}
+
 /* ============================ INK ============================
    Paper and serif. Quiet chrome, comments in the margin. */
 
@@ -45,81 +89,28 @@
   --body-leading: 1.72;
   --radius: 0.2rem;
   --radius-lg: 0.3rem;
-
-  --page: #f4f5f2;
-  --surface: #fbfbf9;
-  --surface-soft: #edefea;
-  --surface-hover: #e4e7e0;
-  --text: #1b1e20;
-  --text-soft: #555b5e;
-  --text-faint: #7f8689;
-  --line: #dcdfd8;
-  --line-strong: #c4c8bf;
-  --accent: #2c5c8f;
-  --accent-soft: #dde7f1;
-  --accent-strong: #234c77;
-  --code-bg: #edefea;
-  --quote: #c4c8bf;
-  --mark: #fbf1cd;
-  --mark-edge: #b8892b;
-  --note: #2c5c8f;
-  --tip: #2f6b4f;
-  --important: #6b4a9e;
-  --warn: #8f5a00;
-  --stop: #a33224;
-  --shadow: 0 16px 44px rgb(28 32 30 / 16%);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root[data-design="ink"]:not([data-scheme="light"]) {
-    --page: #15181a;
-    --surface: #1b1f22;
-    --surface-soft: #22262a;
-    --surface-hover: #2a2f33;
-    --text: #e4e6e1;
-    --text-soft: #a9afaa;
-    --text-faint: #7f8781;
-    --line: #2b3034;
-    --line-strong: #3c4349;
-    --accent: #86b3de;
-    --accent-soft: #1e2c3a;
-    --accent-strong: #a5c9ea;
-    --code-bg: #1e2225;
-    --quote: #3c4349;
-    --mark: #3a3117;
-    --mark-edge: #d9ae4c;
-    --note: #86b3de;
-    --tip: #7fc4a1;
-    --important: #b79ae0;
-    --warn: #d9a44e;
-    --stop: #e08a7d;
-    --shadow: 0 20px 56px rgb(0 0 0 / 46%);
-  }
-}
-
-:root[data-design="ink"][data-scheme="dark"] {
-  --page: #15181a;
-  --surface: #1b1f22;
-  --surface-soft: #22262a;
-  --surface-hover: #2a2f33;
-  --text: #e4e6e1;
-  --text-soft: #a9afaa;
-  --text-faint: #7f8781;
-  --line: #2b3034;
-  --line-strong: #3c4349;
-  --accent: #86b3de;
-  --accent-soft: #1e2c3a;
-  --accent-strong: #a5c9ea;
-  --code-bg: #1e2225;
-  --quote: #3c4349;
-  --mark: #3a3117;
-  --mark-edge: #d9ae4c;
-  --note: #86b3de;
-  --tip: #7fc4a1;
-  --important: #b79ae0;
-  --warn: #d9a44e;
-  --stop: #e08a7d;
-  --shadow: 0 20px 56px rgb(0 0 0 / 46%);
+  --page: light-dark(#f4f5f2, #15181a);
+  --surface: light-dark(#fbfbf9, #1b1f22);
+  --surface-soft: light-dark(#edefea, #22262a);
+  --surface-hover: light-dark(#e4e7e0, #2a2f33);
+  --text: light-dark(#1b1e20, #e4e6e1);
+  --text-soft: light-dark(#555b5e, #a9afaa);
+  --text-faint: light-dark(#7f8689, #7f8781);
+  --line: light-dark(#dcdfd8, #2b3034);
+  --line-strong: light-dark(#c4c8bf, #3c4349);
+  --accent: light-dark(#2c5c8f, #86b3de);
+  --accent-soft: light-dark(#dde7f1, #1e2c3a);
+  --accent-strong: light-dark(#234c77, #a5c9ea);
+  --code-bg: light-dark(#edefea, #1e2225);
+  --quote: light-dark(#c4c8bf, #3c4349);
+  --mark: light-dark(#fbf1cd, #3a3117);
+  --mark-edge: light-dark(#b8892b, #d9ae4c);
+  --note: light-dark(#2c5c8f, #86b3de);
+  --tip: light-dark(#2f6b4f, #7fc4a1);
+  --important: light-dark(#6b4a9e, #b79ae0);
+  --warn: light-dark(#8f5a00, #d9a44e);
+  --stop: light-dark(#a33224, #e08a7d);
+  --shadow-color: light-dark(rgb(28 32 30 / 16%), rgb(0 0 0 / 46%));
 }
 
 /* =========================== SIGNAL ==========================
@@ -134,81 +125,28 @@
   --body-leading: 1.68;
   --radius: 0.25rem;
   --radius-lg: 0.35rem;
-
-  --page: #eef1f4;
-  --surface: #ffffff;
-  --surface-soft: #e3e8ed;
-  --surface-hover: #d8dfe6;
-  --text: #0f1519;
-  --text-soft: #4c5a64;
-  --text-faint: #74838d;
-  --line: #d4dbe1;
-  --line-strong: #b9c3cb;
-  --accent: #3b5bdb;
-  --accent-soft: #dfe4fb;
-  --accent-strong: #2f49b0;
-  --code-bg: #f3f5f8;
-  --quote: #b9c3cb;
-  --mark: #dfe4fb;
-  --mark-edge: #3b5bdb;
-  --note: #3b5bdb;
-  --tip: #1f7a4d;
-  --important: #7c3fbf;
-  --warn: #8c5a05;
-  --stop: #b03030;
-  --shadow: 0 16px 44px rgb(15 21 25 / 18%);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root[data-design="signal"]:not([data-scheme="light"]) {
-    --page: #0e1216;
-    --surface: #141a1f;
-    --surface-soft: #1a222a;
-    --surface-hover: #212b34;
-    --text: #d8e1e7;
-    --text-soft: #93a3ad;
-    --text-faint: #6a7a85;
-    --line: #232d35;
-    --line-strong: #33414c;
-    --accent: #7c9aff;
-    --accent-soft: #1d2740;
-    --accent-strong: #9fb5ff;
-    --code-bg: #10161b;
-    --quote: #33414c;
-    --mark: #1d2740;
-    --mark-edge: #7c9aff;
-    --note: #7c9aff;
-    --tip: #86d3a4;
-    --important: #c792ea;
-    --warn: #e0b054;
-    --stop: #ef7a7a;
-    --shadow: 0 20px 56px rgb(0 0 0 / 52%);
-  }
-}
-
-:root[data-design="signal"][data-scheme="dark"] {
-  --page: #0e1216;
-  --surface: #141a1f;
-  --surface-soft: #1a222a;
-  --surface-hover: #212b34;
-  --text: #d8e1e7;
-  --text-soft: #93a3ad;
-  --text-faint: #6a7a85;
-  --line: #232d35;
-  --line-strong: #33414c;
-  --accent: #7c9aff;
-  --accent-soft: #1d2740;
-  --accent-strong: #9fb5ff;
-  --code-bg: #10161b;
-  --quote: #33414c;
-  --mark: #1d2740;
-  --mark-edge: #7c9aff;
-  --note: #7c9aff;
-  --tip: #86d3a4;
-  --important: #c792ea;
-  --warn: #e0b054;
-  --stop: #ef7a7a;
-  --shadow: 0 20px 56px rgb(0 0 0 / 52%);
+  --page: light-dark(#eef1f4, #0e1216);
+  --surface: light-dark(#ffffff, #141a1f);
+  --surface-soft: light-dark(#e3e8ed, #1a222a);
+  --surface-hover: light-dark(#d8dfe6, #212b34);
+  --text: light-dark(#0f1519, #d8e1e7);
+  --text-soft: light-dark(#4c5a64, #93a3ad);
+  --text-faint: light-dark(#74838d, #6a7a85);
+  --line: light-dark(#d4dbe1, #232d35);
+  --line-strong: light-dark(#b9c3cb, #33414c);
+  --accent: light-dark(#3b5bdb, #7c9aff);
+  --accent-soft: light-dark(#dfe4fb, #1d2740);
+  --accent-strong: light-dark(#2f49b0, #9fb5ff);
+  --code-bg: light-dark(#f3f5f8, #10161b);
+  --quote: light-dark(#b9c3cb, #33414c);
+  --mark: light-dark(#dfe4fb, #1d2740);
+  --mark-edge: light-dark(#3b5bdb, #7c9aff);
+  --note: light-dark(#3b5bdb, #7c9aff);
+  --tip: light-dark(#1f7a4d, #86d3a4);
+  --important: light-dark(#7c3fbf, #c792ea);
+  --warn: light-dark(#8c5a05, #e0b054);
+  --stop: light-dark(#b03030, #ef7a7a);
+  --shadow-color: light-dark(rgb(15 21 25 / 18%), rgb(0 0 0 / 52%));
 }
 
 /* =========================== COLUMN ==========================
@@ -223,81 +161,28 @@
   --body-leading: 1.68;
   --radius: 0.25rem;
   --radius-lg: 0.3rem;
-
-  --page: #ffffff;
-  --surface: #ffffff;
-  --surface-soft: #f4f6f7;
-  --surface-hover: #eaeef0;
-  --text: #12151a;
-  --text-soft: #545c64;
-  --text-faint: #868e95;
-  --line: #e3e7ea;
-  --line-strong: #c9cfd4;
-  --accent: #12151a;
-  --accent-soft: #eef0f2;
-  --accent-strong: #12151a;
-  --code-bg: #f6f8f9;
-  --quote: #c9cfd4;
-  --mark: #fbf1cd;
-  --mark-edge: #b8892b;
-  --note: #4a5560;
-  --tip: #3f6b52;
-  --important: #5b4a7a;
-  --warn: #9c7211;
-  --stop: #a8322a;
-  --shadow: 0 16px 44px rgb(18 21 26 / 14%);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root[data-design="column"]:not([data-scheme="light"]) {
-    --page: #0d0f11;
-    --surface: #0d0f11;
-    --surface-soft: #14181b;
-    --surface-hover: #1a1f22;
-    --text: #e8eaec;
-    --text-soft: #98a1a8;
-    --text-faint: #6e777d;
-    --line: #23282c;
-    --line-strong: #363d42;
-    --accent: #e8eaec;
-    --accent-soft: #1a1f22;
-    --accent-strong: #e8eaec;
-    --code-bg: #121517;
-    --quote: #363d42;
-    --mark: #3a3117;
-    --mark-edge: #d9ae4c;
-    --note: #a5b0b8;
-    --tip: #7fb497;
-    --important: #a795c9;
-    --warn: #d9ae4c;
-    --stop: #e08a7d;
-    --shadow: 0 20px 56px rgb(0 0 0 / 58%);
-  }
-}
-
-:root[data-design="column"][data-scheme="dark"] {
-  --page: #0d0f11;
-  --surface: #0d0f11;
-  --surface-soft: #14181b;
-  --surface-hover: #1a1f22;
-  --text: #e8eaec;
-  --text-soft: #98a1a8;
-  --text-faint: #6e777d;
-  --line: #23282c;
-  --line-strong: #363d42;
-  --accent: #e8eaec;
-  --accent-soft: #1a1f22;
-  --accent-strong: #e8eaec;
-  --code-bg: #121517;
-  --quote: #363d42;
-  --mark: #3a3117;
-  --mark-edge: #d9ae4c;
-  --note: #a5b0b8;
-  --tip: #7fb497;
-  --important: #a795c9;
-  --warn: #d9ae4c;
-  --stop: #e08a7d;
-  --shadow: 0 20px 56px rgb(0 0 0 / 58%);
+  --page: light-dark(#ffffff, #0d0f11);
+  --surface: light-dark(#ffffff, #0d0f11);
+  --surface-soft: light-dark(#f4f6f7, #14181b);
+  --surface-hover: light-dark(#eaeef0, #1a1f22);
+  --text: light-dark(#12151a, #e8eaec);
+  --text-soft: light-dark(#545c64, #98a1a8);
+  --text-faint: light-dark(#868e95, #6e777d);
+  --line: light-dark(#e3e7ea, #23282c);
+  --line-strong: light-dark(#c9cfd4, #363d42);
+  --accent: light-dark(#12151a, #e8eaec);
+  --accent-soft: light-dark(#eef0f2, #1a1f22);
+  --accent-strong: light-dark(#12151a, #e8eaec);
+  --code-bg: light-dark(#f6f8f9, #121517);
+  --quote: light-dark(#c9cfd4, #363d42);
+  --mark: light-dark(#fbf1cd, #3a3117);
+  --mark-edge: light-dark(#b8892b, #d9ae4c);
+  --note: light-dark(#4a5560, #a5b0b8);
+  --tip: light-dark(#3f6b52, #7fb497);
+  --important: light-dark(#5b4a7a, #a795c9);
+  --warn: light-dark(#9c7211, #d9ae4c);
+  --stop: light-dark(#a8322a, #e08a7d);
+  --shadow-color: light-dark(rgb(18 21 26 / 14%), rgb(0 0 0 / 58%));
 }
 
 /* A page loaded before app.js runs still needs a palette. */
@@ -305,55 +190,28 @@
   --sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
   --read: Literata, Georgia, serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  --page: #f4f5f2;
-  --surface: #fbfbf9;
-  --surface-soft: #edefea;
-  --surface-hover: #e4e7e0;
-  --text: #1b1e20;
-  --text-soft: #555b5e;
-  --text-faint: #7f8689;
-  --line: #dcdfd8;
-  --line-strong: #c4c8bf;
-  --accent: #2c5c8f;
-  --accent-soft: #dde7f1;
-  --accent-strong: #234c77;
-  --code-bg: #edefea;
-  --quote: #c4c8bf;
-  --mark: #fbf1cd;
-  --mark-edge: #b8892b;
-  --note: #2c5c8f;
-  --tip: #2f6b4f;
-  --important: #6b4a9e;
-  --warn: #8f5a00;
-  --stop: #a33224;
-  --shadow: 0 16px 44px rgb(28 32 30 / 16%);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-design]) {
-    --page: #15181a;
-    --surface: #1b1f22;
-    --surface-soft: #22262a;
-    --surface-hover: #2a2f33;
-    --text: #e4e6e1;
-    --text-soft: #a9afaa;
-    --text-faint: #7f8781;
-    --line: #2b3034;
-    --line-strong: #3c4349;
-    --accent: #86b3de;
-    --accent-soft: #1e2c3a;
-    --accent-strong: #a5c9ea;
-    --code-bg: #1e2225;
-    --quote: #3c4349;
-    --mark: #3a3117;
-    --mark-edge: #d9ae4c;
-    --note: #86b3de;
-    --tip: #7fc4a1;
-    --important: #b79ae0;
-    --warn: #d9a44e;
-    --stop: #e08a7d;
-    --shadow: 0 20px 56px rgb(0 0 0 / 46%);
-  }
+  --page: light-dark(#f4f5f2, #15181a);
+  --surface: light-dark(#fbfbf9, #1b1f22);
+  --surface-soft: light-dark(#edefea, #22262a);
+  --surface-hover: light-dark(#e4e7e0, #2a2f33);
+  --text: light-dark(#1b1e20, #e4e6e1);
+  --text-soft: light-dark(#555b5e, #a9afaa);
+  --text-faint: light-dark(#7f8689, #7f8781);
+  --line: light-dark(#dcdfd8, #2b3034);
+  --line-strong: light-dark(#c4c8bf, #3c4349);
+  --accent: light-dark(#2c5c8f, #86b3de);
+  --accent-soft: light-dark(#dde7f1, #1e2c3a);
+  --accent-strong: light-dark(#234c77, #a5c9ea);
+  --code-bg: light-dark(#edefea, #1e2225);
+  --quote: light-dark(#c4c8bf, #3c4349);
+  --mark: light-dark(#fbf1cd, #3a3117);
+  --mark-edge: light-dark(#b8892b, #d9ae4c);
+  --note: light-dark(#2c5c8f, #86b3de);
+  --tip: light-dark(#2f6b4f, #7fc4a1);
+  --important: light-dark(#6b4a9e, #b79ae0);
+  --warn: light-dark(#8f5a00, #d9a44e);
+  --stop: light-dark(#a33224, #e08a7d);
+  --shadow-color: light-dark(rgb(28 32 30 / 16%), rgb(0 0 0 / 46%));
 }
 
 *,

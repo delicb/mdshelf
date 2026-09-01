@@ -129,13 +129,26 @@ func TestShutdownAdHocServer(t *testing.T) {
 	}
 }
 
+func TestVersionFlag(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"-version"}, &stdout, &stderr); err != nil {
+		t.Fatalf("run(-version) error = %v", err)
+	}
+	if got, want := stdout.String(), "mdshelf "+version+"\n"; got != want {
+		t.Fatalf("run(-version) output = %q, want %q", got, want)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("run(-version) stderr = %q, want empty", stderr.String())
+	}
+}
+
 func TestParseOptionsHelp(t *testing.T) {
 	var output bytes.Buffer
 	_, err := parseOptions([]string{"-help"}, &output)
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("parseOptions(-help) error = %v, want flag.ErrHelp", err)
 	}
-	for _, want := range []string{"mdshelf [options] [root]", "mdshelf add [--json] <markdown-file>", "mdshelf review show", "mdshelf skill install", "-allow-hostname value", "-port int", "(default 7331)"} {
+	for _, want := range []string{"mdshelf [options] [root]", "mdshelf add [--json] <markdown-file>", "mdshelf review show", "mdshelf skill install", "-allow-hostname value", "-port int", "(default 7331)", "-version"} {
 		if !strings.Contains(output.String(), want) {
 			t.Errorf("help output does not contain %q:\n%s", want, output.String())
 		}
