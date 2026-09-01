@@ -9,7 +9,7 @@ require (
 	github.com/jschaf/bibtex v0.0.0-20250819063624-2ec82ed44a1e
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/rjeczalik/notify v0.9.3
-	github.com/yuin/goldmark v1.8.2
+	github.com/yuin/goldmark v1.8.5
 	github.com/yuin/goldmark-emoji v1.0.6
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	golang.org/x/sys v0.30.0
